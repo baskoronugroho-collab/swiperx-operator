@@ -1,0 +1,51 @@
+{
+  "_comment": "OC engine fixed config. SYNCED FROM ../oc-engine/config.json (the validated local-trial harness). Keep the two in step. Values extracted from real templates 07 Jul 2026; see oc-engine/EXTRACTION_NOTES.md. Note: the backend uses config.PUBLIC_BASE_URL (with scheme) for the link host, not public_base_url below.",
+  "public_base_url": "swiperx-operator.apps.substrait.build",
+  "master_shipper_id": "11398423",
+  "services": {
+    "S1": { "name": "Ninja Express Intercity (Regular)", "movement": 1, "branch_id": "1", "service_level": "STANDARD", "direction": "forward", "layout": "forward_regular", "shipper_id": "11398224" },
+    "S2": { "name": "Sameday CTM (Instant)", "movement": 2, "branch_id": "3", "service_level": "SAMEDAY", "direction": "forward", "layout": "forward_sameday", "shipper_id": "11549046" },
+    "S3": { "name": "RTS Account (Return Pickup)", "movement": 3, "branch_id": "2", "service_level": "STANDARD", "direction": "return", "layout": "return", "shipper_id": "11398434" }
+  },
+  "source_layouts": {
+    "forward_regular": {
+      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
+      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "J", "zip": "K", "city": "L", "phone": "M", "koli": "N" }
+    },
+    "forward_sameday": {
+      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
+      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "M", "zip": "N", "city": "O", "phone": "P", "koli": "W" }
+    },
+    "return": {
+      "data_start_row": 4, "group_key_col": "D", "koli_mode": "single",
+      "cols": { "return_awb": "D", "po": "G", "inv": "H", "detail": "I", "pharmacy_name": "C", "address": "L", "city": "M", "phone": "O" }
+    }
+  },
+  "max_collies_per_awb": 200,
+  "warehouse": {
+    "name": "PT Teknologi Medika Pratama (SwipeRx) (B2BR)",
+    "phone": "087733785699",
+    "address1": "Jl. Tugu Raya, Tugu, Kec. Cimanggis, Kota Depok, Jawa Barat 16451,KUBIK LOGISTICS - Kompleks Pergudangan,Gudang E1",
+    "country": "ID",
+    "kecamatan": "Cimanggis",
+    "city": "Depok",
+    "province": "Jawa barat",
+    "postcode": "16451"
+  },
+  "fixed": {
+    "service_type": "Corporate B2B Bundle",
+    "documents_required": "RDO",
+    "is_pickup_required_forward": "FALSE",
+    "is_pickup_required_return": "TRUE",
+    "is_dangerous_good": "FALSE",
+    "insured_value": "0",
+    "item_description_return": "OBAT",
+    "timeslot": { "start_time": "09:00", "end_time": "22:00", "timezone": "Asia/Jakarta" }
+  },
+  "rdo_text": {
+    "forward": "Semua dokumen wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima. Silahkan selesaikan delivery melalui link berikut:",
+    "return_delivery_short": "Pickup Return. Detail barang & nomor invoice WAJIB dibuka di link berikut. Wajib bawa form BA Return. ",
+    "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA"
+  },
+  "link_char_limit": 500
+}

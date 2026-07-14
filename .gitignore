@@ -1,0 +1,32 @@
+# --- Secrets / deploy state (NEVER commit) ---
+.substrait/
+.env
+*.env
+backend/.env
+!*.env.example
+
+# --- Build / deploy artifacts ---
+.deploy.zip
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+dist/
+build/
+.pytest_cache/
+
+# --- Regenerable OC-engine sample outputs ---
+oc-engine/out-S1/
+oc-engine/out-S2/
+oc-engine/out-S3/
+
+# --- Design working files (the live design lives in frontend/) ---
+_design_extracted/
+Updated design.zip
+
+# --- Local editor / tooling config ---
+.claude/settings.local.json
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db

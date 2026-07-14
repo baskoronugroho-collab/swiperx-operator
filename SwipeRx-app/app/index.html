@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwipeRx Operator</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 6px; }
+  @keyframes njPop { 0% { transform: scale(.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes njFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  #njReset { position: fixed; right: 12px; bottom: 12px; z-index: 200; font-family: inherit; font-size: 11px; font-weight: 600;
+    color: #6B7280; background: #fff; border: 1px solid #E2E8F0; border-radius: 8px; padding: 6px 11px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(16,24,40,.10); opacity: .65; }
+  #njReset:hover { opacity: 1; color: #EE1B2C; border-color: #F6C9C2; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/template" id="tpl">
+<div style="min-height:100vh;background:#F1F5F8;font-family:Montserrat,system-ui,sans-serif;color:#333;-webkit-font-smoothing:antialiased;">
+
+  <!-- ============ TOP BAR ============ -->
+  <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #E2E8F0;box-shadow:0 1px 2px rgba(16,24,40,.04);">
+    <div style="max-width:1240px;margin:0 auto;padding:0 20px;height:60px;display:flex;align-items:center;gap:22px;">
+      <div style="display:flex;align-items:center;gap:11px;">
+        <div style="width:34px;height:34px;border-radius:9px;background:#EE1B2C;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(238,27,44,.32);">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 8 L12 4 L19 8 L19 16 L12 20 L5 16 Z" fill="none" stroke="#fff" stroke-width="1.7"></path><circle cx="12" cy="12" r="2.4" fill="#fff"></circle></svg>
+        </div>
+        <div style="line-height:1.05;">
+          <div style="font-weight:700;font-size:15px;letter-spacing:-.2px;">SwipeRx <span style="color:#EE1B2C;">Operator</span></div>
+          <div style="font-size:10px;color:#6B7280;font-weight:500;letter-spacing:.3px;">NINJA VAN · INDONESIA</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:4px;background:#F1F5F8;padding:4px;border-radius:11px;margin-left:6px;">
+        <button onClick="{{ goOperator }}" style="{{ navOperatorStyle }}">{{ T.navOperator }}</button>
+        <button onClick="{{ goDriver }}" style="{{ navDriverStyle }}">{{ T.navDriver }}</button>
+        <button onClick="{{ goReport }}" style="{{ navReportStyle }}">{{ T.navReport }}</button>
+      </div>
+
+      <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+        <div style="display:flex;align-items:center;gap:0;border:1px solid #E2E8F0;border-radius:9px;overflow:hidden;">
+          <button onClick="{{ setID }}" style="{{ langIdStyle }}">ID</button>
+          <button onClick="{{ setEN }}" style="{{ langEnStyle }}">EN</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:4px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:#EEF1F4;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#6B7280;">OP</div>
+          <div style="font-size:11px;color:#6B7280;line-height:1.1;">Demo Only</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ OPERATOR ============ -->
+  <sc-if value="{{ isOperator }}" hint-placeholder-val="{{ true }}">
+  <div style="max-width:1240px;margin:0 auto;padding:24px 20px 60px;animation:njFade .25s ease;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;">
+      <div>
+        <h1 style="margin:0;font-size:23px;font-weight:700;letter-spacing:-.4px;">Dashboard</h1>
+        
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;border-bottom:1px solid #E2E8F0;margin-bottom:22px;flex-wrap:wrap;">
+      <button onClick="{{ tabCreate }}" style="{{ tabCreateStyle }}">{{ T.tabCreate }}</button>
+      <button onClick="{{ tabRdo }}" style="{{ tabRdoStyle }}">{{ T.tabRdo }} <span style="{{ rdoBadgeStyle }}">{{ rdoQueueCount }}</span></button>
+      <button onClick="{{ tabUpload }}" style="{{ tabUploadStyle }}">{{ T.tabUpload }}</button>
+      <button onClick="{{ tabOrders }}" style="{{ tabOrdersStyle }}">{{ T.tabOrders }}</button>
+    </div>
+
+    <!-- ---- A1 ORDER CREATION ---- -->
+    <sc-if value="{{ onCreate }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start;">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:22px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h3 style="margin:0;font-size:15px;font-weight:700;">{{ T.csvUpload }}</h3>
+          <div style="display:flex;gap:8px;">
+            <button onClick="{{ downloadTemplate }}" style="font-family:inherit;font-size:12px;font-weight:600;color:#EE1B2C;background:#FEECEE;border:none;padding:7px 12px;border-radius:8px;cursor:pointer;">{{ T.downloadTemplate }}</button>
+          </div>
+        </div>
+
+        <div onClick="{{ loadSampleCsv }}" style="{{ dropZoneStyle }}">
+          <svg viewBox="0 0 24 24" width="34" height="34" style="margin-bottom:10px;"><path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="#EE1B2C" stroke-width="1.6" fill="none" stroke-linecap="round"></path><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="#9aa5b1" stroke-width="1.6" fill="none" stroke-linecap="round"></path></svg>
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px;">{{ T.dropHere }}</div>
+          <div style="font-size:12px;color:#6B7280;margin-bottom:12px;">{{ T.dropHint }}</div>
+          <div style="display:inline-flex;align-items:center;gap:7px;background:#EE1B2C;color:#fff;font-weight:600;font-size:12.5px;padding:9px 16px;border-radius:9px;box-shadow:0 3px 9px rgba(238,27,44,.28);">
+            {{ T.useSample }}
+          </div>
+          <div style="font-size:11px;color:#9aa5b1;margin-top:10px;">{{ T.sampleNote }}</div>
+        </div>
+
+        <sc-if value="{{ csvDone }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:18px;animation:njFade .3s ease;">
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <div style="flex:1;background:#EAF7EF;border:1px solid #BBE7CC;border-radius:10px;padding:11px 13px;">
+              <div style="font-size:21px;font-weight:700;color:#1F9D57;">{{ csvValidCount }}</div>
+              <div style="font-size:11px;color:#1F9D57;font-weight:600;">{{ T.rowsCommitted }}</div>
+            </div>
+            <div style="flex:1;background:#FDEEEC;border:1px solid #F6C9C2;border-radius:10px;padding:11px 13px;">
+              <div style="font-size:21px;font-weight:700;color:#D11A2A;">{{ csvErrorCount }}</div>
+              <div style="font-size:11px;color:#D11A2A;font-weight:600;">{{ T.rowsErrored }}</div>
+            </div>
+            <div style="flex:1.4;background:#F1F5F8;border:1px solid #E2E8F0;border-radius:10px;padding:11px 13px;">
+              <div style="font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 3h7l5 5v13H7z" fill="none" stroke="#6B7280" stroke-width="1.5"></path><path d="M14 3v5h5" fill="none" stroke="#6B7280" stroke-width="1.5"></path></svg>
+                {{ csvFileName }}
+              </div>
+              <div style="font-size:11px;color:#6B7280;margin-top:2px;">{{ T.retainedFile }}</div>
+            </div>
+          </div>
+
+          <!-- ERROR LOG -->
+          <sc-if value="{{ hasErrors }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid #F6C9C2;border-radius:10px;overflow:hidden;margin-bottom:14px;">
+            <div style="background:#FDEEEC;padding:9px 13px;font-size:12px;font-weight:700;color:#D11A2A;display:flex;align-items:center;gap:7px;">
+              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8v5M12 16.5v.01M10.3 3.9 2.6 17.5A1.5 1.5 0 004 19.8h16a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z" fill="none" stroke="#D11A2A" stroke-width="1.5"></path></svg>
+              {{ T.errorLog }}
+            </div>
+            <sc-for list="{{ errorRows }}" as="er" hint-placeholder-count="2">
+              <div style="display:flex;gap:12px;padding:9px 13px;border-top:1px solid #F6C9C2;font-size:12px;align-items:center;">
+                <code style="font-family:ui-monospace,monospace;color:#6B7280;min-width:90px;font-size:11.5px;">{{ er.awb }}</code>
+                <span style="color:#D11A2A;font-weight:600;">{{ er.reason }}</span>
+                <code style="margin-left:auto;font-family:ui-monospace,monospace;font-size:10.5px;color:#9aa5b1;">{{ er.raw }}</code>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
+
+          <button onClick="{{ tabOrdersFromCreate }}" style="font-family:inherit;width:100%;background:#fff;border:1px solid #E2E8F0;color:#333;font-weight:600;font-size:13px;padding:11px;border-radius:9px;cursor:pointer;">{{ T.viewInOrders }}</button>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- manual entry + creation log -->
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:20px;">
+          <h3 style="margin:0 0 4px;font-size:14px;font-weight:700;">{{ T.manualEntry }}</h3>
+          <p style="margin:0 0 13px;font-size:11.5px;color:#6B7280;">{{ T.manualHint }}</p>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <input data-k="mAwb" value="{{ mAwb }}" onInput="{{ onMAwb }}" placeholder="AWB" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;">
+            <input data-k="mPharmacy" value="{{ mPharmacy }}" onInput="{{ onMPharmacy }}" placeholder="{{ T.pharmacy }}" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;">
+            <div style="display:flex;gap:9px;">
+              <input data-k="mHub" value="{{ mHub }}" onInput="{{ onMHub }}" placeholder="HUB (BKS01)" style="font-family:inherit;flex:1;border:1px solid #E2E8F0;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;">
+              <select data-k="mType" onChange="{{ onMType }}" style="font-family:inherit;flex:1;border:1px solid #E2E8F0;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;background:#fff;">
+                <option value="manual">SP Manual</option><option value="electronic">SP Electronic</option>
+              </select>
+            </div>
+            <button onClick="{{ createOne }}" style="font-family:inherit;background:#fff;border:1.5px solid #EE1B2C;color:#EE1B2C;font-weight:600;font-size:13px;padding:9px;border-radius:9px;cursor:pointer;">{{ T.createOne }}</button>
+            <sc-if value="{{ manualMsg }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ manualMsgStyle }}">{{ manualMsg }}</div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:20px;">
+          <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;">{{ T.creationLog }}</h3>
+          <sc-for list="{{ creationLog }}" as="cl" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid #F1F5F8;">
+              <div style="width:32px;height:32px;border-radius:8px;background:#FEECEE;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg viewBox="0 0 24 24" width="15" height="15"><path d="M7 3h7l5 5v13H7z" fill="none" stroke="#EE1B2C" stroke-width="1.5"></path></svg>
+              </div>
+              <div style="min-width:0;">
+                <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cl.file }}</div>
+                <div style="font-size:11px;color:#6B7280;">{{ cl.meta }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <button onClick="{{ downloadLinks }}" style="{{ downloadLinksStyle }}">
+            <svg viewBox="0 0 24 24" width="15" height="15"><path d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"></path></svg>
+            {{ T.downloadLinks }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINKS TABLE -->
+    <sc-if value="{{ csvDone }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;margin-top:20px;overflow:hidden;animation:njFade .3s ease;">
+      <div style="padding:15px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:14px;font-weight:700;">{{ T.driverLinks }}</h3>
+        <span style="font-size:11.5px;color:#6B7280;">{{ T.linksHint }}</span>
+      </div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px;">
+        <thead><tr style="background:#F8FAFC;">
+          <th style="{{ thStyle }}">AWB</th>
+          <th style="{{ thStyle }}">{{ T.driverLink }}</th>
+          <th style="{{ thStyle }}">{{ T.pharmacy }}</th>
+          <th style="{{ thStyle }}">HUB</th>
+          <th style="{{ thStyle }}">{{ T.destArea }}</th>
+          <th style="{{ thStyle }}">{{ T.status }}</th>
+          <th style="{{ thStyle }}"></th>
+        </tr></thead>
+        <tbody data-for="linkRows" data-as="r">
+          <tr style="border-top:1px solid #F1F5F8;">
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;font-weight:600;">{{ r.awb }}</code></td>
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;color:#EE1B2C;font-weight:600;background:#FEECEE;padding:3px 8px;border-radius:6px;">{{ r.link }}</code></td>
+            <td style="{{ tdStyle }}">{{ r.pharmacy }}</td>
+            <td style="{{ tdStyle }}"><span style="font-family:ui-monospace,monospace;font-weight:600;">{{ r.hub }}</span></td>
+            <td style="{{ tdStyle }}">{{ r.dest }}</td>
+            <td style="{{ tdStyle }}"><span style="{{ r.stStyle }}">{{ r.stLabel }}</span></td>
+            <td style="{{ tdStyle }}"><button onClick="{{ r.open }}" style="font-family:inherit;font-size:11.5px;font-weight:600;color:#EE1B2C;background:none;border:1px solid #F6C9C2;padding:5px 11px;border-radius:7px;cursor:pointer;">{{ T.openLink }}</button></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    </sc-if>
+    </sc-if>
+
+    <!-- ---- A2 RDO VALIDATION ---- -->
+    <sc-if value="{{ onRdo }}" hint-placeholder-val="{{ false }}">
+    <div style="display:grid;grid-template-columns:.95fr 1.05fr;gap:20px;align-items:start;">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;">
+        <div style="padding:15px 18px;border-bottom:1px solid #E2E8F0;">
+          <h3 style="margin:0 0 11px;font-size:14px;font-weight:700;">{{ T.validationQueue }}</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;border:1px solid #E2E8F0;border-radius:8px;padding:6px 9px;font-size:11.5px;color:#6B7280;">
+              <svg viewBox="0 0 24 24" width="13" height="13"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="#9aa5b1" stroke-width="1.5"></rect><path d="M3 9h18M8 3v4M16 3v4" stroke="#9aa5b1" stroke-width="1.5"></path></svg>
+              01/03/2026 – 12/03/2026
+            </div>
+            <select style="font-family:inherit;border:1px solid #E2E8F0;border-radius:8px;padding:6px 9px;font-size:11.5px;color:#333;background:#fff;">
+              <option>{{ T.allStatus }}</option><option>Pending Validation</option><option>Validated</option>
+            </select>
+          </div>
+        </div>
+        <sc-for list="{{ rdoQueue }}" as="q" hint-placeholder-count="3">
+          <div onClick="{{ q.select }}" style="{{ q.rowStyle }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <code style="font-family:ui-monospace,monospace;font-weight:700;font-size:13px;">{{ q.awb }}</code>
+              <span style="{{ q.retStyle }}">{{ q.retLabel }}</span>
+            </div>
+            <div style="font-size:11.5px;color:#6B7280;margin-bottom:7px;">{{ q.pharmacy }} · {{ q.hub }}</div>
+            <span style="{{ q.stStyle }}">{{ q.stLabel }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- detail -->
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:22px;">
+        <sc-if value="{{ rdoSelected }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <code style="font-family:ui-monospace,monospace;font-size:18px;font-weight:700;">{{ sel.awb }}</code>
+          <span style="{{ sel.stStyle }}">{{ sel.stLabel }}</span>
+        </div>
+        <div style="font-size:12.5px;color:#6B7280;margin-bottom:16px;">{{ sel.pharmacy }} · {{ sel.hub }} · {{ sel.dest }}</div>
+
+        <div style="font-size:11.5px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.rdoGallery }}</div>
+        <div style="display:flex;gap:10px;margin-bottom:18px;">
+          <sc-for list="{{ sel.docs }}" as="d" hint-placeholder-count="3">
+            <div style="flex:1;">
+              <div style="aspect-ratio:3/4;border:1px solid #E2E8F0;border-radius:9px;overflow:hidden;background:#F8FAFC;position:relative;">
+                <img ref="{{ d.imgRef }}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(31,157,87,.92);color:#fff;font-size:9.5px;font-weight:700;padding:3px 6px;display:flex;align-items:center;gap:4px;">
+                  <svg viewBox="0 0 24 24" width="10" height="10"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  {{ d.attestLabel }}
+                </div>
+              </div>
+              <div style="font-size:10.5px;font-weight:600;text-align:center;margin-top:5px;">{{ d.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- return completeness -->
+        <sc-if value="{{ sel.isReturn }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFF8EC;border:1px solid #F5E2B8;border-radius:10px;padding:13px 15px;margin-bottom:18px;">
+          <div style="font-size:11.5px;font-weight:700;color:#9a6a00;margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;">
+            <span>{{ T.returnCompleteness }} · {{ sel.retLabel }}</span>
+            <span style="{{ sel.completeStyle }}">{{ sel.completeLabel }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <sc-for list="{{ sel.returnChecks }}" as="rc" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                <span style="{{ rc.iconStyle }}">{{ rc.icon }}</span>{{ rc.label }}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- decision -->
+        <sc-if value="{{ sel.pending }}" hint-placeholder-val="{{ true }}">
+        <div style="border-top:1px solid #F1F5F8;padding-top:16px;">
+          <div style="font-size:11.5px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">{{ T.decision }}</div>
+          <div style="display:flex;gap:10px;margin-bottom:13px;">
+            <button onClick="{{ markValid }}" style="flex:1;font-family:inherit;background:#1F9D57;color:#fff;border:none;font-weight:700;font-size:13.5px;padding:12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{ T.valid }}
+            </button>
+            <button onClick="{{ toggleInvalid }}" style="{{ invalidBtnStyle }}">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"></path></svg>{{ T.invalid }}
+            </button>
+          </div>
+          <sc-if value="{{ showInvalidPanel }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FDEEEC;border:1px solid #F6C9C2;border-radius:10px;padding:13px;animation:njFade .2s ease;">
+            <div style="font-size:11.5px;font-weight:700;color:#D11A2A;margin-bottom:3px;">{{ T.perDocReason }}</div>
+            <div style="font-size:11px;color:#b03;margin-bottom:11px;">{{ T.perDocReasonHint }}</div>
+            <sc-for list="{{ sel.invalidDocRows }}" as="ir" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #F6C9C2;border-radius:9px;padding:10px 11px;margin-bottom:8px;">
+                <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">{{ ir.name }}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button onClick="{{ ir.pickNone }}" style="{{ ir.noneStyle }}">{{ T.reasonOk }}</button>
+                  <button onClick="{{ ir.pickHilang }}" style="{{ ir.hilangStyle }}">{{ T.reasonHilang }}</button>
+                  <button onClick="{{ ir.pickCap }}" style="{{ ir.capStyle }}">{{ T.reasonCap }}</button>
+                </div>
+              </div>
+            </sc-for>
+            <button onClick="{{ confirmInvalid }}" style="{{ lockInvalidStyle }}">{{ lockInvalidLabel }}</button>
+          </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <!-- resolved status -->
+        <sc-if value="{{ sel.resolved }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ sel.resolvedBoxStyle }}">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:7px;">{{ sel.resolvedTitle }}</div>
+          <div style="font-size:12px;opacity:.92;">{{ sel.resolvedDetail }}</div>
+        </div>
+        </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ rdoEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="text-align:center;padding:50px 20px;color:#9aa5b1;">
+          <svg viewBox="0 0 24 24" width="40" height="40" style="margin-bottom:10px;"><path d="M9 11l3 3L22 4" stroke="#cbd5e0" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="#cbd5e0" stroke-width="1.5" fill="none" stroke-linecap="round"></path></svg>
+          <div style="font-size:13px;font-weight:600;">{{ T.selectFromQueue }}</div>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---- A3 DOCUMENT UPLOAD ---- -->
+    <sc-if value="{{ onUpload }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:720px;">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:22px;margin-bottom:18px;">
+        <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;">{{ T.findAwb }}</h3>
+        <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.findAwbHint }}</p>
+        <div style="display:flex;gap:9px;">
+          <input data-k="upq" value="{{ uploadQuery }}" onInput="{{ onUploadQuery }}" placeholder="AWB02S5W8" style="font-family:ui-monospace,monospace;flex:1;border:1px solid #E2E8F0;border-radius:9px;padding:11px 13px;font-size:14px;font-weight:600;outline:none;">
+          <button style="font-family:inherit;display:flex;align-items:center;gap:7px;background:#F1F5F8;border:1px solid #E2E8F0;color:#6B7280;font-weight:600;font-size:12.5px;padding:0 14px;border-radius:9px;cursor:pointer;">
+            <svg viewBox="0 0 24 24" width="15" height="15"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="#9aa5b1" stroke-width="1.5"></rect><path d="M7 9v6M10 9v6M13 9v6M16 9v6" stroke="#9aa5b1" stroke-width="1.5"></path></svg>{{ T.scan }}
+          </button>
+          <button onClick="{{ doFindAwb }}" style="font-family:inherit;background:#EE1B2C;color:#fff;border:none;font-weight:700;font-size:13px;padding:0 20px;border-radius:9px;cursor:pointer;">{{ T.find }}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ uploadFound }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:22px;animation:njFade .25s ease;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <code style="font-family:ui-monospace,monospace;font-size:17px;font-weight:700;">{{ uFound.awb }}</code>
+          <span style="{{ uFound.stStyle }}">{{ uFound.stLabel }}</span>
+        </div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:18px;">{{ uFound.pharmacy }} · {{ uFound.hub }}</div>
+
+        <sc-if value="{{ uFound.locked }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FDEEEC;border:1px solid #F6C9C2;border-radius:10px;padding:13px 15px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start;">
+          <svg viewBox="0 0 24 24" width="18" height="18" style="flex-shrink:0;margin-top:1px;"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="#D11A2A" stroke-width="1.6"></rect><path d="M8 11V8a4 4 0 018 0v3" stroke="#D11A2A" stroke-width="1.6" fill="none"></path></svg>
+          <div>
+            <div style="font-size:12.5px;font-weight:700;color:#D11A2A;">{{ T.rdoLocked }}</div>
+            <div style="font-size:11.5px;color:#b03;margin-top:2px;">{{ uFound.lockReason }}</div>
+          </div>
+        </div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div style="border:1.5px dashed #E2E8F0;border-radius:11px;padding:16px;text-align:center;">
+            <div style="font-size:12.5px;font-weight:700;margin-bottom:9px;">{{ T.slotRdo }}</div>
+            <svg viewBox="0 0 24 24" width="26" height="26" style="margin-bottom:8px;"><path d="M12 16V4M12 4l-3 3M12 4l3 3" stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-linecap="round"></path><path d="M5 16v3h14v-3" stroke="#9aa5b1" stroke-width="1.5" fill="none"></path></svg>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:11px;">Faktur · TTTF · SP</div>
+            <button onClick="{{ uploadRdoDocs }}" style="{{ uploadRdoBtnStyle }}">{{ uFound.rdoBtnLabel }}</button>
+          </div>
+          <div style="border:1.5px dashed #E2E8F0;border-radius:11px;padding:16px;text-align:center;">
+            <div style="font-size:12.5px;font-weight:700;margin-bottom:9px;">{{ T.slotReturn }}</div>
+            <svg viewBox="0 0 24 24" width="26" height="26" style="margin-bottom:8px;"><path d="M3 7h13l-3-3M21 17H8l3 3" stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:11px;">{{ T.returnItemsHint }}</div>
+            <button onClick="{{ uploadReturnItems }}" style="font-family:inherit;width:100%;background:#fff;border:1.5px solid #E2E8F0;color:#333;font-weight:600;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer;">{{ T.uploadFiles }}</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ uFound.hasFiles }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:16px;border-top:1px solid #F1F5F8;padding-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.uploadedFiles }}</div>
+          <sc-for list="{{ uFound.files }}" as="f" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 0;font-size:12px;">
+              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 3h7l5 5v13H7z" fill="none" stroke="#6B7280" stroke-width="1.5"></path></svg>
+              {{ f.name }}<span style="margin-left:auto;color:#1F9D57;font-weight:600;">{{ f.size }}</span>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ uploadNotFound }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:40px;text-align:center;color:#9aa5b1;">
+        <div style="font-size:13px;font-weight:600;">{{ T.awbNotFound }}</div>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ---- A4 ORDERS LIST ---- -->
+    <sc-if value="{{ onOrders }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;">
+      <div style="padding:15px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h3 style="margin:0;font-size:14px;font-weight:700;">{{ T.allOrders }}</h3>
+        <span style="font-size:11px;color:#9aa5b1;margin-right:auto;">{{ T.viewDetail }}</span>
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #E2E8F0;border-radius:8px;padding:7px 10px;font-size:11.5px;color:#6B7280;">
+          <svg viewBox="0 0 24 24" width="13" height="13"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="#9aa5b1" stroke-width="1.5"></rect><path d="M3 9h18M8 3v4M16 3v4" stroke="#9aa5b1" stroke-width="1.5"></path></svg>
+          01/03/2026 – 12/03/2026
+        </div>
+        <select data-k="ordf" onChange="{{ onOrderFilter }}" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:8px;padding:7px 10px;font-size:11.5px;color:#333;background:#fff;">
+          <option value="all">{{ T.allStatus }}</option>
+          <option value="created">Created</option>
+          <option value="delivered">Delivered</option>
+          <option value="pending">Pending Validation</option>
+          <option value="validated">Validated</option>
+          <option value="rdo_completed">RDO Completed</option>
+        </select>
+        <button onClick="{{ exportOrders }}" style="font-family:inherit;display:flex;align-items:center;gap:6px;background:#EE1B2C;color:#fff;border:none;font-weight:600;font-size:12px;padding:8px 13px;border-radius:8px;cursor:pointer;">
+          <svg viewBox="0 0 24 24" width="13" height="13"><path d="M12 3v12M12 15l-4-4M12 15l4-4M5 21h14" stroke="#fff" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{ T.exportCsv }}
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:920px;">
+        <thead><tr style="background:#F8FAFC;">
+          <th style="{{ thStyle }}">AWB</th><th style="{{ thStyle }}">{{ T.pharmacy }}</th>
+          <th style="{{ thStyle }}">HUB</th><th style="{{ thStyle }}">{{ T.destArea }}</th>
+          <th style="{{ thStyle }}">{{ T.status }}</th><th style="{{ thStyle }}">{{ T.validation }}</th>
+          <th style="{{ thStyle }}">Retur</th><th style="{{ thStyle }}">{{ T.returnAwb }}</th>
+          <th style="{{ thStyle }}">{{ T.date }}</th>
+        </tr></thead>
+        <tbody data-for="orderRows" data-as="o">
+          <tr onClick="{{ o.open }}" style="border-top:1px solid #F1F5F8;cursor:pointer;">
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;font-weight:600;">{{ o.awb }}</code></td>
+            <td style="{{ tdStyle }}">{{ o.pharmacy }}</td>
+            <td style="{{ tdStyle }}"><span style="font-family:ui-monospace,monospace;font-weight:600;">{{ o.hub }}</span></td>
+            <td style="{{ tdStyle }}">{{ o.dest }}</td>
+            <td style="{{ tdStyle }}"><span style="{{ o.stStyle }}">{{ o.stLabel }}</span></td>
+            <td style="{{ tdStyle }}"><span style="{{ o.valStyle }}">{{ o.valLabel }}</span></td>
+            <td style="{{ tdStyle }}"><span style="{{ o.retStyle }}">{{ o.retLabel }}</span></td>
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;color:#6B7280;">{{ o.returnAwb }}</code></td>
+            <td style="{{ tdStyle }}">{{ o.date }}</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- ORDER ROW DETAIL MODAL -->
+    <sc-if value="{{ orderDetailShown }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeOrderDetail }}" style="position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;animation:njFade .15s ease;">
+      <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <code style="font-family:ui-monospace,monospace;font-size:16px;font-weight:700;">{{ od.awb }}</code>
+            <span style="{{ od.stStyle }}">{{ od.stLabel }}</span>
+          </div>
+          <button onClick="{{ closeOrderDetail }}" style="background:#F1F5F8;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;color:#6B7280;">×</button>
+        </div>
+        <div style="padding:18px 20px;overflow:auto;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;">
+            <sc-for list="{{ od.fields }}" as="fd" hint-placeholder-count="6">
+            <div>
+              <div style="font-size:10.5px;font-weight:700;color:#9aa5b1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">{{ fd.label }}</div>
+              <div style="font-size:13px;font-weight:600;">{{ fd.value }}</div>
+            </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ od.hasInvalid }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;background:#FDEEEC;border:1px solid #F6C9C2;border-radius:10px;padding:11px 13px;">
+            <div style="font-size:10.5px;font-weight:700;color:#D11A2A;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">{{ T.invalidReasonLabel }}</div>
+            <div style="font-size:12.5px;font-weight:600;color:#b03;">{{ od.invalidDetail }}</div>
+          </div>
+          </sc-if>
+          <div style="margin-top:16px;border-top:1px solid #F1F5F8;padding-top:14px;">
+            <div style="font-size:10.5px;font-weight:700;color:#9aa5b1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.rdoDocsLabel }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <sc-for list="{{ od.rdoDocs }}" as="dc" hint-placeholder-count="3">
+              <div style="width:92px;">
+                <img src="{{ dc.photo }}" alt="" style="width:92px;height:118px;border-radius:9px;object-fit:cover;border:1px solid #E2E8F0;display:block;">
+                <div style="font-size:10px;font-weight:600;text-align:center;margin-top:5px;color:#6B7280;">{{ dc.name }}</div>
+              </div>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ od.hasReturn }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;border-top:1px solid #F1F5F8;padding-top:14px;">
+            <div style="font-size:10.5px;font-weight:700;color:#9a6a00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.rejectDetails }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <sc-for list="{{ od.returnPhotos }}" as="rpho" hint-placeholder-count="3">
+              <div style="width:92px;">
+                <img src="{{ rpho.photo }}" alt="" style="width:92px;height:70px;border-radius:9px;object-fit:cover;border:1px solid #E2E8F0;display:block;">
+                <div style="font-size:10px;font-weight:600;text-align:center;margin-top:5px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ rpho.name }}</div>
+              </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ============ DRIVER APP ============ -->
+  <sc-if value="{{ isDriver }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:30px 20px 60px;display:flex;justify-content:center;animation:njFade .25s ease;">
+    <div style="width:390px;flex-shrink:0;">
+      <div style="text-align:center;margin-bottom:14px;font-size:12px;color:#6B7280;">{{ T.driverFrameNote }} · <code style="font-family:ui-monospace,monospace;color:#EE1B2C;">{{ driverLinkLabel }}</code></div>
+      <div style="background:#fff;border-radius:32px;border:1px solid #E2E8F0;box-shadow:0 18px 50px rgba(16,24,40,.16);overflow:hidden;position:relative;min-height:760px;display:flex;flex-direction:column;">
+        <!-- status bar -->
+        <div style="background:#EE1B2C;color:#fff;padding:11px 20px 13px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:9px;opacity:.92;">
+            <span>09:41</span>
+            <div style="display:flex;align-items:center;gap:6px;"><span>SwipeRx Driver</span></div>
+            <span>100%</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:15px;font-weight:700;">{{ T.driverApp }}</div>
+            <div style="display:flex;align-items:center;gap:0;border:1px solid rgba(255,255,255,.4);border-radius:8px;overflow:hidden;">
+              <button onClick="{{ setID }}" style="{{ dLangIdStyle }}">ID</button>
+              <button onClick="{{ setEN }}" style="{{ dLangEnStyle }}">EN</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow-y:auto;background:#F8FAFC;">
+
+        <!-- D1 -->
+        <sc-if value="{{ dD1 }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="{{ dOrder.stStyle }}">{{ dOrder.stLabel }}</span>
+            <span style="font-size:11px;color:#6B7280;">Koli {{ dOrder.koli }}</span>
+          </div>
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px;margin-bottom:14px;">
+            <div style="font-size:17px;font-weight:700;margin-bottom:3px;">{{ dOrder.pharmacy }}</div>
+            <div style="font-size:12px;color:#6B7280;margin-bottom:13px;">{{ dOrder.address }}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;font-size:12px;">
+              <div><div style="color:#9aa5b1;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;">AWB</div><code style="font-family:ui-monospace,monospace;font-weight:700;">{{ dOrder.awb }}</code></div>
+              <div><div style="color:#9aa5b1;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;">PO</div><code style="font-family:ui-monospace,monospace;font-weight:700;">{{ dOrder.po }}</code></div>
+              <div><div style="color:#9aa5b1;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;">HUB</div><span style="font-weight:700;">{{ dOrder.hub }}</span></div>
+              <div><div style="color:#9aa5b1;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;">{{ T.orderType }}</div><span style="font-weight:700;">{{ dOrder.typeLabel }}</span></div>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">{{ T.itemList }}</div>
+            <sc-for list="{{ dOrder.items }}" as="it" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #F8FAFC;">
+                <div style="width:24px;height:24px;border-radius:6px;background:#F1F5F8;font-size:11px;font-weight:700;color:#6B7280;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ it.qty }}</div>
+                <span style="font-size:12.5px;">{{ it.name }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <button onClick="{{ driverStart }}" style="width:100%;font-family:inherit;background:#EE1B2C;color:#fff;border:none;font-weight:700;font-size:15px;padding:15px;border-radius:13px;cursor:pointer;box-shadow:0 4px 12px rgba(238,27,44,.3);margin-bottom:10px;">{{ T.startBtn }}</button>
+          <button onClick="{{ driverReturnAll }}" style="width:100%;font-family:inherit;background:#fff;color:#EE1B2C;border:1.5px solid #EE1B2C;font-weight:700;font-size:14px;padding:13px;border-radius:13px;cursor:pointer;">{{ T.returnAllBtn }}</button>
+        </div>
+        </sc-if>
+
+        <!-- D3 RDO CAPTURE GATE -->
+        <sc-if value="{{ dCapture }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px 18px 100px;animation:njFade .2s ease;">
+          <button onClick="{{ driverBack }}" style="background:none;border:none;color:#6B7280;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:12px;">‹ {{ T.back }}</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <h2 style="margin:0;font-size:18px;font-weight:700;">{{ T.captureTitle }}</h2>
+            <span style="background:#FEECEE;color:#EE1B2C;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;">{{ dOrder.typeLabel }}</span>
+          </div>
+          <p style="margin:0 0 16px;font-size:12.5px;color:#6B7280;">{{ T.captureSub }}</p>
+
+          <sc-for list="{{ dSlots }}" as="s" hint-placeholder-count="3">
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:14px;margin-bottom:13px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+              <div style="font-size:13.5px;font-weight:700;">{{ s.idx }}. {{ s.name }}</div>
+              <button onClick="{{ s.seeExample }}" style="font-family:inherit;font-size:11px;font-weight:600;color:#EE1B2C;background:#FEECEE;border:none;padding:5px 10px;border-radius:7px;cursor:pointer;">{{ T.seeExample }}</button>
+            </div>
+            <div style="display:flex;gap:12px;align-items:stretch;">
+              <div style="{{ s.thumbStyle }}">
+                <sc-if value="{{ s.hasPhoto }}" hint-placeholder-val="{{ false }}">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="#9aa5b1" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.3" fill="none" stroke="#9aa5b1" stroke-width="1.5"></circle><rect x="8.5" y="5" width="7" height="3" rx="1" fill="#9aa5b1"></rect></svg>
+                  <div style="font-size:9px;color:#9aa5b1;font-weight:600;margin-top:4px;">{{ T.photoSim }}</div>
+                </sc-if>
+                <sc-if value="{{ s.noPhoto }}" hint-placeholder-val="{{ true }}">
+                  <svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="#cbd5e0" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.3" fill="none" stroke="#cbd5e0" stroke-width="1.5"></circle></svg>
+                </sc-if>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+                <button onClick="{{ s.capture }}" style="{{ s.captureBtnStyle }}">
+                  <svg viewBox="0 0 24 24" width="15" height="15"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect><circle cx="12" cy="13.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6"></circle></svg>
+                  {{ s.captureLabel }}
+                </button>
+                <label onClick="{{ s.attest }}" style="{{ s.attestRowStyle }}">
+                  <span style="{{ s.attestBoxStyle }}">{{ s.attestCheck }}</span>
+                  <span style="font-size:11.5px;line-height:1.3;">{{ T.attestText }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          </sc-for>
+        </div>
+
+        <!-- sticky confirm -->
+        <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E2E8F0;padding:13px 18px;box-shadow:0 -4px 16px rgba(16,24,40,.06);">
+          <sc-if value="{{ gateBlocked }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:11px;color:#D11A2A;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+            <svg viewBox="0 0 24 24" width="13" height="13"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="#D11A2A" stroke-width="1.6"></rect><path d="M8 11V8a4 4 0 018 0v3" stroke="#D11A2A" stroke-width="1.6" fill="none"></path></svg>
+            {{ gateReason }}
+          </div>
+          </sc-if>
+          <button onClick="{{ confirmDelivery }}" style="{{ confirmBtnStyle }}">{{ T.confirmDelivery }}</button>
+        </div>
+        </sc-if>
+
+        <!-- D POST-DELIVER (choose return sebagian / done) -->
+        <sc-if value="{{ dPost }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:24px 18px;animation:njFade .2s ease;">
+          <div style="text-align:center;margin-bottom:22px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:#EAF7EF;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+              <svg viewBox="0 0 24 24" width="34" height="34"><path d="M5 13l4 4L19 7" stroke="#1F9D57" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+            <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;">{{ T.docsCaptured }}</h2>
+            <p style="margin:0;font-size:12.5px;color:#6B7280;">{{ T.docsCapturedSub }}</p>
+          </div>
+          <div style="background:#FFF8EC;border:1px solid #F5E2B8;border-radius:13px;padding:15px;margin-bottom:13px;">
+            <div style="font-size:13.5px;font-weight:700;margin-bottom:3px;">{{ T.anyReturn }}</div>
+            <p style="margin:0 0 12px;font-size:11.5px;color:#9a6a00;">{{ T.anyReturnSub }}</p>
+            <button onClick="{{ startSebagian }}" style="width:100%;font-family:inherit;background:#E08A00;color:#fff;border:none;font-weight:700;font-size:13.5px;padding:12px;border-radius:11px;cursor:pointer;">{{ T.returnPartial }}</button>
+          </div>
+          <button onClick="{{ noReturnFinish }}" style="width:100%;font-family:inherit;background:#fff;border:1.5px solid #E2E8F0;color:#333;font-weight:700;font-size:13.5px;padding:13px;border-radius:12px;cursor:pointer;">{{ T.noReturnDone }}</button>
+        </div>
+        </sc-if>
+
+        <!-- RETURN SEBAGIAN: select items -->
+        <sc-if value="{{ dRetSelect }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <button onClick="{{ backToPost }}" style="background:none;border:none;color:#6B7280;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:12px;">‹ {{ T.back }}</button>
+          <span style="background:#FFF1DB;color:#9a6a00;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">{{ T.returnPartial }}</span>
+          <h2 style="margin:11px 0 4px;font-size:18px;font-weight:700;">{{ T.selectItems }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.selectItemsSub }}</p>
+          <sc-for list="{{ dReturnItems }}" as="ri" hint-placeholder-count="4">
+            <div style="{{ ri.rowStyle }}">
+              <div onClick="{{ ri.toggle }}" style="display:flex;align-items:center;gap:11px;cursor:pointer;margin-bottom:10px;">
+                <span style="{{ ri.boxStyle }}">{{ ri.check }}</span>
+                <div style="flex:1;"><div style="font-size:12.5px;font-weight:600;">{{ ri.name }}</div><div style="font-size:10.5px;color:#9aa5b1;">{{ T.maxQty }} {{ ri.qty }}</div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#F8FAFC;border-radius:9px;padding:7px 9px;">
+                <span style="font-size:11px;font-weight:600;color:#6B7280;">{{ T.returnedQty }}</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <button onClick="{{ ri.dec }}" style="{{ ri.stepBtnStyle }}">−</button>
+                  <span style="font-size:14px;font-weight:700;min-width:18px;text-align:center;">{{ ri.returnQty }}</span>
+                  <button onClick="{{ ri.inc }}" style="{{ ri.stepBtnStyle }}">+</button>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+          <button onClick="{{ sebagianToPhotos }}" style="{{ sebagianNextStyle }}">{{ T.continueBtn }} ({{ selectedItemCount }})</button>
+        </div>
+        </sc-if>
+
+        <!-- RETURN SEBAGIAN: per-item photos -->
+        <sc-if value="{{ dRetItemPhotos }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <button onClick="{{ backToSelect }}" style="background:none;border:none;color:#6B7280;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:12px;">‹ {{ T.back }}</button>
+          <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;">{{ T.perItemPhoto }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.perItemPhotoSub }}</p>
+          <sc-for list="{{ dSelectedPhotos }}" as="sp" hint-placeholder-count="2">
+            <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:13px;margin-bottom:11px;display:flex;gap:12px;align-items:center;">
+              <div style="{{ sp.thumbStyle }}">
+                <svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="{{ sp.iconColor }}" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.3" fill="none" stroke="{{ sp.iconColor }}" stroke-width="1.5"></circle></svg>
+              </div>
+              <div style="flex:1;"><div style="font-size:12.5px;font-weight:600;margin-bottom:6px;">{{ sp.name }}</div>
+                <button onClick="{{ sp.capture }}" style="{{ sp.btnStyle }}">{{ sp.btnLabel }}</button>
+              </div>
+            </div>
+          </sc-for>
+          <button onClick="{{ photosToSticker }}" style="{{ photosNextStyle }}">{{ T.continueBtn }}</button>
+        </div>
+        </sc-if>
+
+        <!-- RETURN SEMUA: overall photo -->
+        <sc-if value="{{ dRetOverall }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <button onClick="{{ driverBack }}" style="background:none;border:none;color:#6B7280;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:12px;">‹ {{ T.back }}</button>
+          <span style="background:#FDEEEC;color:#D11A2A;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">{{ T.returnAllBtn }}</span>
+          <h2 style="margin:11px 0 4px;font-size:18px;font-weight:700;">{{ T.overallPhoto }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.overallPhotoSub }}</p>
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:16px;text-align:center;">
+            <div style="{{ overallThumbStyle }}">
+              <svg viewBox="0 0 24 24" width="30" height="30"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="{{ overallIconColor }}" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="{{ overallIconColor }}" stroke-width="1.5"></circle><rect x="8" y="5" width="8" height="3" rx="1" fill="{{ overallIconColor }}"></rect></svg>
+            </div>
+            <button onClick="{{ captureOverall }}" style="{{ overallBtnStyle }}">{{ overallBtnLabel }}</button>
+          </div>
+          <button onClick="{{ overallToSticker }}" style="{{ overallNextStyle }}">{{ T.continueBtn }}</button>
+        </div>
+        </sc-if>
+
+        <!-- STICKER PHOTO -->
+        <sc-if value="{{ dSticker }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;">{{ T.stickerTitle }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.stickerSub }}</p>
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:16px;text-align:center;">
+            <div style="{{ stickerThumbStyle }}">
+              <svg viewBox="0 0 24 24" width="30" height="30"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="{{ stickerIconColor }}" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="{{ stickerIconColor }}" stroke-width="1.5"></circle></svg>
+            </div>
+            <button onClick="{{ captureSticker }}" style="{{ stickerBtnStyle }}">{{ stickerBtnLabel }}</button>
+          </div>
+          <button onClick="{{ stickerToBa }}" style="{{ stickerNextStyle }}">{{ T.continueBtn }}</button>
+        </div>
+        </sc-if>
+
+        <!-- BA RETUR PHOTO -->
+        <sc-if value="{{ dBa }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;">{{ T.baTitle }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.baSub }}</p>
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:16px;text-align:center;">
+            <div style="{{ baThumbStyle }}">
+              <svg viewBox="0 0 24 24" width="30" height="30"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="{{ baIconColor }}" stroke-width="1.5"></rect><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="{{ baIconColor }}" stroke-width="1.5"></circle></svg>
+            </div>
+            <button onClick="{{ captureBa }}" style="{{ baBtnStyle }}">{{ baBtnLabel }}</button>
+          </div>
+          <button onClick="{{ baToSummary }}" style="{{ baNextStyle }}">{{ T.reviewSummary }}</button>
+        </div>
+        </sc-if>
+
+        <!-- SUMMARY -->
+        <sc-if value="{{ dSummary }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:18px;animation:njFade .2s ease;">
+          <h2 style="margin:0 0 4px;font-size:18px;font-weight:700;">{{ T.summaryTitle }}</h2>
+          <p style="margin:0 0 14px;font-size:12px;color:#6B7280;">{{ T.summarySub }}</p>
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:15px;margin-bottom:13px;">
+            <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">{{ T.rdoDocs }}</div>
+            <sc-for list="{{ summaryDocs }}" as="sd" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12.5px;">
+                <svg viewBox="0 0 24 24" width="15" height="15"><path d="M5 13l4 4L19 7" stroke="#1F9D57" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                {{ sd.name }}<span style="margin-left:auto;color:#9aa5b1;font-size:10.5px;">{{ T.photoSim }} · {{ T.attested }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ summaryHasReturn }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:15px;margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;justify-content:space-between;"><span>Retur</span><span style="{{ summaryRetStyle }}">{{ summaryRetLabel }}</span></div>
+            <sc-for list="{{ summaryReturns }}" as="sr" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12.5px;border-top:1px solid #F8FAFC;">
+                <span style="width:22px;height:22px;border-radius:6px;background:#F1F5F8;font-size:10.5px;font-weight:700;color:#6B7280;display:flex;align-items:center;justify-content:center;">{{ sr.qty }}</span>
+                {{ sr.name }}
+              </div>
+            </sc-for>
+            <div style="margin-top:9px;font-size:11px;color:#9aa5b1;">{{ T.returnAwbBehind }}</div>
+          </div>
+          </sc-if>
+          <button onClick="{{ finishSuccess }}" style="width:100%;font-family:inherit;background:#EE1B2C;color:#fff;border:none;font-weight:700;font-size:15px;padding:15px;border-radius:13px;cursor:pointer;box-shadow:0 4px 12px rgba(238,27,44,.3);">{{ T.submitFinish }}</button>
+        </div>
+        </sc-if>
+
+        <!-- SUCCESS -->
+        <sc-if value="{{ dSuccess }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:40px 24px;text-align:center;animation:njFade .25s ease;display:flex;flex-direction:column;align-items:center;min-height:560px;justify-content:center;">
+          <div style="animation:njPop .4s ease;margin-bottom:20px;">
+            <svg viewBox="0 0 120 120" width="120" height="120">
+              <circle cx="60" cy="60" r="54" fill="#EE1B2C"></circle>
+              <circle cx="60" cy="60" r="54" fill="none" stroke="#fff" stroke-width="3" opacity=".25"></circle>
+              <rect x="30" y="36" width="60" height="52" rx="26" fill="#2b2f36"></rect>
+              <rect x="28" y="52" width="64" height="15" rx="7.5" fill="#fff"></rect>
+              <circle cx="48" cy="59.5" r="3.6" fill="#2b2f36"></circle>
+              <circle cx="72" cy="59.5" r="3.6" fill="#2b2f36"></circle>
+              <path d="M46 78 Q60 86 74 78" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+            </svg>
+          </div>
+          <h2 style="margin:0 0 7px;font-size:22px;font-weight:700;">{{ T.successTitle }}</h2>
+          <p style="margin:0 0 6px;font-size:13px;color:#6B7280;max-width:260px;">{{ T.successSub }}</p>
+          <code style="font-family:ui-monospace,monospace;font-size:13px;font-weight:700;background:#FEECEE;color:#EE1B2C;padding:6px 13px;border-radius:8px;margin-bottom:26px;">{{ dOrder.awb }}</code>
+          <button onClick="{{ backToOps }}" style="font-family:inherit;background:#fff;border:1.5px solid #E2E8F0;color:#333;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;cursor:pointer;">{{ T.backToConsole }}</button>
+        </div>
+        </sc-if>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEE EXAMPLE MODAL -->
+  <sc-if value="{{ showExample }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeExample }}" style="position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;animation:njFade .15s ease;">
+    <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
+      <div style="padding:15px 18px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;">
+        <div><div style="font-size:14px;font-weight:700;">{{ exampleTitle }}</div><div style="font-size:11px;color:#6B7280;">{{ exampleCaption }}</div></div>
+        <button onClick="{{ closeExample }}" style="background:#F1F5F8;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;color:#6B7280;">×</button>
+      </div>
+      <div style="padding:16px;overflow:auto;background:#F8FAFC;">
+        <div style="position:relative;border-radius:9px;overflow:hidden;border:1px solid #E2E8F0;background:#fff;">
+          <img ref="{{ exampleImgRef }}" alt="" style="width:100%;display:block;">
+          <div style="{{ exampleBoxStyle }}"></div>
+        </div>
+        <div style="margin-top:11px;background:#FEECEE;border:1px solid #F6C9C2;border-radius:9px;padding:10px 12px;font-size:11.5px;color:#b03;display:flex;gap:8px;align-items:flex-start;">
+          <svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#EE1B2C" stroke-width="1.6"></circle><path d="M12 8v5M12 16v.01" stroke="#EE1B2C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          {{ exampleHint }}
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+  </sc-if>
+
+  <!-- ============ SWIPERX REPORT ============ -->
+  <sc-if value="{{ isReport }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:1240px;margin:0 auto;padding:24px 20px 60px;animation:njFade .25s ease;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;">
+      <div>
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:5px;">
+          <h1 style="margin:0;font-size:23px;font-weight:700;letter-spacing:-.4px;">{{ T.reportTitle }}</h1>
+          <span style="background:#EEF1F4;color:#6B7280;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;">{{ T.readOnly }}</span>
+        </div>
+        <p style="margin:0;font-size:13px;color:#6B7280;">{{ T.reportSub }}</p>
+      </div>
+      <button onClick="{{ downloadReport }}" style="display:flex;align-items:center;gap:8px;font-family:inherit;background:#EE1B2C;color:#fff;border:none;font-weight:700;font-size:13.5px;padding:12px 18px;border-radius:11px;cursor:pointer;box-shadow:0 4px 12px rgba(238,27,44,.3);">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3v12M12 15l-4-4M12 15l4-4M5 21h14" stroke="#fff" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        {{ T.downloadCsv }} ({{ reportCount }})
+      </button>
+    </div>
+
+    <!-- filters -->
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;padding:15px 18px;margin-bottom:18px;display:flex;gap:11px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;align-items:center;gap:7px;border:1px solid #E2E8F0;border-radius:9px;padding:8px 11px;font-size:12px;color:#333;">
+        <svg viewBox="0 0 24 24" width="14" height="14"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="#9aa5b1" stroke-width="1.5"></rect><path d="M3 9h18M8 3v4M16 3v4" stroke="#9aa5b1" stroke-width="1.5"></path></svg>
+        01/03/2026 – 12/03/2026
+      </div>
+      <select data-k="rhub" onChange="{{ filterHub }}" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:9px;padding:8px 11px;font-size:12px;background:#fff;color:#333;">
+        <option value="all">{{ T.allHubs }}</option><option value="BKS01">BKS01 · Bekasi</option><option value="TGR01">TGR01 · Tangerang</option>
+      </select>
+      <select data-k="rret" onChange="{{ filterRet }}" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:9px;padding:8px 11px;font-size:12px;background:#fff;color:#333;">
+        <option value="all">{{ T.allReturns }}</option><option value="sebagian">Retur Sebagian</option><option value="semua">Retur Semua</option>
+      </select>
+      <select data-k="rval" onChange="{{ filterVal }}" style="font-family:inherit;border:1px solid #E2E8F0;border-radius:9px;padding:8px 11px;font-size:12px;background:#fff;color:#333;">
+        <option value="all">{{ T.allValidation }}</option><option value="valid">Valid</option><option value="invalid">Invalid</option>
+      </select>
+      <input data-k="rpq" value="{{ reportQuery }}" onInput="{{ onReportQuery }}" placeholder="{{ T.searchItem }}" style="font-family:inherit;flex:1;min-width:160px;border:1px solid #E2E8F0;border-radius:9px;padding:8px 12px;font-size:12px;outline:none;">
+    </div>
+
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:13px;overflow:hidden;">
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:980px;">
+        <thead><tr style="background:#F8FAFC;">
+          <th style="{{ thStyle }}">{{ T.photo }}</th>
+          <th style="{{ thStyle }}">{{ T.date }}</th><th style="{{ thStyle }}">HUB</th>
+          <th style="{{ thStyle }}">{{ T.pharmacy }}</th><th style="{{ thStyle }}">{{ T.origAwb }}</th>
+          <th style="{{ thStyle }}">{{ T.returnAwb }}</th><th style="{{ thStyle }}">{{ T.item }}</th>
+          <th style="{{ thStyle }}">{{ T.qty }}</th><th style="{{ thStyle }}">{{ T.validation }}</th>
+          <th style="{{ thStyle }}">{{ T.returnComplete }}</th>
+        </tr></thead>
+        <tbody data-for="reportRows" data-as="rp">
+          <tr onClick="{{ rp.open }}" style="border-top:1px solid #F1F5F8;cursor:pointer;">
+            <td style="{{ tdStyle }}"><img src="{{ rp.photo }}" alt="" style="width:46px;height:34px;border-radius:6px;object-fit:cover;border:1px solid #E2E8F0;display:block;"></td>
+            <td style="{{ tdStyle }}">{{ rp.date }}</td>
+            <td style="{{ tdStyle }}"><span style="font-family:ui-monospace,monospace;font-weight:600;">{{ rp.hub }}</span></td>
+            <td style="{{ tdStyle }}">{{ rp.pharmacy }}</td>
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;">{{ rp.origAwb }}</code></td>
+            <td style="{{ tdStyle }}"><code style="font-family:ui-monospace,monospace;color:#EE1B2C;font-weight:600;">{{ rp.returnAwb }}</code></td>
+            <td style="{{ tdStyle }}">{{ rp.item }}</td>
+            <td style="{{ tdStyle }}"><span style="font-family:ui-monospace,monospace;font-weight:600;">{{ rp.qty }}</span></td>
+            <td style="{{ tdStyle }}"><span style="{{ rp.valStyle }}">{{ rp.valLabel }}</span></td>
+            <td style="{{ tdStyle }}"><span style="{{ rp.compStyle }}">{{ rp.compLabel }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <sc-if value="{{ reportEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:50px;text-align:center;color:#9aa5b1;font-size:13px;font-weight:600;">{{ T.noData }}</div>
+      </sc-if>
+    </div>
+
+    <!-- REPORT ROW DETAIL MODAL -->
+    <sc-if value="{{ reportDetailShown }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeReportDetail }}" style="position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;animation:njFade .15s ease;">
+      <div style="background:#fff;border-radius:16px;max-width:540px;width:100%;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:15px;font-weight:700;">{{ T.detailTitle }}</div>
+            <div style="font-size:11.5px;color:#6B7280;"><code style="font-family:ui-monospace,monospace;color:#EE1B2C;font-weight:600;">{{ rd.returnAwb }}</code> · {{ rd.origAwb }}</div>
+          </div>
+          <button onClick="{{ closeReportDetail }}" style="background:#F1F5F8;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;color:#6B7280;">×</button>
+        </div>
+        <div style="padding:18px 20px;overflow:auto;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;">
+            <sc-for list="{{ rd.fields }}" as="fd" hint-placeholder-count="6">
+            <div>
+              <div style="font-size:10.5px;font-weight:700;color:#9aa5b1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">{{ fd.label }}</div>
+              <div style="font-size:13px;font-weight:600;">{{ fd.value }}</div>
+            </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:16px;border-top:1px solid #F1F5F8;padding-top:14px;">
+            <div style="font-size:10.5px;font-weight:700;color:#9aa5b1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.rdoDocsLabel }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <sc-for list="{{ rd.rdoDocs }}" as="dc" hint-placeholder-count="3">
+              <div style="width:92px;">
+                <img src="{{ dc.photo }}" alt="" style="width:92px;height:118px;border-radius:9px;object-fit:cover;border:1px solid #E2E8F0;display:block;">
+                <div style="font-size:10px;font-weight:600;text-align:center;margin-top:5px;color:#6B7280;">{{ dc.name }}</div>
+              </div>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ rd.hasReturn }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:14px;border-top:1px solid #F1F5F8;padding-top:14px;">
+            <div style="font-size:10.5px;font-weight:700;color:#9a6a00;text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;">{{ T.rejectDetails }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <sc-for list="{{ rd.returnPhotos }}" as="rpho" hint-placeholder-count="3">
+              <div style="width:92px;">
+                <img src="{{ rpho.photo }}" alt="" style="width:92px;height:70px;border-radius:9px;object-fit:cover;border:1px solid #E2E8F0;display:block;">
+                <div style="font-size:10px;font-weight:600;text-align:center;margin-top:5px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ rpho.name }}</div>
+              </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+</div>
+</script>
+
+<script>
+"use strict";
+/* ============================================================================
+   SwipeRx Operator — self-contained runtime
+   Replaces the Claude Design (React/support.js) prototype engine with a tiny
+   dependency-free template engine + localStorage persistence + hash routing.
+   No build step, no CDN, no network. Open index.html directly.
+   ========================================================================== */
+
+// ---- Base class: provides state + setState used by the ported Component ----
+var __hooks = { onChange: function () {} };
+class Base {
+  constructor(props) { this.props = props || {}; this.state = {}; }
+  setState(updater) {
+    var patch = (typeof updater === 'function') ? updater(this.state) : updater;
+    this.state = Object.assign({}, this.state, patch);
+    __hooks.onChange();
+  }
+}
+
+// ---- per-render handler registry (enables event delegation + DOM morphing) ----
+var __handlers = {};   // id -> fn, rebuilt every render so closures stay current
+var __hid = 0;
+
+// ---- expression + template helpers ----
+function __resolvePath(p, scope) {
+  p = (p || '').trim();
+  if (p === 'true') return true;
+  if (p === 'false') return false;
+  if (p === 'null') return null;
+  if (/^-?\d+(\.\d+)?$/.test(p)) return Number(p);
+  var parts = p.split('.'), cur = scope;
+  for (var i = 0; i < parts.length; i++) {
+    if (cur == null) return undefined;
+    cur = cur[parts[i].trim()];
+  }
+  return cur;
+}
+function __resolveExpr(v, scope) {
+  var m = /^\s*\{\{([\s\S]+?)\}\}\s*$/.exec(v || '');
+  if (m) return __resolvePath(m[1], scope);
+  return v;
+}
+function __interpolate(v, scope) {
+  return (v || '').replace(/\{\{\s*([^}]+?)\s*\}\}/g, function (_, e) {
+    var r = __resolvePath(e, scope);
+    return r == null ? '' : String(r);
+  });
+}
+function __childScope(scope, as, item) {
+  var o = Object.assign({}, scope);
+  o[as] = item;
+  return o;
+}
+
+// ---- DOM builder: parsed template node + scope -> real DOM nodes ----
+function __buildEl(node, scope) {
+  var el = node.cloneNode(false);
+  var forList = null, forAs = null;
+  var attrs = Array.prototype.slice.call(el.attributes);
+  attrs.forEach(function (a) {
+    var name = a.name, value = a.value;
+    if (name.indexOf('hint-') === 0) { el.removeAttribute(name); return; }
+    if (name === 'data-for') { forList = value; el.removeAttribute(name); return; }
+    if (name === 'data-as') { forAs = value; el.removeAttribute(name); return; }
+    var ln = name.toLowerCase();
+    if (ln === 'onclick' || ln === 'oninput' || ln === 'onchange' || ln === 'onsubmit') {
+      // Register the handler and reference it by id; a delegated container listener
+      // dispatches it. Avoids per-node addEventListener so morphing can keep old nodes.
+      var fn = __resolveExpr(value, scope);
+      el.removeAttribute(name);
+      if (typeof fn === 'function') { var id = 'h' + (++__hid); __handlers[id] = fn; el.setAttribute('data-' + ln, id); }
+      return;
+    }
+    if (ln === 'ref') {
+      // Defer: store the ref fn on the node; the renderer calls it against the
+      // node that actually survives morphing.
+      var rf = __resolveExpr(value, scope);
+      el.removeAttribute(name);
+      if (typeof rf === 'function') el.__ref = rf;
+      return;
+    }
+    if (value.indexOf('{{') >= 0) {
+      var out = __interpolate(value, scope);
+      el.setAttribute(name, out);
+      var tn = el.tagName;
+      if (name === 'value' && (tn === 'INPUT' || tn === 'SELECT' || tn === 'TEXTAREA')) el.value = out;
+    }
+  });
+  var kids = Array.prototype.slice.call(node.childNodes);
+  if (forList !== null) {
+    var list = __resolvePath(forList, scope) || [];
+    list.forEach(function (item) {
+      var cs = __childScope(scope, forAs, item);
+      kids.forEach(function (k) { __build(k, cs).forEach(function (x) { el.appendChild(x); }); });
+    });
+  } else {
+    kids.forEach(function (k) { __build(k, scope).forEach(function (x) { el.appendChild(x); }); });
+  }
+  return [el];
+}
+
+function __build(node, scope) {
+  if (node.nodeType === 3) return [document.createTextNode(__interpolate(node.nodeValue, scope))];
+  if (node.nodeType === 8) return [];           // comment
+  if (node.nodeType !== 1) return [];
+  var ln = node.localName.toLowerCase();
+  if (ln === 'sc-if') {
+    var cond = __resolveExpr(node.getAttribute('value'), scope);
+    if (!cond) return [];
+    var out = [];
+    Array.prototype.slice.call(node.childNodes).forEach(function (k) { out = out.concat(__build(k, scope)); });
+    return out;
+  }
+  if (ln === 'sc-for') {
+    var list = __resolveExpr(node.getAttribute('list'), scope) || [];
+    var as = node.getAttribute('as');
+    var acc = [];
+    list.forEach(function (item) {
+      var cs = __childScope(scope, as, item);
+      Array.prototype.slice.call(node.childNodes).forEach(function (k) { acc = acc.concat(__build(k, cs)); });
+    });
+    return acc;
+  }
+  return __buildEl(node, scope);
+}
+
+// ---- DOM morphing: patch the live tree toward freshly-built nodes in place ----
+// Reuses existing nodes (preserving focus, scroll, loaded images) and only changes
+// what actually differs — this is what kills the per-keystroke/per-click flicker.
+function __sameType(a, b) {
+  if (a.nodeType !== b.nodeType) return false;
+  if (a.nodeType === 3 || a.nodeType === 8) return true;
+  return a.nodeName === b.nodeName && a.namespaceURI === b.namespaceURI;
+}
+function __runRefsDeep(node) {
+  if (node.nodeType !== 1) return;
+  if (node.__ref) node.__ref(node);
+  for (var i = 0; i < node.childNodes.length; i++) __runRefsDeep(node.childNodes[i]);
+}
+function __syncAttrs(on, nn) {
+  var oa = Array.prototype.slice.call(on.attributes);
+  for (var i = 0; i < oa.length; i++) { if (!nn.hasAttribute(oa[i].name)) on.removeAttribute(oa[i].name); }
+  var na = Array.prototype.slice.call(nn.attributes);
+  for (var j = 0; j < na.length; j++) { if (on.getAttribute(na[j].name) !== na[j].value) on.setAttribute(na[j].name, na[j].value); }
+  on.__ref = nn.__ref || null;
+  var tn = on.tagName;
+  // keep form-control .value in sync, but never fight the field the user is typing in
+  if ((tn === 'INPUT' || tn === 'TEXTAREA') && nn.hasAttribute('value')) {
+    var nv = nn.getAttribute('value');
+    if (on !== document.activeElement && on.value !== nv) on.value = nv;
+  }
+}
+function __patch(on, nn) {
+  if (on.nodeType === 3 || on.nodeType === 8) { if (on.nodeValue !== nn.nodeValue) on.nodeValue = nn.nodeValue; return; }
+  if (on.nodeType !== 1) return;
+  __syncAttrs(on, nn);
+  __morph(on, Array.prototype.slice.call(nn.childNodes));
+  if (on.__ref) on.__ref(on);
+}
+function __morph(parent, newNodes) {
+  var oldNodes = Array.prototype.slice.call(parent.childNodes);
+  for (var i = 0; i < newNodes.length; i++) {
+    var nn = newNodes[i], on = oldNodes[i];
+    if (!on) { parent.appendChild(nn); __runRefsDeep(nn); }
+    else if (!__sameType(on, nn)) { parent.replaceChild(nn, on); __runRefsDeep(nn); }
+    else { __patch(on, nn); }
+  }
+  for (var k = oldNodes.length - 1; k >= newNodes.length; k--) {
+    if (oldNodes[k] && oldNodes[k].parentNode === parent) parent.removeChild(oldNodes[k]);
+  }
+}
+
+// ============================== ported logic ==============================
+class Component extends Base {
+  constructor(props) {
+    super(props);
+    const HUBS = { BKS01: 'Bekasi', TGR01: 'Tangerang' };
+    this.HUBS = HUBS;
+    const med = {
+      x7: [
+        { name: 'Hufagripp Flu dan Batuk Gratia Suspensi', qty: 12 },
+        { name: 'OBH Combi Batuk Plus Flu Menthol', qty: 4 },
+        { name: 'Actifed Plus Expectorant Sirup', qty: 1 },
+        { name: 'Flutop-C Ifars Sirup', qty: 6 },
+        { name: 'Hufagripp BP Berdahak Gratia Sirup', qty: 4 }
+      ]
+    };
+    this.state = {
+      surface: 'operator',
+      lang: 'id',
+      opTab: 'create',
+      // create
+      csvDone: false, csvFileName: '', validRows: [], errorRows: [], creationLog: [
+        { file: 'orders_batch_2026-03-11.csv', meta: '14 ' }
+      ],
+      // rdo
+      selAwb: null, showInvalidPanel: false, invalidPick: {},
+      // upload
+      uploadQuery: '', uploadFoundAwb: null, uploadNotFound: false,
+      // orders filter
+      orderFilter: 'all', orderDetail: null,
+      // manual order entry
+      mAwb: '', mPharmacy: '', mHub: '', mType: 'manual', manualMsg: '', manualErr: false,
+      // report filters
+      rHub: 'all', rRet: 'all', rVal: 'all', rQuery: '', reportDetail: null,
+      // driver
+      driver: null,
+      showExample: false, exampleSlot: null,
+      orders: [
+        { awb: 'AWB02S5X7', pharmacy: 'Apotek Sehat Bahagia', hub: 'BKS01', dest: 'Bekasi', type: 'manual', status: 'created', validation: null, returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: false, token: 'X7DEMO', date: '12/03/2026', koli: 2, po: '2603-X7A1', items: med.x7 },
+        { awb: 'AWB02S5X9', pharmacy: 'Apotek Sehat Bahagia', hub: 'TGR01', dest: 'Tangerang', type: 'electronic', status: 'pending', validation: null, returnType: 'sebagian', returnComplete: true, returnAwb: 'RTS-02S5X9', rdoCompleted: false, token: 'X9AAA', date: '11/03/2026', koli: 1, po: '2603-X9B2', items: med.x7 },
+        { awb: 'AWB02S5Z1', pharmacy: 'Apotek Azalea Farma', hub: 'BKS01', dest: 'Bekasi', type: 'manual', status: 'pending', validation: null, returnType: 'semua', returnComplete: true, returnAwb: 'RTS-02S5Z1', rdoCompleted: false, token: 'Z1AAA', date: '10/03/2026', koli: 3, po: '2603-Z1C3', items: med.x7 },
+        { awb: 'AWB02S5Y3', pharmacy: 'Apotek Tumbuh Sehat', hub: 'TGR01', dest: 'Tangerang', type: 'electronic', status: 'rdo_completed', validation: 'valid', returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: true, token: 'Y3AAA', date: '09/03/2026', koli: 1, po: '2603-Y3D4', items: med.x7 },
+        { awb: 'AWB02S5W8', pharmacy: 'Apotek Azalea Farma', hub: 'BKS01', dest: 'Bekasi', type: 'manual', status: 'validated', validation: 'invalid', invalidReason: 'Dokumen Hilang', invalidDocs: ['TTTF'], invalidDetail: [{ doc: 'TTTF', reason: 'Dokumen Hilang' }, { doc: 'Surat Pesanan', reason: 'Cap & Tanda Tangan tidak lengkap' }], returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: false, token: 'W8AAA', date: '08/03/2026', koli: 2, po: '2603-W8E5', items: med.x7 },
+        { awb: 'AWB02S5V2', pharmacy: 'Apotek Sehat Bahagia', hub: 'BKS01', dest: 'Bekasi', type: 'manual', status: 'delivered', validation: null, returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: false, token: 'V2AAA', date: '12/03/2026', koli: 1, po: '2603-V2F6', items: med.x7 }
+      ],
+      returns: [
+        { date: '11/03/2026', hub: 'TGR01', pharmacy: 'Apotek Sehat Bahagia', origAwb: 'AWB02S5X9', returnAwb: 'RTS-02S5X9', item: 'Hufagripp Flu dan Batuk Gratia Suspensi', qty: 2, validation: 'valid', complete: true, returnType: 'sebagian' },
+        { date: '11/03/2026', hub: 'TGR01', pharmacy: 'Apotek Sehat Bahagia', origAwb: 'AWB02S5X9', returnAwb: 'RTS-02S5X9', item: 'OBH Combi Batuk Plus Flu Menthol', qty: 1, validation: 'valid', complete: true, returnType: 'sebagian' },
+        { date: '10/03/2026', hub: 'BKS01', pharmacy: 'Apotek Azalea Farma', origAwb: 'AWB02S5Z1', returnAwb: 'RTS-02S5Z1', item: 'Semua item (8 SKU)', qty: '—', validation: 'valid', complete: true, returnType: 'semua' }
+      ]
+    };
+  }
+
+  L(id, en) { return this.state.lang === 'id' ? id : en; }
+
+  buildT() {
+    const id = this.state.lang === 'id';
+    return {
+      navOperator: id ? 'Operator' : 'Operator', navDriver: id ? 'Aplikasi Driver' : 'Driver App', navReport: id ? 'Laporan SwipeRx' : 'SwipeRx Report',
+      roleNote: id ? 'Mode demo · tanpa login' : 'Demo mode · no login',
+      opTitle: id ? 'Konsol Operator' : 'Operator Console', opSub: id ? 'Buat link, validasi RDO, unggah dokumen — satu tampilan (role-gated di produksi).' : 'Create links, validate RDO, upload documents — one view (role-gated in production).',
+      tabCreate: id ? 'Pembuatan Order' : 'Order Creation', tabRdo: id ? 'Validasi RDO' : 'RDO Validation', tabUpload: id ? 'Unggah Dokumen' : 'Document Upload', tabOrders: id ? 'Daftar Order' : 'Orders List',
+      csvUpload: id ? 'Unggah CSV' : 'CSV Upload', downloadTemplate: id ? 'Unduh template' : 'Download template',
+      dropHere: id ? 'Tarik & lepas file CSV' : 'Drag & drop CSV file', dropHint: id ? 'Wajib: AWB, Apotek, Kode HUB · Opsional: Area Tujuan, Tipe Order' : 'Required: AWB, Pharmacy, HUB code · Optional: Destination Area, Order type',
+      useSample: id ? 'Gunakan CSV contoh' : 'Use sample CSV', sampleNote: id ? 'atau klik untuk telusuri' : 'or click to browse',
+      rowsCommitted: id ? 'Baris tersimpan' : 'Rows committed', rowsErrored: id ? 'Baris error' : 'Rows errored',
+      retainedFile: id ? 'File tersimpan' : 'Retained file', errorLog: id ? 'LOG ERROR — baris ditolak' : 'ERROR LOG — rejected rows',
+      viewInOrders: id ? 'Lihat di Daftar Order ›' : 'View in Orders list ›',
+      manualEntry: id ? 'Entri Manual' : 'Manual Entry', manualHint: id ? 'Satu AWB → satu order + link' : 'One AWB → one order + link', pharmacy: id ? 'Apotek' : 'Pharmacy', createOne: id ? 'Buat order + link' : 'Create order + link',
+      creationLog: id ? 'Riwayat Pembuatan' : 'Creation Log', downloadLinks: id ? 'Unduh Link Driver' : 'Download links',
+      driverLinks: id ? 'Link Driver Siap' : 'Driver Links Ready', linksHint: id ? 'Tempel ke instruksi pengiriman NV' : 'Paste into NV delivery instructions',
+      driverLink: id ? 'Link Driver' : 'Driver Link', destArea: id ? 'Area Tujuan' : 'Destination Area', status: id ? 'Status' : 'Status', openLink: id ? 'Buka' : 'Open',
+      validationQueue: id ? 'Antrian Validasi' : 'Validation Queue', allStatus: id ? 'Semua status' : 'All statuses',
+      rdoGallery: id ? 'Galeri RDO + Atestasi' : 'RDO Gallery + Attestations', returnCompleteness: id ? 'Kelengkapan Retur' : 'Return Completeness',
+      decision: id ? 'Keputusan' : 'Decision', valid: id ? 'Valid' : 'Valid', invalid: id ? 'Invalid' : 'Invalid',
+      invalidReason: id ? 'Alasan Invalid' : 'Invalid reason', reasonHilang: 'Dokumen Hilang', reasonCap: 'Cap & Tanda Tangan tidak lengkap',
+      affectedDocs: id ? 'Dokumen terdampak' : 'Affected document(s)', lockInvalid: id ? 'Kunci sebagai Invalid' : 'Lock as Invalid',
+      perDocReason: id ? 'Alasan Invalid per Dokumen' : 'Invalid reason per document', perDocReasonHint: id ? 'Setiap dokumen bisa punya alasan berbeda.' : 'Each document can carry its own reason.', reasonOk: id ? 'OK' : 'OK',
+      maxQty: id ? 'Maks' : 'Max', returnedQty: id ? 'Jumlah retur' : 'Returned qty',
+      selectFromQueue: id ? 'Pilih AWB dari antrian' : 'Select an AWB from the queue',
+      findAwb: id ? 'Cari AWB' : 'Find AWB', findAwbHint: id ? 'Entri manual atau pindai barcode' : 'Manual entry or scan barcode', scan: id ? 'Pindai' : 'Scan', find: id ? 'Cari' : 'Find',
+      rdoLocked: id ? 'RDO Completed terkunci' : 'RDO Completed locked', slotRdo: id ? 'Dokumen RDO' : 'RDO Documents', slotReturn: id ? 'Item Retur' : 'Return Items',
+      returnItemsHint: id ? 'Foto item, sticker, BA' : 'Item photos, sticker, BA', uploadFiles: id ? 'Unggah file' : 'Upload files', uploadedFiles: id ? 'File terunggah' : 'Uploaded files', awbNotFound: id ? 'AWB tidak ditemukan' : 'AWB not found',
+      allOrders: id ? 'Semua Order' : 'All Orders', validation: id ? 'Validasi' : 'Validation', returnAwb: id ? 'AWB Retur' : 'Return AWB', date: id ? 'Tanggal' : 'Date', exportCsv: id ? 'Ekspor CSV' : 'Export CSV',
+      // driver
+      driverFrameNote: id ? 'Courier Mobile · 390px' : 'Courier Mobile · 390px', driverApp: id ? 'Pengiriman' : 'Delivery', orderType: id ? 'Tipe Order' : 'Order Type', itemList: id ? 'Daftar Item' : 'Item List',
+      startBtn: id ? 'Mulai' : 'Start', returnAllBtn: id ? 'Retur semua parcel' : 'Return all parcel', back: id ? 'Kembali' : 'Back',
+      orderTypeTitle: id ? 'Tipe Order' : 'Order Type', orderTypeGuide: id ? 'Baca kotak "SP Manual" / "SP Electronic" di kiri-atas Faktur.' : 'Read the "SP Manual" / "SP Electronic" box top-left of the Faktur.',
+      fakturBoxNote: id ? 'Kotak merah menandai label tipe SP pada Faktur' : 'Red box marks the SP type label on the Faktur', docs: id ? 'dokumen' : 'docs', continueBtn: id ? 'Lanjut' : 'Continue',
+      captureTitle: id ? 'Ambil Dokumen RDO' : 'Capture RDO Documents', captureSub: id ? 'Setiap dokumen butuh foto + atestasi sebelum konfirmasi.' : 'Each document needs a photo + attestation before confirming.',
+      seeExample: id ? 'Lihat contoh' : 'See example', photoSim: id ? 'Foto (simulasi)' : 'Photo (sim)', attestText: id ? 'Dokumen sudah dicap & ditandatangani' : 'Document chopped & signed',
+      confirmDelivery: id ? 'Konfirmasi pengiriman' : 'Confirm delivery',
+      docsCaptured: id ? 'Dokumen lengkap' : 'Documents captured', docsCapturedSub: id ? 'Semua dokumen RDO terekam & teratestasi.' : 'All RDO documents captured & attested.',
+      anyReturn: id ? 'Ada retur sebagian?' : 'Any partial return?', anyReturnSub: id ? 'Pilih item yang dikembalikan apotek.' : 'Select items the pharmacy returns.', returnPartial: id ? 'Retur Sebagian' : 'Partial Return', noReturnDone: id ? 'Tidak ada retur · Selesai' : 'No return · Done',
+      selectItems: id ? 'Pilih Item Retur' : 'Select Returned Items', selectItemsSub: id ? 'Centang item yang dikembalikan.' : 'Tick the items being returned.',
+      perItemPhoto: id ? 'Foto per Item' : 'Per-item Photo', perItemPhotoSub: id ? 'Ambil foto tiap item retur.' : 'Take a photo of each returned item.',
+      overallPhoto: id ? 'Foto Semua Item' : 'Overall Items Photo', overallPhotoSub: id ? 'Satu foto seluruh parcel yang dikembalikan.' : 'One photo of all returned parcels.',
+      stickerTitle: id ? 'Foto Sticker AWB' : 'AWB Sticker Photo', stickerSub: id ? 'Foto sticker AWB pada paket retur.' : 'Photo of the AWB sticker on the return.',
+      baTitle: id ? 'Foto BA Retur' : 'BA Retur Photo', baSub: id ? 'Foto Berita Acara Retur yang ditandatangani.' : 'Photo of the signed Berita Acara Retur.',
+      reviewSummary: id ? 'Tinjau ringkasan' : 'Review summary', summaryTitle: id ? 'Ringkasan' : 'Summary', summarySub: id ? 'Periksa sebelum kirim.' : 'Review before submitting.',
+      rdoDocs: id ? 'Dokumen RDO' : 'RDO Documents', attested: id ? 'teratestasi' : 'attested', returnAwbBehind: id ? 'AWB retur dibuat otomatis di sistem.' : 'Return AWB generated automatically.',
+      submitFinish: id ? 'Kirim & Selesai' : 'Submit & Finish', successTitle: id ? 'Selesai!' : 'Done!', successSub: id ? 'Pengiriman & dokumen RDO berhasil dikirim.' : 'Delivery & RDO documents submitted.', backToConsole: id ? 'Kembali ke Konsol' : 'Back to Console',
+      reportTitle: id ? 'Laporan SwipeRx' : 'SwipeRx Report', readOnly: id ? 'Read-only' : 'Read-only', reportSub: id ? 'Retur kini terlihat — filter & unduh.' : 'Returns are visible — filter & download.',
+      downloadCsv: id ? 'Unduh CSV' : 'Download CSV', allHubs: id ? 'Semua HUB' : 'All hubs', allReturns: id ? 'Semua tipe retur' : 'All return types', allValidation: id ? 'Semua validasi' : 'All validation', searchItem: id ? 'Cari item / apotek…' : 'Search item / pharmacy…',
+      origAwb: id ? 'AWB Asal' : 'Original AWB', item: id ? 'Item' : 'Item', qty: id ? 'Qty' : 'Qty', returnComplete: id ? 'Retur Lengkap' : 'Return Complete', noData: id ? 'Tidak ada data pada rentang ini' : 'No data in this range',
+      detailTitle: id ? 'Detail Retur' : 'Return Detail', returnEvidence: id ? 'Bukti retur' : 'Return evidence', returnTypeLbl: id ? 'Tipe Retur' : 'Return Type',
+      photo: id ? 'Foto' : 'Photo', orderDetailTitle: id ? 'Detail Order' : 'Order Detail', rdoDocsLabel: id ? 'Dokumen RDO (forward)' : 'RDO documents (forward)', invalidReasonLabel: id ? 'Alasan Invalid' : 'Invalid reason', viewDetail: id ? 'Klik baris untuk detail' : 'Click a row for detail', rejectDetails: id ? 'Detail Retur / Reject' : 'Return / Reject details', noReturnPhotos: id ? 'Tidak ada retur untuk order ini.' : 'No return on this order.'
+    };
+  }
+
+  statusMeta(st) {
+    const id = this.state.lang === 'id';
+    const m = {
+      created: { l: id ? 'Dibuat' : 'Created', bg: '#EEF1F4', fg: '#6B7280' },
+      delivered: { l: id ? 'Terkirim' : 'Delivered', bg: '#E7F0FE', fg: '#2563EB' },
+      pending: { l: id ? 'Menunggu Validasi' : 'Pending Validation', bg: '#FFF1DB', fg: '#9a6a00' },
+      validated: { l: id ? 'Tervalidasi' : 'Validated', bg: '#EAF7EF', fg: '#1F9D57' },
+      rdo_completed: { l: id ? 'RDO Selesai' : 'RDO Completed', bg: '#1F9D57', fg: '#fff' }
+    }[st] || { l: st, bg: '#EEF1F4', fg: '#6B7280' };
+    return m;
+  }
+  pill(bg, fg) { return `display:inline-block;background:${bg};color:${fg};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`; }
+  stStyle(st) { const m = this.statusMeta(st); return this.pill(m.bg, m.fg); }
+  retMeta(rt) {
+    if (rt === 'sebagian') return { l: 'Retur Sebagian', s: this.pill('#FFF1DB', '#9a6a00') };
+    if (rt === 'semua') return { l: 'Retur Semua', s: this.pill('#FDEEEC', '#D11A2A') };
+    return { l: '—', s: 'color:#cbd5e0;font-size:11px;' };
+  }
+  valMeta(v) {
+    if (v === 'valid') return { l: 'Valid', s: this.pill('#EAF7EF', '#1F9D57') };
+    if (v === 'invalid') return { l: 'Invalid', s: this.pill('#FDEEEC', '#D11A2A') };
+    return { l: '—', s: 'color:#cbd5e0;font-size:11px;' };
+  }
+
+  navBtn(active) {
+    return `font-family:inherit;border:none;cursor:pointer;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:8px;background:${active ? '#EE1B2C' : 'transparent'};color:${active ? '#fff' : '#6B7280'};box-shadow:${active ? '0 1px 3px rgba(238,27,44,.3)' : 'none'};`;
+  }
+  langBtn(active) { return `font-family:inherit;border:none;cursor:pointer;font-size:11px;font-weight:700;padding:6px 11px;background:${active ? '#EE1B2C' : '#fff'};color:${active ? '#fff' : '#6B7280'};`; }
+  dLangBtn(active) { return `font-family:inherit;border:none;cursor:pointer;font-size:10.5px;font-weight:700;padding:5px 10px;background:${active ? '#fff' : 'transparent'};color:${active ? '#EE1B2C' : '#fff'};`; }
+  tabBtn(active) { return `font-family:inherit;border:none;cursor:pointer;font-size:13px;font-weight:600;padding:11px 16px;background:none;color:${active ? '#EE1B2C' : '#6B7280'};border-bottom:2.5px solid ${active ? '#EE1B2C' : 'transparent'};margin-bottom:-1px;display:flex;align-items:center;gap:7px;`; }
+
+  download(name, content, mime) {
+    try {
+      const blob = new Blob([content], { type: mime || 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    } catch (e) {}
+  }
+
+  // ---- driver slot defaults ----
+  driverDocsFor(type) {
+    const slots = [
+      { key: 'faktur', name: 'Faktur' },
+      { key: 'tttf', name: 'TTTF' }
+    ];
+    if (type === 'manual') slots.push({ key: 'sp', name: 'Surat Pesanan' });
+    const docs = {};
+    slots.forEach(s => { docs[s.key] = { name: s.name, photo: false, attested: false }; });
+    return { order: slots.map(s => s.key), map: docs };
+  }
+
+  exampleConf(slot, type) {
+    const map = {
+      faktur: type === 'electronic'
+        ? { img: 'uploads/1. Faktur SP Electronic.png', box: [4, 2, 22, 6], title: 'Faktur — SP Electronic', cap: this.L('Label "SP Electronic" kiri-atas', '"SP Electronic" box top-left'), hint: this.L('Pastikan kotak tipe SP terlihat jelas.', 'Make sure the SP-type box is clearly visible.') }
+        : { img: 'uploads/1. Faktur SP Manual.png', box: [4, 2, 20, 7], title: 'Faktur — SP Manual', cap: this.L('Label "SP Manual" kiri-atas', '"SP Manual" box top-left'), hint: this.L('Pastikan kotak tipe SP terlihat jelas.', 'Make sure the SP-type box is clearly visible.') },
+      tttf: { img: 'uploads/2. TTTF.png', box: [36, 42, 38, 22], title: 'TTTF', cap: this.L('Cap + tanda tangan (tengah)', 'Stamp + signature (centre)'), hint: this.L('Cap apotek & tanda tangan harus jelas.', 'Pharmacy stamp & signature must be clear.') },
+      sp: { img: 'uploads/3. SP Manual.png', box: [28, 72, 46, 21], title: 'Surat Pesanan', cap: this.L('Cap + tanda tangan (bawah)', 'Chop + signature (bottom)'), hint: this.L('Cap & tanda tangan APA harus terlihat.', 'APA chop & signature must be visible.') }
+    };
+    return map[slot] || map.faktur;
+  }
+  boxStyle(box) { return `position:absolute;left:${box[0]}%;top:${box[1]}%;width:${box[2]}%;height:${box[3]}%;border:3px solid #EE1B2C;border-radius:3px;box-shadow:0 0 0 9999px rgba(238,27,44,.04);`; }
+
+  // Dummy "captured photo" placeholder as an inline SVG data-URI (no binary assets,
+  // works on file://). kind tints it; text is a sanitized caption.
+  dummyPhoto(kind, text) {
+    const c = { item: ['#16A34A', '#DCFCE7'], sticker: ['#2563EB', '#DBEAFE'], ba: ['#D97706', '#FEF3C7'], doc: ['#EE1B2C', '#FEECEE'] }[kind] || ['#6B7280', '#F1F5F8'];
+    const t = (text || '').toString().replace(/[^a-zA-Z0-9 .]/g, '').trim().slice(0, 16);
+    const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='160' height='120'>"
+      + "<rect width='160' height='120' fill='" + c[1] + "'/>"
+      + "<rect x='0' y='84' width='160' height='36' fill='" + c[0] + "' opacity='0.10'/>"
+      + "<g fill='none' stroke='" + c[0] + "' stroke-width='3'>"
+      + "<rect x='50' y='30' width='60' height='46' rx='6'/><circle cx='80' cy='53' r='12'/>"
+      + "</g><rect x='70' y='22' width='20' height='10' rx='2' fill='" + c[0] + "'/>"
+      + "<text x='80' y='104' font-family='Montserrat,sans-serif' font-size='11' font-weight='700' fill='" + c[0] + "' text-anchor='middle'>" + t + "</text></svg>";
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
+  // All photos attached to an AWB: RDO forward documents + (if any) reject/return photos.
+  // Used by both detail modals so each shows the complete picture set.
+  photoSets(o) {
+    const nmap = { faktur: 'Faktur', tttf: 'TTTF', sp: 'Surat Pesanan' };
+    const docKeys = o.type === 'manual' ? ['faktur', 'tttf', 'sp'] : ['faktur', 'tttf'];
+    const rdoDocs = docKeys.map(k => ({ name: nmap[k], photo: this.dummyPhoto('doc', nmap[k]) }));
+    let returnPhotos = [];
+    if (o.returnType) {
+      returnPhotos.push({ name: this.L('Sticker AWB', 'AWB sticker'), photo: this.dummyPhoto('sticker', o.returnAwb || o.awb) });
+      returnPhotos.push({ name: 'BA Retur', photo: this.dummyPhoto('ba', 'BA Retur') });
+      if (o.returnType === 'semua') {
+        returnPhotos.push({ name: this.L('Seluruh item', 'All items'), photo: this.dummyPhoto('item', this.L('Semua item', 'All items')) });
+      } else {
+        const items = this.state.returns.filter(r => r.origAwb === o.awb && r.returnType === 'sebagian');
+        items.forEach(r => returnPhotos.push({ name: r.item, photo: this.dummyPhoto('item', r.item) }));
+      }
+    }
+    return { rdoDocs, returnPhotos, hasReturn: !!o.returnType };
+  }
+
+  // ---- handlers ----
+  setSurface(s) { this.setState({ surface: s }); }
+  setLang(l) { this.setState({ lang: l }); }
+  setTab(t) { this.setState({ opTab: t, selAwb: null, showInvalidPanel: false, invalidPick: {}, uploadFoundAwb: null, uploadNotFound: false }); }
+  pickInvalidReason(key, reason) { this.setState(s => { const ip = Object.assign({}, s.invalidPick); ip[key] = reason; return { invalidPick: ip }; }); }
+
+  loadSampleCsv() {
+    const existing = new Set(this.state.orders.map(o => o.awb));
+    const rows = [
+      ['AWB02S6A1', 'Apotek Sehat Bahagia', 'BKS01', '', 'manual'],
+      ['AWB02S6A2', 'Apotek Tumbuh Sehat', 'TGR01', '', 'electronic'],
+      ['AWB02S6A3', 'Apotek Azalea Farma', 'BKS01', 'Bekasi', 'manual'],
+      ['', 'Apotek Naura', 'BKS01', '', 'manual'],
+      ['AWB02S6A1', 'Apotek Duplikat', 'BKS01', '', 'manual'],
+      ['AWB02S6A5', 'Apotek Cianjur', 'ZZZ99', '', 'manual']
+    ];
+    const valid = [], errors = [], seen = new Set();
+    rows.forEach(r => {
+      const [awb, ph, hub, dest, type] = r;
+      if (!awb) { errors.push({ awb: '(kosong)', reason: this.L('AWB wajib diisi', 'Missing AWB'), raw: r.join(',') }); return; }
+      if (existing.has(awb) || seen.has(awb)) { errors.push({ awb, reason: this.L('AWB duplikat', 'Duplicate AWB'), raw: r.join(',') }); return; }
+      if (!this.HUBS[hub]) { errors.push({ awb, reason: this.L('Kode HUB tidak dikenal: ', 'Unknown hub: ') + hub, raw: r.join(',') }); return; }
+      seen.add(awb);
+      valid.push({ awb, pharmacy: ph, hub, dest: dest || this.HUBS[hub], type: type || 'manual', status: 'created', validation: null, returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: false, token: awb.slice(-4) + 'NEW', date: '12/03/2026', koli: 1, po: '2603-' + awb.slice(-3), items: this.state.orders[0].items });
+    });
+    const newOrders = this.state.orders.concat(valid);
+    const log = [{ file: 'sample_orders_appendix_C.csv', meta: valid.length + ' ' + this.L('order · 12/03/2026 · OP', 'orders · 12/03/2026 · OP') }].concat(this.state.creationLog);
+    this.setState({ csvDone: true, csvFileName: 'sample_orders_appendix_C.csv', validRows: valid, errorRows: errors, orders: newOrders, creationLog: log });
+  }
+
+  downloadTemplate() {
+    this.download('swiperx_order_template.csv', 'AWB,Pharmacy,HUB,DestinationArea,OrderType\nAWB02S6A1,Apotek Sehat Bahagia,BKS01,,manual\n', 'text/csv');
+  }
+  downloadLinks() {
+    const rows = this.state.validRows.length ? this.state.validRows : this.state.orders.filter(o => o.status === 'created');
+    let csv = 'Driver Link,AWB,Pharmacy,HUB,Destination Area,Status\n';
+    rows.forEach(o => { csv += `index.html#/d/${o.token},${o.awb},${o.pharmacy},${o.hub},${o.dest},Created\n`; });
+    this.download('driver_links.csv', csv, 'text/csv');
+  }
+
+  createManual() {
+    const awb = (this.state.mAwb || '').trim().toUpperCase();
+    const pharmacy = (this.state.mPharmacy || '').trim();
+    const hub = (this.state.mHub || '').trim().toUpperCase();
+    const type = this.state.mType || 'manual';
+    if (!awb || !pharmacy || !hub) { this.setState({ manualMsg: this.L('AWB, Apotek, dan HUB wajib diisi.', 'AWB, Pharmacy and HUB are required.'), manualErr: true }); return; }
+    if (!this.HUBS[hub]) { this.setState({ manualMsg: this.L('Kode HUB tidak dikenal: ', 'Unknown hub: ') + hub, manualErr: true }); return; }
+    if (this.state.orders.some(o => o.awb === awb)) { this.setState({ manualMsg: this.L('AWB sudah ada: ', 'AWB already exists: ') + awb, manualErr: true }); return; }
+    const order = { awb, pharmacy, hub, dest: this.HUBS[hub], type, status: 'created', validation: null, returnType: null, returnComplete: null, returnAwb: '', rdoCompleted: false, token: awb.slice(-4) + 'MAN', date: '12/03/2026', koli: 1, po: '2603-' + awb.slice(-3), items: this.state.orders[0].items };
+    const validRows = this.state.validRows.concat([order]);
+    const orders = this.state.orders.concat([order]);
+    const log = [{ file: this.L('Entri manual · ', 'Manual entry · ') + awb, meta: '1 order · 12/03/2026 · OP' }].concat(this.state.creationLog);
+    this.setState({ orders, validRows, creationLog: log, csvDone: true, mAwb: '', mPharmacy: '', mHub: '', manualMsg: this.L('Order + link dibuat: ', 'Order + link created: ') + awb, manualErr: false });
+  }
+
+  openDriver(token) {
+    const o = this.state.orders.find(x => x.token === token);
+    if (!o) return;
+    if (this.state.driver && this.state.driver.token === token) { this.setState({ surface: 'driver' }); return; }
+    const d = this.driverDocsFor(o.type);
+    this.setState({
+      surface: 'driver',
+      driver: { token, awb: o.awb, order: o, step: 'd1', docs: d, returnMode: null, selected: {}, itemPhotos: {}, overall: false, sticker: false, ba: false }
+    });
+  }
+
+  dPatch(p) { this.setState(s => ({ driver: Object.assign({}, s.driver, p) })); }
+  dStep(step) { this.dPatch({ step }); }
+  driverStart() { this.dStep('capture'); }
+  driverReturnAll() { this.dPatch({ returnMode: 'semua', step: 'ret_overall' }); }
+
+  capturedDoc(key) {
+    this.setState(s => {
+      const docs = s.driver.docs;
+      const map = Object.assign({}, docs.map);
+      map[key] = Object.assign({}, map[key], { photo: true });
+      return { driver: Object.assign({}, s.driver, { docs: { order: docs.order, map } }) };
+    });
+  }
+  attestDoc(key) {
+    this.setState(s => {
+      const docs = s.driver.docs;
+      const map = Object.assign({}, docs.map);
+      map[key] = Object.assign({}, map[key], { attested: !map[key].attested });
+      return { driver: Object.assign({}, s.driver, { docs: { order: docs.order, map } }) };
+    });
+  }
+  gateOk() {
+    const d = this.state.driver; if (!d) return false;
+    return d.docs.order.every(k => d.docs.map[k].photo && d.docs.map[k].attested);
+  }
+  confirmDelivery() { if (this.gateOk()) this.dStep('post'); }
+
+  startSebagian() { this.dPatch({ returnMode: 'sebagian', step: 'ret_select' }); }
+  toggleItem(name, max) { this.setState(s => { const sel = Object.assign({}, s.driver.selected); sel[name] = sel[name] ? 0 : 1; return { driver: Object.assign({}, s.driver, { selected: sel }) }; }); }
+  stepItem(name, delta, max) { this.setState(s => { const sel = Object.assign({}, s.driver.selected); const cur = sel[name] || 0; let next = cur + delta; if (next < 0) next = 0; if (next > max) next = max; sel[name] = next; return { driver: Object.assign({}, s.driver, { selected: sel }) }; }); }
+  sebagianToPhotos() { if (Object.values(this.state.driver.selected).some(v => v > 0)) this.dStep('ret_itemphotos'); }
+  captureItemPhoto(name) { this.setState(s => { const ip = Object.assign({}, s.driver.itemPhotos); ip[name] = true; return { driver: Object.assign({}, s.driver, { itemPhotos: ip }) }; }); }
+  photosToSticker() {
+    const d = this.state.driver;
+    const sel = Object.keys(d.selected).filter(k => d.selected[k]);
+    if (sel.every(n => d.itemPhotos[n])) this.dStep('sticker');
+  }
+  captureOverall() { this.dPatch({ overall: true }); }
+  overallToSticker() { if (this.state.driver.overall) this.dStep('sticker'); }
+  captureSticker() { this.dPatch({ sticker: true }); }
+  stickerToBa() { if (this.state.driver.sticker) this.dStep('ba'); }
+  captureBa() { this.dPatch({ ba: true }); }
+  baToSummary() { if (this.state.driver.ba) this.dStep('summary'); }
+
+  noReturnFinish() { this.dStep('summary'); }
+
+  finishSuccess() {
+    // commit to data: mark delivered/pending + push returns
+    const d = this.state.driver;
+    const orders = this.state.orders.map(o => {
+      if (o.awb !== d.awb) return o;
+      const upd = Object.assign({}, o, { status: 'pending' });
+      if (d.returnMode === 'sebagian') { upd.returnType = 'sebagian'; upd.returnComplete = true; upd.returnAwb = 'RTS-' + o.awb.slice(3); }
+      if (d.returnMode === 'semua') { upd.returnType = 'semua'; upd.returnComplete = true; upd.returnAwb = 'RTS-' + o.awb.slice(3); }
+      return upd;
+    });
+    let returns = this.state.returns.slice();
+    const o = this.state.orders.find(x => x.awb === d.awb);
+    if (d.returnMode === 'sebagian') {
+      const rAwb = 'RTS-' + d.awb.slice(3);
+      Object.keys(d.selected).filter(k => d.selected[k] > 0).forEach(name => {
+        returns.push({ date: '12/03/2026', hub: o.hub, pharmacy: o.pharmacy, origAwb: o.awb, returnAwb: rAwb, item: name, qty: d.selected[name], validation: 'pending', complete: true, returnType: 'sebagian' });
+      });
+    } else if (d.returnMode === 'semua') {
+      const rAwb = 'RTS-' + d.awb.slice(3);
+      returns.push({ date: '12/03/2026', hub: o.hub, pharmacy: o.pharmacy, origAwb: o.awb, returnAwb: rAwb, item: this.L('Semua item', 'All items') + ' (' + o.items.length + ' SKU)', qty: '—', validation: 'pending', complete: true, returnType: 'semua' });
+    }
+    this.setState({ orders, returns });
+    this.dStep('success');
+  }
+  backToOps() { this.setState({ surface: 'operator', opTab: 'rdo', driver: null }); }
+
+  driverBack() { this.dStep('d1'); }
+  backToPost() { this.dStep('post'); }
+  backToSelect() { this.dStep('ret_select'); }
+
+  openExample(slot) { this.setState({ showExample: true, exampleSlot: slot }); }
+  closeExample() { this.setState({ showExample: false }); }
+
+  // upload tab
+  doFindAwb() {
+    const q = (this.state.uploadQuery || '').trim().toUpperCase();
+    const o = this.state.orders.find(x => x.awb === q);
+    if (o) this.setState({ uploadFoundAwb: o.awb, uploadNotFound: false });
+    else this.setState({ uploadFoundAwb: null, uploadNotFound: !!q });
+  }
+  uploadRdoDocs() {
+    const o = this.state.orders.find(x => x.awb === this.state.uploadFoundAwb);
+    if (!o || o.validation === 'invalid') return;
+    const orders = this.state.orders.map(x => x.awb === o.awb ? Object.assign({}, x, { status: 'rdo_completed', validation: x.validation || 'valid', rdoCompleted: true, _files: ['RDO_Faktur.jpg', 'RDO_TTTF.jpg', 'RDO_SP.jpg'] }) : x);
+    this.setState({ orders });
+  }
+  uploadReturnItems() {
+    const o = this.state.orders.find(x => x.awb === this.state.uploadFoundAwb);
+    if (!o) return;
+    const orders = this.state.orders.map(x => x.awb === o.awb ? Object.assign({}, x, { _files: (x._files || []).concat(['Retur_item.jpg', 'Retur_sticker.jpg', 'BA_Retur.jpg']) }) : x);
+    this.setState({ orders });
+  }
+
+  renderVals() {
+    const T = this.buildT();
+    const st = this.state;
+    const surface = st.surface;
+    const thStyle = 'text-align:left;padding:11px 16px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;';
+    const tdStyle = 'padding:11px 16px;color:#333;vertical-align:middle;';
+
+    // create links
+    const linkSource = st.validRows.length ? st.validRows : st.orders.filter(o => o.status === 'created');
+    const linkRows = linkSource.map(o => ({
+      awb: o.awb, link: '#/d/' + o.token, pharmacy: o.pharmacy, hub: o.hub, dest: o.dest,
+      stStyle: this.stStyle(o.status), stLabel: this.statusMeta(o.status).l,
+      open: () => this.openDriver(o.token)
+    }));
+
+    // rdo queue
+    const queueOrders = st.orders.filter(o => o.status === 'pending' || o.status === 'validated');
+    const rdoQueue = queueOrders.map(o => ({
+      awb: o.awb, pharmacy: o.pharmacy, hub: o.hub,
+      stStyle: this.stStyle(o.status), stLabel: this.statusMeta(o.status).l,
+      retStyle: this.retMeta(o.returnType).s, retLabel: this.retMeta(o.returnType).l,
+      rowStyle: `cursor:pointer;padding:13px 18px;border-top:1px solid #F1F5F8;background:${st.selAwb === o.awb ? '#FEF5F6' : '#fff'};border-left:3px solid ${st.selAwb === o.awb ? '#EE1B2C' : 'transparent'};`,
+      select: () => this.setState({ selAwb: o.awb, showInvalidPanel: false, invalidPick: {} })
+    }));
+
+    // rdo detail
+    const selOrder = st.orders.find(o => o.awb === st.selAwb);
+    let sel = null;
+    if (selOrder) {
+      const docImgs = {
+        faktur: selOrder.type === 'electronic' ? 'uploads/1. Faktur SP Electronic.png' : 'uploads/1. Faktur SP Manual.png',
+        tttf: 'uploads/2. TTTF.png', sp: 'uploads/3. SP Manual.png'
+      };
+      const dorder = selOrder.type === 'manual' ? ['faktur', 'tttf', 'sp'] : ['faktur', 'tttf'];
+      const isReturn = !!selOrder.returnType;
+      const pending = selOrder.status === 'pending';
+      const resolved = selOrder.validation === 'valid' || selOrder.validation === 'invalid' || selOrder.status === 'rdo_completed';
+      let resolvedTitle = '', resolvedDetail = '', resolvedBoxStyle = '';
+      if (selOrder.validation === 'invalid') {
+        resolvedTitle = '✕ ' + T.invalid + ' · RDO Completed ' + this.L('terkunci', 'locked');
+        const detail = (selOrder.invalidDetail && selOrder.invalidDetail.length)
+          ? selOrder.invalidDetail.map(x => x.doc + ': ' + x.reason).join(' · ')
+          : selOrder.invalidReason + ' (' + (selOrder.invalidDocs || []).join(', ') + ')';
+        resolvedDetail = detail;
+        resolvedBoxStyle = 'background:#FDEEEC;border:1px solid #F6C9C2;color:#D11A2A;border-radius:10px;padding:13px 15px;';
+      } else if (selOrder.validation === 'valid' || selOrder.status === 'rdo_completed') {
+        resolvedTitle = '✓ ' + T.valid;
+        resolvedDetail = this.L('Validasi lolos — siap unggah dokumen RDO.', 'Validation passed — ready for RDO upload.');
+        resolvedBoxStyle = 'background:#EAF7EF;border:1px solid #BBE7CC;color:#1F9D57;border-radius:10px;padding:13px 15px;';
+      }
+      sel = {
+        awb: selOrder.awb, pharmacy: selOrder.pharmacy, hub: selOrder.hub, dest: selOrder.dest,
+        stStyle: this.stStyle(selOrder.status), stLabel: this.statusMeta(selOrder.status).l,
+        docs: dorder.map(k => { const src = docImgs[k]; return { img: src, imgRef: (n) => { if (n && n.getAttribute('src') !== src) n.setAttribute('src', src); }, name: k === 'faktur' ? 'Faktur' : k === 'tttf' ? 'TTTF' : 'Surat Pesanan', attestLabel: this.L('Tercap & TTD', 'Chop & sign') }; }),
+        isReturn, retLabel: this.retMeta(selOrder.returnType).l,
+        completeStyle: selOrder.returnComplete ? this.pill('#EAF7EF', '#1F9D57') : this.pill('#FDEEEC', '#D11A2A'),
+        completeLabel: selOrder.returnComplete ? this.L('Lengkap', 'Complete') : this.L('Tidak lengkap', 'Incomplete'),
+        returnChecks: [
+          { label: this.L('Foto sticker AWB ada', 'AWB-sticker photo present'), ok: true },
+          { label: this.L('BA Retur ada', 'BA Retur present'), ok: true },
+          { label: this.L('Foto item retur ada', 'Item photo(s) present'), ok: true }
+        ].map(c => ({ label: c.label, icon: '✓', iconStyle: 'color:#1F9D57;font-weight:700;width:16px;display:inline-block;' })),
+        pending, resolved,
+        resolvedTitle, resolvedDetail, resolvedBoxStyle,
+        invalidDocRows: dorder.map(k => {
+          const name = k === 'faktur' ? 'Faktur' : k === 'tttf' ? 'TTTF' : 'Surat Pesanan';
+          const pick = st.invalidPick[k] || 'none';
+          const chip = (active, danger) => `font-family:inherit;cursor:pointer;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid ${active ? (danger ? '#D11A2A' : '#1F9D57') : '#E2E8F0'};background:${active ? (danger ? '#D11A2A' : '#EAF7EF') : '#fff'};color:${active ? (danger ? '#fff' : '#1F9D57') : '#6B7280'};`;
+          return {
+            name,
+            pickNone: () => this.pickInvalidReason(k, 'none'),
+            pickHilang: () => this.pickInvalidReason(k, 'hilang'),
+            pickCap: () => this.pickInvalidReason(k, 'cap'),
+            noneStyle: chip(pick === 'none', false),
+            hilangStyle: chip(pick === 'hilang', true),
+            capStyle: chip(pick === 'cap', true)
+          };
+        })
+      };
+    }
+
+    // upload
+    const uOrder = st.orders.find(o => o.awb === st.uploadFoundAwb);
+    let uFound = null;
+    if (uOrder) {
+      const locked = uOrder.validation === 'invalid';
+      uFound = {
+        awb: uOrder.awb, pharmacy: uOrder.pharmacy, hub: uOrder.hub,
+        stStyle: this.stStyle(uOrder.status), stLabel: this.statusMeta(uOrder.status).l,
+        locked, lockReason: locked ? (this.L('Validasi Invalid', 'Validation Invalid') + ': ' + uOrder.invalidReason + ' (' + (uOrder.invalidDocs || []).join(', ') + ')') : '',
+        rdoBtnLabel: uOrder.rdoCompleted ? (this.L('RDO Selesai ✓', 'RDO Completed ✓')) : locked ? (this.L('Terkunci', 'Locked')) : (this.L('Unggah & set RDO Completed', 'Upload & set RDO Completed')),
+        hasFiles: !!(uOrder._files && uOrder._files.length),
+        files: (uOrder._files || []).map(f => ({ name: f, size: '~80 KB' }))
+      };
+    }
+    const uploadRdoBtnStyle = uFound && (uFound.locked)
+      ? 'font-family:inherit;width:100%;background:#F1F5F8;border:none;color:#9aa5b1;font-weight:600;font-size:12.5px;padding:9px;border-radius:9px;cursor:not-allowed;'
+      : uFound && uOrder && uOrder.rdoCompleted
+        ? 'font-family:inherit;width:100%;background:#EAF7EF;border:none;color:#1F9D57;font-weight:700;font-size:12.5px;padding:9px;border-radius:9px;cursor:default;'
+        : 'font-family:inherit;width:100%;background:#EE1B2C;border:none;color:#fff;font-weight:700;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer;';
+
+    // orders list
+    const filtered = st.orders.filter(o => st.orderFilter === 'all' || o.status === st.orderFilter);
+    const orderRows = filtered.map(o => ({
+      awb: o.awb, pharmacy: o.pharmacy, hub: o.hub, dest: o.dest, date: o.date,
+      stStyle: this.stStyle(o.status), stLabel: this.statusMeta(o.status).l,
+      valStyle: this.valMeta(o.validation).s, valLabel: this.valMeta(o.validation).l,
+      retStyle: this.retMeta(o.returnType).s, retLabel: this.retMeta(o.returnType).l,
+      returnAwb: o.returnAwb || '—',
+      open: () => this.setState({ orderDetail: o.awb })
+    }));
+
+    // report
+    let rrows = st.returns.slice();
+    if (st.rHub !== 'all') rrows = rrows.filter(r => r.hub === st.rHub);
+    if (st.rRet !== 'all') rrows = rrows.filter(r => r.returnType === st.rRet);
+    if (st.rVal !== 'all') rrows = rrows.filter(r => r.validation === st.rVal);
+    if (st.rQuery) { const q = st.rQuery.toLowerCase(); rrows = rrows.filter(r => (r.item + ' ' + r.pharmacy + ' ' + r.origAwb + ' ' + r.returnAwb).toLowerCase().includes(q)); }
+    const reportRows = rrows.map(r => ({
+      date: r.date, hub: r.hub, pharmacy: r.pharmacy, origAwb: r.origAwb, returnAwb: r.returnAwb, item: r.item, qty: r.qty,
+      photo: this.dummyPhoto('item', r.item),
+      valStyle: r.validation === 'pending' ? this.pill('#FFF1DB', '#9a6a00') : this.valMeta(r.validation).s,
+      valLabel: r.validation === 'pending' ? (this.L('Menunggu', 'Pending')) : this.valMeta(r.validation).l,
+      compStyle: r.complete ? this.pill('#EAF7EF', '#1F9D57') : this.pill('#FDEEEC', '#D11A2A'),
+      compLabel: r.complete ? (this.L('Ya', 'Yes')) : (this.L('Tidak', 'No')),
+      open: () => this.setState({ reportDetail: r })
+    }));
+
+    // report row detail
+    let rd = null;
+    const rdRow = st.reportDetail;
+    if (rdRow) {
+      const T2 = this.buildT();
+      const linked = st.orders.find(o => o.awb === rdRow.origAwb);
+      const valLabel = rdRow.validation === 'pending' ? this.L('Menunggu', 'Pending') : this.valMeta(rdRow.validation).l;
+      rd = {
+        returnAwb: rdRow.returnAwb, origAwb: rdRow.origAwb,
+        fields: [
+          { label: T2.date, value: rdRow.date },
+          { label: 'HUB', value: rdRow.hub + (linked ? ' · ' + linked.dest : '') },
+          { label: T2.pharmacy, value: rdRow.pharmacy },
+          { label: T2.origAwb, value: rdRow.origAwb },
+          { label: T2.returnAwb, value: rdRow.returnAwb },
+          { label: T2.returnTypeLbl, value: this.retMeta(rdRow.returnType).l },
+          { label: T2.item, value: rdRow.item },
+          { label: T2.qty, value: rdRow.qty },
+          { label: T2.orderType, value: linked ? (linked.type === 'manual' ? 'SP Manual' : 'SP Electronic') : '—' },
+          { label: T2.status, value: linked ? this.statusMeta(linked.status).l : '—' },
+          { label: T2.validation, value: valLabel },
+          { label: T2.returnComplete, value: rdRow.complete ? this.L('Ya', 'Yes') : this.L('Tidak', 'No') }
+        ],
+        rdoDocs: linked ? this.photoSets(linked).rdoDocs : [],
+        returnPhotos: linked ? this.photoSets(linked).returnPhotos : [],
+        hasReturn: linked ? !!linked.returnType : true
+      };
+    }
+
+    // operator order-list row detail
+    let od = null;
+    if (st.orderDetail) {
+      const o = st.orders.find(x => x.awb === st.orderDetail);
+      if (o) {
+        const T3 = this.buildT();
+        const invalidDetail = (o.invalidDetail && o.invalidDetail.length) ? o.invalidDetail.map(x => x.doc + ': ' + x.reason).join(' · ') : (o.validation === 'invalid' ? (o.invalidReason || '') : '');
+        const ps = this.photoSets(o);
+        od = {
+          awb: o.awb,
+          stStyle: this.stStyle(o.status), stLabel: this.statusMeta(o.status).l,
+          fields: [
+            { label: T3.pharmacy, value: o.pharmacy },
+            { label: 'PO', value: o.po },
+            { label: 'HUB', value: o.hub + ' · ' + o.dest },
+            { label: T3.orderType, value: o.type === 'manual' ? 'SP Manual' : 'SP Electronic' },
+            { label: 'Koli', value: o.koli },
+            { label: T3.date, value: o.date },
+            { label: T3.status, value: this.statusMeta(o.status).l },
+            { label: T3.validation, value: this.valMeta(o.validation).l },
+            { label: T3.returnTypeLbl, value: this.retMeta(o.returnType).l },
+            { label: T3.returnAwb, value: o.returnAwb || '—' }
+          ],
+          rdoDocs: ps.rdoDocs, returnPhotos: ps.returnPhotos, hasReturn: ps.hasReturn,
+          hasInvalid: o.validation === 'invalid', invalidDetail
+        };
+      }
+    }
+
+    // ---- driver ----
+    const d = st.driver;
+    const vals = {
+      T, thStyle, tdStyle,
+      isOperator: surface === 'operator', isDriver: surface === 'driver', isReport: surface === 'report',
+      goOperator: () => this.setSurface('operator'), goDriver: () => { if (!st.driver) this.openDriver('X7DEMO'); else this.setSurface('driver'); }, goReport: () => this.setSurface('report'),
+      navOperatorStyle: this.navBtn(surface === 'operator'), navDriverStyle: this.navBtn(surface === 'driver'), navReportStyle: this.navBtn(surface === 'report'),
+      setID: () => this.setLang('id'), setEN: () => this.setLang('en'),
+      langIdStyle: this.langBtn(st.lang === 'id'), langEnStyle: this.langBtn(st.lang === 'en'),
+      dLangIdStyle: this.dLangBtn(st.lang === 'id'), dLangEnStyle: this.dLangBtn(st.lang === 'en'),
+      // op tabs
+      onCreate: st.opTab === 'create', onRdo: st.opTab === 'rdo', onUpload: st.opTab === 'upload', onOrders: st.opTab === 'orders',
+      tabCreate: () => this.setTab('create'), tabRdo: () => this.setTab('rdo'), tabUpload: () => this.setTab('upload'), tabOrders: () => this.setTab('orders'),
+      tabOrdersFromCreate: () => this.setTab('orders'),
+      tabCreateStyle: this.tabBtn(st.opTab === 'create'), tabRdoStyle: this.tabBtn(st.opTab === 'rdo'), tabUploadStyle: this.tabBtn(st.opTab === 'upload'), tabOrdersStyle: this.tabBtn(st.opTab === 'orders'),
+      rdoQueueCount: queueOrders.length,
+      rdoBadgeStyle: 'background:#FFF1DB;color:#9a6a00;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;',
+      // create
+      dropZoneStyle: 'cursor:pointer;border:2px dashed #F6C9C2;border-radius:13px;padding:30px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;background:#FFFCFC;transition:.2s;',
+      loadSampleCsv: () => this.loadSampleCsv(), downloadTemplate: () => this.downloadTemplate(),
+      csvDone: st.csvDone, csvFileName: st.csvFileName, csvValidCount: st.validRows.length, csvErrorCount: st.errorRows.length,
+      hasErrors: st.errorRows.length > 0, errorRows: st.errorRows,
+      creationLog: st.creationLog, downloadLinks: () => this.downloadLinks(),
+      downloadLinksStyle: 'font-family:inherit;width:100%;margin-top:13px;display:flex;align-items:center;justify-content:center;gap:8px;background:#EE1B2C;color:#fff;border:none;font-weight:700;font-size:13px;padding:11px;border-radius:10px;cursor:pointer;box-shadow:0 3px 9px rgba(238,27,44,.25);',
+      linkRows,
+      // manual entry
+      mAwb: st.mAwb, mPharmacy: st.mPharmacy, mHub: st.mHub, mType: st.mType,
+      onMAwb: (e) => this.setState({ mAwb: e.target.value }),
+      onMPharmacy: (e) => this.setState({ mPharmacy: e.target.value }),
+      onMHub: (e) => this.setState({ mHub: e.target.value }),
+      onMType: (e) => this.setState({ mType: e.target.value }),
+      createOne: () => this.createManual(),
+      manualMsg: st.manualMsg,
+      manualMsgStyle: `font-size:11.5px;font-weight:600;padding:8px 10px;border-radius:8px;${st.manualErr ? 'background:#FDEEEC;color:#D11A2A;border:1px solid #F6C9C2;' : 'background:#EAF7EF;color:#1F9D57;border:1px solid #BBE7CC;'}`,
+      // rdo
+      rdoQueue, rdoSelected: !!sel, rdoEmpty: !sel, sel,
+      markValid: () => { this.setState(s => ({ orders: s.orders.map(o => o.awb === s.selAwb ? Object.assign({}, o, { validation: 'valid', status: 'validated' }) : o) })); },
+      toggleInvalid: () => this.setState(s => ({ showInvalidPanel: !s.showInvalidPanel, invalidPick: {} })),
+      showInvalidPanel: st.showInvalidPanel,
+      invalidBtnStyle: `flex:1;font-family:inherit;background:${st.showInvalidPanel ? '#FDEEEC' : '#fff'};color:#D11A2A;border:1.5px solid #D11A2A;font-weight:700;font-size:13.5px;padding:12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;`,
+      lockInvalidStyle: (() => { const any = Object.values(st.invalidPick).some(v => v && v !== 'none'); return `font-family:inherit;width:100%;background:${any ? '#D11A2A' : '#F1F5F8'};color:${any ? '#fff' : '#9aa5b1'};border:none;font-weight:700;font-size:13px;padding:11px;border-radius:9px;cursor:${any ? 'pointer' : 'not-allowed'};`; })(),
+      lockInvalidLabel: (() => { const n = Object.values(st.invalidPick).filter(v => v && v !== 'none').length; return n ? (this.L('Kunci sebagai Invalid', 'Lock as Invalid') + ' (' + n + ')') : this.L('Pilih minimal satu dokumen', 'Flag at least one document'); })(),
+      confirmInvalid: () => {
+        const picks = this.state.invalidPick;
+        const flagged = Object.keys(picks).filter(k => picks[k] && picks[k] !== 'none');
+        if (!flagged.length) return;
+        const rmap = { hilang: this.L('Dokumen Hilang', 'Dokumen Hilang'), cap: this.L('Cap & Tanda Tangan tidak lengkap', 'Cap & Tanda Tangan tidak lengkap') };
+        const nmap = { faktur: 'Faktur', tttf: 'TTTF', sp: 'Surat Pesanan' };
+        const detail = flagged.map(k => ({ doc: nmap[k], reason: rmap[picks[k]] }));
+        this.setState(s => ({ orders: s.orders.map(o => o.awb === s.selAwb ? Object.assign({}, o, { validation: 'invalid', status: 'validated', invalidReason: detail[0].reason, invalidDocs: detail.map(d => d.doc), invalidDetail: detail, rdoCompleted: false }) : o), showInvalidPanel: false, invalidPick: {} }));
+      },
+      // upload
+      uploadQuery: st.uploadQuery, onUploadQuery: (e) => this.setState({ uploadQuery: e.target.value }),
+      doFindAwb: () => this.doFindAwb(), uploadFound: !!uFound, uploadNotFound: st.uploadNotFound, uFound,
+      uploadRdoDocs: () => this.uploadRdoDocs(), uploadReturnItems: () => this.uploadReturnItems(), uploadRdoBtnStyle,
+      // orders
+      onOrderFilter: (e) => this.setState({ orderFilter: e.target.value }), orderRows,
+      orderDetailShown: !!od, od, closeOrderDetail: () => this.setState({ orderDetail: null }),
+      exportOrders: () => {
+        let csv = 'AWB,Pharmacy,HUB,Destination Area,Status,Validation,Return Type,Return Complete,Return AWB,Date\n';
+        filtered.forEach(o => { csv += `${o.awb},${o.pharmacy},${o.hub},${o.dest},${o.status},${o.validation || ''},${o.returnType || ''},${o.returnComplete == null ? '' : o.returnComplete},${o.returnAwb || ''},${o.date}\n`; });
+        this.download('orders_export.csv', csv, 'text/csv');
+      },
+      // report
+      filterHub: (e) => this.setState({ rHub: e.target.value }), filterRet: (e) => this.setState({ rRet: e.target.value }), filterVal: (e) => this.setState({ rVal: e.target.value }),
+      reportQuery: st.rQuery, onReportQuery: (e) => this.setState({ rQuery: e.target.value }),
+      reportRows, reportCount: reportRows.length, reportEmpty: reportRows.length === 0,
+      reportDetailShown: !!rd, rd, closeReportDetail: () => this.setState({ reportDetail: null }),
+      downloadReport: () => {
+        let csv = 'Date,HUB,Pharmacy,Original AWB,Return AWB,Item,Quantity,Validation,Return Complete\n';
+        rrows.forEach(r => { csv += `${r.date},${r.hub},${r.pharmacy},${r.origAwb},${r.returnAwb},"${r.item}",${r.qty},${r.validation},${r.complete ? 'Yes' : 'No'}\n`; });
+        this.download('swiperx_returns_report.csv', csv, 'text/csv');
+      }
+    };
+
+    // driver vals
+    if (d) {
+      const o = d.order;
+      vals.driverLinkLabel = '#/d/' + d.token;
+      vals.dOrder = {
+        pharmacy: o.pharmacy, address: this.L('Jl. Tole Iskandar Ruko Sukmajaya No. 12A, ', 'Jl. Tole Iskandar Ruko Sukmajaya No. 12A, ') + o.dest,
+        awb: o.awb, po: o.po, hub: o.hub, koli: o.koli, typeLabel: o.type === 'manual' ? 'SP Manual' : 'SP Electronic',
+        stStyle: this.stStyle(o.status), stLabel: this.statusMeta(o.status).l, items: o.items
+      };
+      vals.dD1 = d.step === 'd1'; vals.dType = d.step === 'type'; vals.dCapture = d.step === 'capture';
+      vals.dPost = d.step === 'post'; vals.dRetSelect = d.step === 'ret_select'; vals.dRetItemPhotos = d.step === 'ret_itemphotos';
+      vals.dRetOverall = d.step === 'ret_overall'; vals.dSticker = d.step === 'sticker'; vals.dBa = d.step === 'ba';
+      vals.dSummary = d.step === 'summary'; vals.dSuccess = d.step === 'success';
+      vals.driverStart = () => this.driverStart(); vals.driverReturnAll = () => this.driverReturnAll();
+      vals.driverBack = () => this.driverBack();
+      // capture slots
+      vals.dSlots = d.docs.order.map((k, i) => {
+        const doc = d.docs.map[k];
+        return {
+          idx: i + 1, name: doc.name, hasPhoto: doc.photo, noPhoto: !doc.photo,
+          seeExample: () => this.openExample(k),
+          thumbStyle: `width:74px;height:74px;border-radius:10px;border:1px solid ${doc.photo ? '#cbd5e0' : '#E2E8F0'};background:${doc.photo ? '#EEF1F4' : '#F8FAFC'};display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;`,
+          capture: () => this.capturedDoc(k),
+          captureLabel: doc.photo ? (this.L('Ambil ulang', 'Retake')) : (this.L('Ambil foto', 'Capture')),
+          captureBtnStyle: `font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid ${doc.photo ? '#cbd5e0' : '#EE1B2C'};background:${doc.photo ? '#fff' : '#EE1B2C'};color:${doc.photo ? '#6B7280' : '#fff'};font-weight:700;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer;`,
+          attest: () => this.attestDoc(k),
+          attestRowStyle: 'display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none;',
+          attestBoxStyle: `width:18px;height:18px;border-radius:5px;border:1.5px solid ${doc.attested ? '#1F9D57' : '#cbd5e0'};background:${doc.attested ? '#1F9D57' : '#fff'};color:#fff;font-size:12px;line-height:15px;text-align:center;flex-shrink:0;font-weight:700;`,
+          attestCheck: doc.attested ? '✓' : ''
+        };
+      });
+      const ok = this.gateOk();
+      vals.gateBlocked = !ok;
+      const missing = d.docs.order.filter(k => !(d.docs.map[k].photo && d.docs.map[k].attested)).length;
+      vals.gateReason = this.L(`${missing} dokumen belum lengkap (foto + atestasi)`, `${missing} document(s) need a photo + attestation`);
+      vals.confirmBtnStyle = `font-family:inherit;width:100%;border:none;font-weight:700;font-size:14.5px;padding:14px;border-radius:12px;background:${ok ? '#EE1B2C' : '#F1F5F8'};color:${ok ? '#fff' : '#9aa5b1'};cursor:${ok ? 'pointer' : 'not-allowed'};box-shadow:${ok ? '0 4px 12px rgba(238,27,44,.3)' : 'none'};`;
+      vals.confirmDelivery = () => this.confirmDelivery();
+      // post
+      vals.startSebagian = () => this.startSebagian(); vals.noReturnFinish = () => this.noReturnFinish();
+      // sebagian select
+      vals.dReturnItems = o.items.map(it => {
+        const q = d.selected[it.name] || 0;
+        const on = q > 0;
+        return {
+          name: it.name, qty: it.qty, returnQty: q,
+          toggle: () => this.toggleItem(it.name, it.qty),
+          inc: () => this.stepItem(it.name, 1, it.qty),
+          dec: () => this.stepItem(it.name, -1, it.qty),
+          rowStyle: `background:#fff;border:1.5px solid ${on ? '#EE1B2C' : '#E2E8F0'};border-radius:11px;padding:12px;margin-bottom:9px;`,
+          boxStyle: `width:20px;height:20px;border-radius:6px;border:1.5px solid ${on ? '#EE1B2C' : '#cbd5e0'};background:${on ? '#EE1B2C' : '#fff'};color:#fff;font-size:13px;line-height:17px;text-align:center;flex-shrink:0;font-weight:700;`,
+          check: on ? '✓' : '',
+          stepBtnStyle: `font-family:inherit;width:28px;height:28px;border-radius:7px;border:1.5px solid #E2E8F0;background:#fff;color:#EE1B2C;font-weight:700;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;`
+        };
+      });
+      const selCount = Object.values(d.selected).filter(v => v > 0).length;
+      vals.selectedItemCount = selCount;
+      vals.sebagianToPhotos = () => this.sebagianToPhotos();
+      vals.sebagianNextStyle = `font-family:inherit;width:100%;margin-top:6px;border:none;font-weight:700;font-size:14px;padding:14px;border-radius:12px;background:${selCount ? '#EE1B2C' : '#F1F5F8'};color:${selCount ? '#fff' : '#9aa5b1'};cursor:${selCount ? 'pointer' : 'not-allowed'};`;
+      vals.backToPost = () => this.backToPost(); vals.backToSelect = () => this.backToSelect();
+      // per-item photos
+      const selNames = Object.keys(d.selected).filter(k => d.selected[k] > 0);
+      vals.dSelectedPhotos = selNames.map(name => {
+        const has = !!d.itemPhotos[name];
+        return {
+          name, iconColor: has ? '#9aa5b1' : '#cbd5e0',
+          thumbStyle: `width:58px;height:58px;border-radius:10px;border:1px solid ${has ? '#cbd5e0' : '#E2E8F0'};background:${has ? '#EEF1F4' : '#F8FAFC'};display:flex;align-items:center;justify-content:center;flex-shrink:0;`,
+          capture: () => this.captureItemPhoto(name),
+          btnLabel: has ? (this.L('Foto tersimpan ✓', 'Photo saved ✓')) : (this.L('Ambil foto', 'Capture')),
+          btnStyle: `font-family:inherit;border:1.5px solid ${has ? '#1F9D57' : '#EE1B2C'};background:${has ? '#EAF7EF' : '#fff'};color:${has ? '#1F9D57' : '#EE1B2C'};font-weight:700;font-size:12px;padding:7px 13px;border-radius:8px;cursor:pointer;`
+        };
+      });
+      const allItemPhotos = selNames.every(n => d.itemPhotos[n]);
+      vals.photosToSticker = () => this.photosToSticker();
+      vals.photosNextStyle = `font-family:inherit;width:100%;margin-top:6px;border:none;font-weight:700;font-size:14px;padding:14px;border-radius:12px;background:${allItemPhotos ? '#EE1B2C' : '#F1F5F8'};color:${allItemPhotos ? '#fff' : '#9aa5b1'};cursor:${allItemPhotos ? 'pointer' : 'not-allowed'};`;
+      // overall (semua)
+      vals.captureOverall = () => this.captureOverall();
+      vals.overallThumbStyle = `width:120px;height:120px;border-radius:14px;border:1px solid ${d.overall ? '#cbd5e0' : '#E2E8F0'};background:${d.overall ? '#EEF1F4' : '#F8FAFC'};display:flex;align-items:center;justify-content:center;margin:0 auto 14px;`;
+      vals.overallIconColor = d.overall ? '#9aa5b1' : '#cbd5e0';
+      vals.overallBtnLabel = d.overall ? (this.L('Foto tersimpan ✓', 'Photo saved ✓')) : (this.L('Ambil foto', 'Capture'));
+      vals.overallBtnStyle = `font-family:inherit;border:1.5px solid ${d.overall ? '#1F9D57' : '#EE1B2C'};background:${d.overall ? '#EAF7EF' : '#fff'};color:${d.overall ? '#1F9D57' : '#EE1B2C'};font-weight:700;font-size:13px;padding:10px 20px;border-radius:9px;cursor:pointer;`;
+      vals.overallToSticker = () => this.overallToSticker();
+      vals.overallNextStyle = `font-family:inherit;width:100%;margin-top:14px;border:none;font-weight:700;font-size:14px;padding:14px;border-radius:12px;background:${d.overall ? '#EE1B2C' : '#F1F5F8'};color:${d.overall ? '#fff' : '#9aa5b1'};cursor:${d.overall ? 'pointer' : 'not-allowed'};`;
+      // sticker
+      vals.captureSticker = () => this.captureSticker();
+      vals.stickerThumbStyle = `width:120px;height:120px;border-radius:14px;border:1px solid ${d.sticker ? '#cbd5e0' : '#E2E8F0'};background:${d.sticker ? '#EEF1F4' : '#F8FAFC'};display:flex;align-items:center;justify-content:center;margin:0 auto 14px;`;
+      vals.stickerIconColor = d.sticker ? '#9aa5b1' : '#cbd5e0';
+      vals.stickerBtnLabel = d.sticker ? (this.L('Foto tersimpan ✓', 'Photo saved ✓')) : (this.L('Ambil foto', 'Capture'));
+      vals.stickerBtnStyle = `font-family:inherit;border:1.5px solid ${d.sticker ? '#1F9D57' : '#EE1B2C'};background:${d.sticker ? '#EAF7EF' : '#fff'};color:${d.sticker ? '#1F9D57' : '#EE1B2C'};font-weight:700;font-size:13px;padding:10px 20px;border-radius:9px;cursor:pointer;`;
+      vals.stickerToBa = () => this.stickerToBa();
+      vals.stickerNextStyle = `font-family:inherit;width:100%;margin-top:14px;border:none;font-weight:700;font-size:14px;padding:14px;border-radius:12px;background:${d.sticker ? '#EE1B2C' : '#F1F5F8'};color:${d.sticker ? '#fff' : '#9aa5b1'};cursor:${d.sticker ? 'pointer' : 'not-allowed'};`;
+      // ba
+      vals.captureBa = () => this.captureBa();
+      vals.baThumbStyle = `width:120px;height:120px;border-radius:14px;border:1px solid ${d.ba ? '#cbd5e0' : '#E2E8F0'};background:${d.ba ? '#EEF1F4' : '#F8FAFC'};display:flex;align-items:center;justify-content:center;margin:0 auto 14px;`;
+      vals.baIconColor = d.ba ? '#9aa5b1' : '#cbd5e0';
+      vals.baBtnLabel = d.ba ? (this.L('Foto tersimpan ✓', 'Photo saved ✓')) : (this.L('Ambil foto', 'Capture'));
+      vals.baBtnStyle = `font-family:inherit;border:1.5px solid ${d.ba ? '#1F9D57' : '#EE1B2C'};background:${d.ba ? '#EAF7EF' : '#fff'};color:${d.ba ? '#1F9D57' : '#EE1B2C'};font-weight:700;font-size:13px;padding:10px 20px;border-radius:9px;cursor:pointer;`;
+      vals.baToSummary = () => this.baToSummary();
+      vals.baNextStyle = `font-family:inherit;width:100%;margin-top:14px;border:none;font-weight:700;font-size:14px;padding:14px;border-radius:12px;background:${d.ba ? '#EE1B2C' : '#F1F5F8'};color:${d.ba ? '#fff' : '#9aa5b1'};cursor:${d.ba ? 'pointer' : 'not-allowed'};`;
+      // summary
+      vals.summaryDocs = d.docs.order.map(k => ({ name: d.docs.map[k].name }));
+      vals.summaryHasReturn = !!d.returnMode;
+      vals.summaryRetStyle = this.retMeta(d.returnMode).s; vals.summaryRetLabel = this.retMeta(d.returnMode).l;
+      if (d.returnMode === 'sebagian') vals.summaryReturns = selNames.map(n => ({ name: n, qty: d.selected[n] }));
+      else if (d.returnMode === 'semua') vals.summaryReturns = [{ name: this.L('Seluruh parcel dikembalikan', 'All parcels returned'), qty: o.items.length }];
+      else vals.summaryReturns = [];
+      vals.finishSuccess = () => this.finishSuccess();
+      vals.backToOps = () => this.backToOps();
+    } else {
+      vals.dD1 = false; vals.dType = false; vals.dCapture = false; vals.dPost = false; vals.dRetSelect = false;
+      vals.dRetItemPhotos = false; vals.dRetOverall = false; vals.dSticker = false; vals.dBa = false; vals.dSummary = false; vals.dSuccess = false;
+      vals.driverLinkLabel = '';
+      vals.dOrder = { stStyle: '', stLabel: '', items: [] };
+    }
+
+    // example modal
+    if (st.showExample && d) {
+      const conf = this.exampleConf(st.exampleSlot, d.order.type);
+      vals.showExample = true;
+      vals.exampleImg = conf.img; vals.exampleImgRef = (n) => { if (n && n.getAttribute('src') !== conf.img) n.setAttribute('src', conf.img); }; vals.exampleBoxStyle = this.boxStyle(conf.box);
+      vals.exampleTitle = conf.title; vals.exampleCaption = conf.cap; vals.exampleHint = conf.hint;
+    } else {
+      vals.showExample = false;
+      const fallback = 'uploads/1. Faktur SP Manual.png';
+      vals.exampleImg = fallback; vals.exampleImgRef = (n) => { if (n && n.getAttribute('src') !== fallback) n.setAttribute('src', fallback); }; vals.exampleBoxStyle = ''; vals.exampleTitle = ''; vals.exampleCaption = ''; vals.exampleHint = '';
+    }
+
+    vals.closeExample = () => this.closeExample();
+    return vals;
+  }
+}
+
+// ============================== boot ==============================
+(function () {
+  var STORAGE_KEY = 'swiperx_operator_state_v1';
+  var container = document.getElementById('app');
+
+  // Parse the template once (HTML parser keeps SVG namespaces + real form controls).
+  var tplDoc = new DOMParser().parseFromString(document.getElementById('tpl').textContent, 'text/html');
+  var TPL_NODES = Array.prototype.slice.call(tplDoc.body.childNodes);
+
+  var app = new Component({});
+
+  // Rehydrate persisted state over the seeded defaults.
+  try {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) app.state = Object.assign({}, app.state, JSON.parse(saved));
+  } catch (e) { /* ignore corrupt state */ }
+
+  function persist() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(app.state)); } catch (e) {}
+  }
+
+  function render() {
+    var scope = app.renderVals();
+    __handlers = {}; __hid = 0;       // fresh handler registry each render
+    var built = [];
+    TPL_NODES.forEach(function (n) { built = built.concat(__build(n, scope)); });
+    __morph(container, built);        // patch in place — no teardown, no flicker
+  }
+
+  // Delegated event dispatch: one listener per type resolves the nearest
+  // element carrying a registered handler id and invokes the current closure.
+  ['click', 'input', 'change'].forEach(function (evt) {
+    var attr = 'data-on' + evt;
+    container.addEventListener(evt, function (e) {
+      var node = e.target;
+      while (node && node !== container) {
+        var id = node.getAttribute && node.getAttribute(attr);
+        if (id && __handlers[id]) { __handlers[id].call(null, e); return; }
+        node = node.parentNode;
+      }
+    });
+  });
+
+  // setState -> persist + render
+  __hooks.onChange = function () { persist(); render(); };
+
+  // Driver deep-link: index.html#/d/{token} ; also #/operator and #/report
+  function applyHash() {
+    var h = location.hash || '';
+    var m = /^#\/d\/(.+)$/.exec(h);
+    if (m) { app.openDriver(decodeURIComponent(m[1])); return true; }
+    if (h === '#/report') { app.setSurface('report'); return true; }
+    if (h === '#/operator') { app.setSurface('operator'); return true; }
+    return false;
+  }
+  window.addEventListener('hashchange', function () { applyHash(); });
+
+  // Reset-to-seed control (handy for re-running the live walkthrough)
+  var reset = document.createElement('button');
+  reset.id = 'njReset';
+  reset.textContent = 'Reset demo';
+  reset.title = 'Clear saved state and reload the seeded demo';
+  reset.addEventListener('click', function () {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    location.hash = '';
+    location.reload();
+  });
+  document.body.appendChild(reset);
+  window.resetDemo = function () { reset.click(); };
+
+  // First paint
+  if (!applyHash()) render();
+})();
+</script>
+</body>
+</html>

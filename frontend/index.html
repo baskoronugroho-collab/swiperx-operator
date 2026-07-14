@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwipeRx Operator</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --nj-red:#EE1B2C; --nj-red-700:#C2141F; --nj-bg:#F1F5F8; --nj-surface:#FFFFFF;
+    --nj-text:#333; --nj-muted:#6B7280; --nj-border:#E5E7EB;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Montserrat',sans-serif;background:var(--nj-bg);color:var(--nj-text);}
+  header{display:flex;align-items:center;gap:12px;padding:16px 24px;background:var(--nj-surface);border-bottom:1px solid var(--nj-border);}
+  .logo{width:34px;height:34px;border-radius:8px;background:var(--nj-red);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px;}
+  .title{font-weight:700;font-size:15px;line-height:1.1;}
+  .subtitle{font-size:11px;color:var(--nj-muted);}
+  main{max-width:960px;margin:0 auto;padding:40px 24px 64px;}
+  h1{font-size:26px;font-weight:700;margin:0 0 6px;}
+  .lede{color:var(--nj-muted);font-size:14px;margin:0 0 32px;max-width:620px;line-height:1.5;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--nj-surface);border:1px solid var(--nj-border);border-radius:14px;padding:22px;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease;}
+  a.card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.08);border-color:var(--nj-red);}
+  .tag{display:inline-block;font-size:11px;font-weight:600;color:var(--nj-red);background:#FDECEE;border-radius:999px;padding:3px 10px;margin-bottom:12px;}
+  .card h2{font-size:16px;font-weight:700;margin:0 0 6px;}
+  .card p{font-size:13px;color:var(--nj-muted);margin:0;line-height:1.5;}
+  footer{max-width:960px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--nj-muted);}
+  .status{display:inline-flex;align-items:center;gap:7px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9CA3AF;}
+  .dot.ok{background:#16A34A;} .dot.err{background:var(--nj-red);}
+  .note{margin-top:10px;padding:12px 14px;background:#FFF7E6;border:1px solid #FFE2A8;border-radius:10px;font-size:12px;color:#8A6D3B;line-height:1.5;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">S</div>
+  <div>
+    <div class="title">SwipeRx Operator</div>
+    <div class="subtitle">Ninja Van Indonesia · Delivery Compliance &amp; Returns · Alpha 0.1</div>
+  </div>
+</header>
+<main>
+  <h1>Design surfaces · PRD v2.3</h1>
+  <p class="lede">The three product surfaces from the Claude Design handoff, deployed on Substrait and aligned to PRD v2.3. Click through any surface to review the flows.</p>
+  <div class="grid">
+    <a class="card" href="courier.html">
+      <span class="tag">Mobile · portrait</span>
+      <h2>Courier App</h2>
+      <p>Phased door-step capture: POD, single DN (two sections), SP-Manual check, inline reject, failed &amp; no-return branches.</p>
+    </a>
+    <a class="card" href="operator.html">
+      <span class="tag">Console</span>
+      <h2>Operator Dashboard</h2>
+      <p>Order creation, Reject OC, reject-return worklist, arrival &amp; handover with the SwipeRx-receipt loop, PM overview.</p>
+    </a>
+    <a class="card" href="report.html">
+      <span class="tag">Downloadable</span>
+      <h2>SwipeRx Report</h2>
+      <p>Grouped by origin/TMP into Forward / Reject / Special-Case return; SwipeRx-AWB rows with a right-side detail drawer.</p>
+    </a>
+  </div>
+  <div class="note">Design prototype (demo data), aligned to <strong>PRD v2.3</strong>. Backend wiring (real SSO, order creation, capture persistence) follows per the milestone plan; the M0+M1 backend is live under <code>/api</code>.</div>
+</main>
+<footer>
+  <span class="status"><span class="dot" id="dot"></span><span id="backend">checking backend…</span></span>
+</footer>
+<script>
+  fetch('/api/version')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      document.getElementById('dot').className = 'dot ok';
+      document.getElementById('backend').textContent = 'Backend reachable — ' + (d.name || d.version || 'ok');
+    })
+    .catch(function(){
+      document.getElementById('dot').className = 'dot err';
+      document.getElementById('backend').textContent = 'Backend not reachable';
+    });
+</script>
+</body>
+</html>

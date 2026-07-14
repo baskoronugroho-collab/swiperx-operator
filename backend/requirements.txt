@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+asyncmy>=0.2.9          # OceanBase / MySQL-wire driver (NOT asyncpg/Postgres)
+httpx>=0.27            # async HTTP for Google OIDC token/userinfo calls
+PyJWT>=2.9             # session + courier token signing
+redis>=5.0            # sessions, cache, email-notification queue (redis.asyncio)
+python-multipart>=0.0.9   # multipart form uploads (OC template, photos, PDFs)
+openpyxl>=3.1         # read SwipeRx TMP .xlsx + write the Ninja Van upload .xlsx (M1 OC engine)

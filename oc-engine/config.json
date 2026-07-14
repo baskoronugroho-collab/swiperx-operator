@@ -1,0 +1,77 @@
+{
+  "_comment": "OC engine fixed config. Values extracted from real templates in ../OC Template (07 Jul 2026). See EXTRACTION_NOTES.md for provenance and open GAPs.",
+  "public_base_url": "swiperx-operator.apps.substrait.build",
+  "master_shipper_id": "11398423",
+  "services": {
+    "S1": {
+      "name": "Ninja Express Intercity (Regular)",
+      "movement": 1,
+      "branch_id": "1",
+      "service_level": "STANDARD",
+      "direction": "forward",
+      "layout": "forward_regular"
+    },
+    "S2": {
+      "name": "Sameday CTM (Instant)",
+      "movement": 2,
+      "branch_id": "3",
+      "service_level": "SAMEDAY",
+      "direction": "forward",
+      "layout": "forward_sameday"
+    },
+    "S3": {
+      "name": "RTS Account (Return Pickup)",
+      "movement": 3,
+      "branch_id": "2",
+      "_branch_id_note": "RESOLVED 07 Jul: Baskoro confirmed AE=2 (RTS 11398434) per guide. The real sample's AE=1 was a fill error.",
+      "service_level": "STANDARD",
+      "direction": "return",
+      "layout": "return"
+    }
+  },
+  "_source_layouts_comment": "SwipeRx TMP source column maps. The Regular and Sameday TMPs have DIFFERENT shapes (see EXTRACTION_NOTES.md GAP-2). koli_mode: 'count' = collies read from koli_col per row; 'one_row_per_collie' = each data row is one parcel.",
+  "source_layouts": {
+    "forward_regular": {
+      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
+      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "J", "zip": "K", "city": "L", "phone": "M", "koli": "N" }
+    },
+    "forward_sameday": {
+      "_note": "Same row structure as Regular (each row = one PO line with a koli COUNT), but per-PO Weight/Volume cols shift the fields: koli is in col W (= bundle_information.total_quantity), address/zip/city/phone at M/N/O/P. Confirmed by Baskoro 07 Jul.",
+      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
+      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "M", "zip": "N", "city": "O", "phone": "P", "koli": "W" }
+    },
+    "return": {
+      "data_start_row": 4, "group_key_col": "D", "koli_mode": "single",
+      "cols": { "return_awb": "D", "po": "G", "inv": "H", "detail": "I", "pharmacy_name": "C", "address": "L", "city": "M", "phone": "O" }
+    }
+  },
+  "max_collies_per_awb": 200,
+  "warehouse": {
+    "name": "PT Teknologi Medika Pratama (SwipeRx) (B2BR)",
+    "phone": "087733785699",
+    "address1": "Jl. Tugu Raya, Tugu, Kec. Cimanggis, Kota Depok, Jawa Barat 16451,KUBIK LOGISTICS - Kompleks Pergudangan,Gudang E1",
+    "country": "ID",
+    "kecamatan": "Cimanggis",
+    "city": "Depok",
+    "province": "Jawa barat",
+    "postcode": "16451"
+  },
+  "fixed": {
+    "service_type": "Corporate B2B Bundle",
+    "documents_required": "RDO",
+    "is_pickup_required_forward": "FALSE",
+    "is_pickup_required_return": "TRUE",
+    "is_dangerous_good": "FALSE",
+    "insured_value": "0",
+    "item_description_return": "OBAT",
+    "timeslot": { "start_time": "09:00", "end_time": "22:00", "timezone": "Asia/Jakarta" }
+  },
+  "rdo_text": {
+    "forward": "Semua dokumen wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima. Silahkan selesaikan delivery melalui link berikut:",
+    "_forward_comment": "UPDATED 09 Jul 2026 (Baskoro): reworded + no space before the anchor — text ends \"...berikut:\" and the <a> attaches directly.",
+    "_return_delivery_comment": "RESOLVED 07 Jul: return R no longer carries the (variable-length) item list — it MUST instruct the courier to open the link, which holds the full detail + invoice. Keeps R well under 500 with no truncation.",
+    "return_delivery_short": "Pickup Return. Detail barang & nomor invoice WAJIB dibuka di link berikut. Wajib bawa form BA Return. ",
+    "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA"
+  },
+  "link_char_limit": 500
+}

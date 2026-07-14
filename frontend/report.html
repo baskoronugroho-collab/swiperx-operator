@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Montserrat',sans-serif;color:#1A1A1A;}
+  a{color:#EE1B2C;text-decoration:none;} a:hover{color:#C2141F;}
+  ::-webkit-scrollbar{width:10px;height:10px;} ::-webkit-scrollbar-thumb{background:#D5D8DD;border-radius:6px;border:2px solid #F1F5F8;}
+  @keyframes riseIn{0%{transform:translateY(6px);opacity:0}100%{transform:translateY(0);opacity:1}}
+  @keyframes slideIn{0%{transform:translateX(100%)}100%{transform:translateX(0)}}
+  @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+  select,input{font-family:'Montserrat',sans-serif;}
+  select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#F1F5F8;font-family:'Montserrat',sans-serif;color:#1A1A1A;">
+
+  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:0 30px;height:60px;background:#FFFFFF;border-bottom:1px solid #E5E7EB;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:#111214;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;">Rx</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;line-height:1.1;">SwipeRx report</div>
+        <div style="font-size:11px;color:#6B7280;">Delivery compliance · Alpha 0.1</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;gap:2px;background:#F1F1F3;padding:3px;border-radius:9px;">
+        <button onClick="{{ setEn }}" style="{{ enTab }}">EN</button>
+        <button onClick="{{ setId }}" style="{{ idTab }}">ID</button>
+      </div>
+      <button onClick="{{ downloadCsv }}" style="display:flex;align-items:center;gap:9px;min-height:44px;padding:0 20px;border-radius:11px;border:none;background:#16A34A;color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><polyline points="7 10 12 15 17 10"></polyline><path d="M4 19h16"></path></svg>{{ csvLabel }}
+      </button>
+    </div>
+  </div>
+
+  <div style="padding:26px 30px 60px;max-width:1240px;margin:0 auto;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-size:22px;font-weight:700;">{{ L.head }}</div>
+        <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;max-width:640px;">{{ L.sub }}</div>
+      </div>
+    </div>
+
+    <!-- top-level groups -->
+    <div style="display:flex;gap:6px;background:#EAEBEE;padding:5px;border-radius:12px;margin:20px 0 18px;width:fit-content;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.pick }}" style="{{ t.style }}">
+          <span style="width:9px;height:9px;border-radius:50%;background:{{ t.dot }};"></span>{{ t.label }}
+          <span style="{{ t.badge }}">{{ t.count }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <!-- legend / guide (collapsed, amber-accented) -->
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:13px;margin-bottom:18px;overflow:hidden;">
+      <button onClick="{{ toggleGuide }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:14px 18px;border:none;background:transparent;cursor:pointer;font-family:inherit;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 16v-4"></path><circle cx="12" cy="8" r=".4"></circle></svg>
+        <span style="flex:1;font-size:13.5px;font-weight:700;color:#92400E;">{{ L.guide_head }}</span>
+        <span style="color:#B45309;font-size:14px;">{{ guideChevron }}</span>
+      </button>
+      <sc-if value="{{ guideOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:4px 18px 20px;border-top:1px solid #FDE68A;background:#fff;">
+          <sc-for list="{{ legendGroups }}" as="lg" hint-placeholder-count="3">
+            <div style="margin-top:16px;">
+              <div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">{{ lg.title }}</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <sc-for list="{{ lg.items }}" as="it" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:flex-start;gap:9px;background:#F7F7F8;border:1px solid #EEF0F2;border-radius:10px;padding:10px 13px;max-width:300px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:{{ it.dot }};flex:none;margin-top:4px;"></span>
+                    <div><div style="font-size:12.5px;font-weight:700;">{{ it.label }}</div><div style="font-size:11.5px;color:#6B7280;font-weight:500;line-height:1.4;margin-top:1px;">{{ it.desc }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- search + filters -->
+    <div style="background:#fff;border:1px solid #E5E7EB;border-radius:13px;padding:16px 18px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:260px;position:relative;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+          <input value="{{ query }}" onInput="{{ onQuery }}" placeholder="{{ L.search_ph }}" style="width:100%;min-height:42px;border-radius:10px;border:1px solid #E5E7EB;background:#F7F7F8;padding:0 14px 0 38px;font-size:13px;font-weight:500;outline:none;">
+        </div>
+        <button onClick="{{ resetFilters }}" style="min-height:40px;padding:0 15px;border-radius:9px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:#6B7280;">{{ L.clear }}</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px;">{{ f.label }}</div>
+            <select value="{{ f.value }}" onChange="{{ f.onChange }}" style="width:100%;min-height:40px;border-radius:9px;border:1px solid #E5E7EB;background:#F7F7F8;padding:0 30px 0 12px;font-size:12.5px;font-weight:600;color:#1A1A1A;cursor:pointer;outline:none;">
+              <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="3">
+                <option value="{{ o.value }}">{{ o.label }}</option>
+              </sc-for>
+            </select>
+          </div>
+        </sc-for>
+        <div style="grid-column:span 2;">
+          <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:6px;">{{ L.f_ocdate }}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="date" value="{{ dateFrom }}" onChange="{{ onDateFrom }}" style="flex:1;min-height:40px;border-radius:9px;border:1px solid #E5E7EB;background:#F7F7F8;padding:0 12px;font-size:12.5px;font-weight:600;color:#1A1A1A;outline:none;">
+            <span style="color:#9CA3AF;font-weight:700;">→</span>
+            <input type="date" value="{{ dateTo }}" onChange="{{ onDateTo }}" style="flex:1;min-height:40px;border-radius:9px;border:1px solid #E5E7EB;background:#F7F7F8;padding:0 12px;font-size:12.5px;font-weight:600;color:#1A1A1A;outline:none;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- summary -->
+    <div style="display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;">
+      <sc-for list="{{ summary }}" as="sm" hint-placeholder-count="4">
+        <div style="flex:1;min-width:150px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:14px 18px;">
+          <div style="font-size:26px;font-weight:700;color:{{ sm.color }};">{{ sm.value }}</div>
+          <div style="font-size:12px;font-weight:600;color:#6B7280;margin-top:2px;">{{ sm.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- grouped by origin -->
+    <sc-if value="{{ hasGroups }}" hint-placeholder-val="{{ true }}">
+    <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+      <div style="margin-bottom:20px;">
+        <button onClick="{{ g.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#111214;color:#fff;border:none;border-radius:12px 12px {{ g.br }};padding:14px 18px;cursor:pointer;font-family:inherit;">
+          <span style="font-size:15px;transition:transform .2s;transform:{{ g.rot }};">▸</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l3-3h12l3 3"></path><path d="M3 7v13h18V7z"></path><path d="M3 7h18"></path></svg>
+          <div style="flex:1;">
+            <div style="font-size:14.5px;font-weight:700;">{{ g.origin }}</div>
+            <div style="font-size:11.5px;color:#9CA3AF;font-weight:600;margin-top:1px;">{{ g.area }}</div>
+          </div>
+          <span style="background:rgba(255,255,255,.12);padding:4px 11px;border-radius:16px;font-size:11px;font-weight:700;">{{ g.total }} {{ L.swrx_awb }}</span>
+        </button>
+        <sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#fff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;animation:riseIn .18s ease;">
+          <div style="display:grid;grid-template-columns:{{ colTemplate }};padding:11px 18px;background:#F7F7F8;font-size:10.5px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;">
+            <div>{{ L.swrx_awb }}</div><div>{{ L.c_pharmacy }}</div><sc-if value="{{ showServiceCol }}" hint-placeholder-val="{{ true }}"><div>{{ L.c_service }}</div></sc-if><div>{{ col4Head }}</div><div>{{ L.c_valid }}</div><div></div>
+          </div>
+          <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+            <div onClick="{{ r.open }}" style="display:grid;grid-template-columns:{{ colTemplate }};padding:12px 18px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;cursor:pointer;" style-hover="background:#FAFAFB;">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;">{{ r.swrx }}</div>
+              <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.pharmacy }}</div>
+              <sc-if value="{{ showServiceCol }}" hint-placeholder-val="{{ true }}"><div><span style="{{ r.svChip }}">{{ r.service }}</span></div></sc-if>
+              <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+                <span style="{{ r.col4Chip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.col4Dot }};"></span>{{ r.col4 }}</span>
+                <span style="font-size:10px;font-weight:600;color:{{ r.hoColor }};">{{ r.handover }}</span>
+              </div>
+              <div>
+                <sc-if value="{{ r.valid }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#15803D;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"></polyline></svg>{{ L.valid }}</span></sc-if>
+                <sc-if value="{{ r.invalid }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#B45309;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line></svg>{{ L.invalid }}</span></sc-if>
+              </div>
+              <div style="text-align:right;color:#2563EB;font-weight:700;font-size:12px;">{{ L.open_detail }} ›</div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    </sc-if>
+    <sc-if value="{{ noGroups }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:13px;padding:44px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#6B7280;">{{ L.no_rows }}</div>
+        <div style="font-size:12.5px;color:#9CA3AF;font-weight:500;margin-top:5px;">{{ L.no_rows_sub }}</div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- DETAIL DRAWER -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;background:rgba(17,18,20,.4);z-index:60;animation:fadeIn .2s ease;"></div>
+    <div style="position:fixed;top:0;right:0;bottom:0;width:480px;max-width:94vw;background:#fff;z-index:61;box-shadow:-14px 0 40px rgba(0,0,0,.18);animation:slideIn .28s cubic-bezier(.2,.7,.3,1);overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #F1F1F3;position:sticky;top:0;background:#fff;z-index:2;">
+        <div><div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.04em;text-transform:uppercase;">{{ L.swrx_awb }}</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;margin-top:2px;">{{ dr.swrx }}</div></div>
+        <button onClick="{{ closeDrawer }}" style="border:none;background:#F1F1F3;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;color:#6B7280;">✕</button>
+      </div>
+      <div style="padding:22px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:14px;font-weight:700;">{{ dr.pharmacy }}</div>
+          <span style="{{ dr.svChip }}">{{ dr.service }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+          <span style="{{ dr.statusChip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ dr.statusDot }};"></span>{{ dr.status }}</span>
+          <span style="font-size:11.5px;font-weight:700;color:{{ dr.hoColor }};">· {{ dr.handover }}</span>
+        </div>
+
+        <!-- timeline -->
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">{{ L.timeline }}</div>
+        <div style="margin-bottom:24px;">
+          <sc-for list="{{ dr.timeline }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;gap:13px;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex:none;">
+                <div style="width:24px;height:24px;border-radius:50%;background:{{ t.bg }};display:flex;align-items:center;justify-content:center;">
+                  <sc-if value="{{ t.done }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"></polyline></svg></sc-if>
+                </div>
+                <sc-if value="{{ t.line }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;min-height:24px;background:{{ t.lineColor }};"></div></sc-if>
+              </div>
+              <div style="padding-bottom:18px;"><div style="font-size:13px;font-weight:700;color:{{ t.textColor }};">{{ t.label }}</div><div style="font-size:11.5px;color:#9CA3AF;font-weight:600;font-family:ui-monospace,Menlo,monospace;">{{ t.time }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- PO list -->
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;">{{ L.po_list }}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+          <sc-for list="{{ dr.pos }}" as="p" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#F7F7F8;border:1px solid #EEF0F2;border-radius:10px;padding:11px 14px;">
+              <div style="font-size:13px;font-weight:700;font-family:ui-monospace,Menlo,monospace;">{{ p.id }}</div>
+              <span style="{{ p.tagChip }}">{{ p.tag }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- reject detail -->
+        <sc-if value="{{ dr.hasReject }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;">{{ L.reject_detail }}</div>
+          <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:11px;padding:6px 14px;margin-bottom:20px;">
+            <sc-for list="{{ dr.rejectLines }}" as="rl" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #FBD5D5;font-size:12.5px;"><span style="color:#B91C1C;font-weight:600;">{{ rl.label }}</span><span style="font-weight:700;text-align:right;color:#991B1B;">{{ rl.value }}</span></div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ninja AWB list -->
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;">{{ L.ninja_head }} ({{ dr.ninjaCount }})</div>
+        <sc-for list="{{ dr.ninja }}" as="n" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #E5E7EB;border-radius:11px;padding:12px 15px;margin-bottom:8px;flex-wrap:wrap;">
+            <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;">{{ n.awb }}</div>
+            <span style="{{ n.chip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ n.dot }};"></span>{{ n.status }}</span>
+            <div style="flex:1;"></div>
+            <div style="font-size:11px;color:#6B7280;font-weight:600;">{{ n.receiver }} · {{ n.koli }} Koli · {{ n.time }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = {
+    lang:'en', tab:'forward', guideOpen:false,
+    groupsOpen:{}, drawer:null, copied:false, query:'',
+    fService:'all', fStatus:'all', fReturn:'all', fOrigin:'all', fValid:'all', fPo:'all',
+    dateFrom:'2026-07-01', dateTo:'2026-07-09',
+  };
+
+  dict = {
+    head:{en:'Delivery compliance report',id:'Laporan kepatuhan pengiriman'},
+    sub:{en:'Grouped by origin TMP. Rows are SwipeRx AWBs — click one to open its Ninja AWBs, status timeline and PO list in a side panel.',id:'Dikelompokkan per TMP asal. Baris adalah AWB SwipeRx — klik untuk membuka AWB Ninja, linimasa status & daftar PO di panel samping.'},
+    downloadable:{en:'Downloadable — one row per SwipeRx AWB',id:'Bisa diunduh — satu baris per AWB Ninja dengan URL foto'},
+    clear:{en:'Clear',id:'Hapus'},
+    search_ph:{en:'Search by SwipeRx AWB or PO number…',id:'Cari dengan AWB SwipeRx atau nomor PO…'},
+    f_ocdate:{en:'OC date range (when data was input from TMP)',id:'Rentang tanggal OC (saat data dari TMP)'},
+    guide_head:{en:'Guide on how to use this page',id:'Panduan — arti tiap kolom & status'},
+    swrx_awb:{en:'SwipeRx AWB',id:'AWB SwipeRx'},
+    c_pharmacy:{en:'Pharmacy',id:'Apotek'}, c_service:{en:'Service',id:'Layanan'}, c_status:{en:'Status',id:'Status'},
+    c_return:{en:'Reject type',id:'Jenis retur'}, c_valid:{en:'Validity',id:'Validitas'},
+    f_origin:{en:'Origin (TMP)',id:'Asal (TMP)'},
+    valid:{en:'Valid',id:'Valid'}, invalid:{en:'Invalid',id:'Invalid'},
+    reject_detail:{en:'Reject / return detail',id:'Detail retur'},
+    signed_url:{en:'Signed, time-limited photo URLs',id:'URL foto bertanda tangan, berbatas waktu'},
+    ninja_head:{en:'Ninja AWBs',id:'AWB Ninja'},
+    open_detail:{en:'Open',id:'Buka'},
+    timeline:{en:'Status timeline',id:'Linimasa status'},
+    po_list:{en:'PO list (manual / electronic)',id:'Daftar PO (manual / elektronik)'},
+    no_rows:{en:'No AWBs match these filters',id:'Tidak ada AWB yang cocok'},
+    no_rows_sub:{en:'Adjust the filters, search or clear them to see the full set.',id:'Ubah filter, pencarian, atau hapus untuk melihat semua.'},
+    t_forward:{en:'Forward',id:'Forward'}, t_reject:{en:'Reject',id:'Retur'}, t_special:{en:'Special Case return',id:'Retur kasus khusus'},
+    all:{en:'All',id:'Semua'},
+    manual:{en:'Manual (SP)',id:'Manual (SP)'}, electronic:{en:'Electronic',id:'Elektronik'},
+  };
+
+  origins = { depok:'TMP Depok', bandung:'TMP Bandung', surabaya:'TMP Surabaya' };
+  originArea = { depok:'Depok, Jawa Barat', bandung:'Kota Bandung, Jawa Barat', surabaya:'Surabaya, Jawa Timur' };
+
+  data = [
+    { swrx:'SWRX-88213', pharmacy:'Apotek Sehat Sentosa', service:'Sameday', origin:'depok', status:'Delivered', handover:'Received', valid:true, ocDate:'2026-07-09', po:'PO-2401',
+      pos:[{id:'PO-2401',type:'electronic'},{id:'PO-2402',type:'manual'}],
+      timeline:[{label:'CREATED',time:'Jul 9 · 08:12'},{label:'DELIVERED',time:'Jul 9 · 14:07'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 9 · 15:22'},{label:'HANDED_OVER',time:'Jul 9 · 16:40'}],
+      ninja:[ { awb:'NVIDMY0089241', status:'Delivered', receiver:'Ibu Sari', koli:2, time:'14:07', photos:['Pharmacy POD','Receiver POD','DN','SP Manual'] },
+              { awb:'NVIDMY0089242', status:'Delivered', receiver:'Ibu Sari', koli:1, time:'14:09', photos:['Pharmacy POD','DN'] } ],
+      reject:null },
+    { swrx:'SWRX-88220', pharmacy:'Apotek Cahaya Sehat', service:'Regular', origin:'depok', status:'Partial reject', handover:'Received', valid:true, ocDate:'2026-07-09', po:'PO-2408',
+      pos:[{id:'PO-2408',type:'electronic'}],
+      timeline:[{label:'CREATED',time:'Jul 9 · 07:40'},{label:'PARTIAL_REJECT',time:'Jul 9 · 11:22'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 9 · 15:22'},{label:'HANDED_OVER',time:'Jul 9 · 16:40'}],
+      ninja:[ { awb:'NVIDMY0089244', status:'Partial reject', receiver:'Pak Budi', koli:2, time:'11:22', photos:['Pharmacy POD','Receiver POD','DN','Return form','Parcel','Fwd AWB'] } ],
+      reject:{ type:'Partial', reportedAwb:'RET-NVID0089244', lines:[ {label:'Reported from',value:'Driver app'}, {label:'Return form',value:'Signed + stamped'}, {label:'Returned parcel',value:'1 photo'}, {label:'Forward AWB sticker',value:'RET-NVID0089244'} ] } },
+    { swrx:'SWRX-88231', pharmacy:'Apotek Bunda Farma', service:'Regular', origin:'depok', status:'Failed', handover:'Awaiting', valid:false, ocDate:'2026-07-08', po:'PO-2412',
+      pos:[{id:'PO-2412',type:'electronic'}],
+      timeline:[{label:'CREATED',time:'Jul 8 · 09:05'},{label:'DELIVERY_FAILED',time:'Jul 8 · 15:02'}],
+      ninja:[ { awb:'NVIDMY0089243', status:'Failed', receiver:'—', koli:1, time:'15:02', photos:['Failure proof'] } ],
+      reject:null },
+    { swrx:'SWRX-88240', pharmacy:'Apotek Prima Husada', service:'Sameday', origin:'bandung', status:'Full reject', handover:'Awaiting', valid:false, ocDate:'2026-07-09', po:'PO-2418',
+      pos:[{id:'PO-2418',type:'manual'}],
+      timeline:[{label:'CREATED',time:'Jul 9 · 07:10'},{label:'FULL_REJECT',time:'Jul 9 · 09:41'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 9 · 12:20'}],
+      ninja:[ { awb:'NVIDMY0089258', status:'Full reject', receiver:'Pak Andi', koli:3, time:'09:41', photos:['DN box 2','Parcel'] } ],
+      reject:{ type:'Full', reportedAwb:'RET-NVID0089258', lines:[ {label:'Reported from',value:'Driver app'}, {label:'DN box 2',value:'Signed + stamped'}, {label:'Returned parcel',value:'1 photo'} ] } },
+    { swrx:'SWRX-88255', pharmacy:'Apotek Sentra Medika', service:'Regular', origin:'bandung', status:'Delivered', handover:'Received', valid:true, ocDate:'2026-07-08', po:'PO-2421',
+      pos:[{id:'PO-2421',type:'electronic'},{id:'PO-2422',type:'electronic'}],
+      timeline:[{label:'CREATED',time:'Jul 8 · 08:00'},{label:'DELIVERED',time:'Jul 8 · 13:15'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 8 · 14:50'},{label:'HANDED_OVER',time:'Jul 8 · 16:10'}],
+      ninja:[ { awb:'NVIDMY0089262', status:'Delivered', receiver:'Ibu Rina', koli:1, time:'13:15', photos:['Pharmacy POD','Receiver POD','DN'] } ],
+      reject:null },
+    { swrx:'SWRX-88270', pharmacy:'Apotek Mitra Sehat', service:'Return pickup', origin:'surabaya', status:'Delivered', handover:'Received', valid:true, ocDate:'2026-07-09', po:'PO-2430',
+      pos:[{id:'PO-2430',type:'electronic'}],
+      timeline:[{label:'CREATED',time:'Jul 9 · 08:30'},{label:'DELIVERED',time:'Jul 9 · 10:30'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 9 · 12:00'},{label:'HANDED_OVER',time:'Jul 9 · 14:20'}],
+      ninja:[ { awb:'NVIDMY0089270', status:'Delivered', receiver:'Pak Joko', koli:2, time:'10:30', photos:['Return form full','Receiver POD'] } ],
+      reject:null },
+    { swrx:'SWRX-88281', pharmacy:'Apotek Kasih Ibu', service:'Return pickup', origin:'surabaya', status:'Partial reject', handover:'Awaiting', valid:true, ocDate:'2026-07-07', po:'PO-2433',
+      pos:[{id:'PO-2433',type:'manual'}],
+      timeline:[{label:'CREATED',time:'Jul 7 · 09:00'},{label:'PARTIAL_REJECT',time:'Jul 7 · 12:48'},{label:'ARRIVED_AT_IMPLANT',time:'Jul 7 · 15:00'}],
+      ninja:[ { awb:'NVIDMY0089281', status:'Partial reject', receiver:'Ibu Wati', koli:2, time:'12:48', photos:['Return form','Parcel','Fwd AWB'] } ],
+      reject:{ type:'Partial', reportedAwb:'RET-NVID0089281', lines:[ {label:'Reported from',value:'Driver app'}, {label:'Return form',value:'Signed + stamped'}, {label:'Returned parcel',value:'1 photo'} ] } },
+  ];
+
+  svChip(service){
+    const map = { 'Sameday':['#F5F3FF','#6D28D9'], 'Regular':['#EFF6FF','#1D4ED8'], 'Return pickup':['#ECFDF3','#15803D'] };
+    const c = map[service] || ['#F1F1F3','#4B5563'];
+    return 'display:inline-flex;align-items:center;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:700;background:'+c[0]+';color:'+c[1]+';';
+  }
+  stMeta(st){ const m={ 'Delivered':['#EFF6FF','#1D4ED8','#2563EB'],'Partial reject':['#FFFBEB','#B45309','#D97706'],'Full reject':['#FEF2F2','#B91C1C','#DC2626'],'Failed':['#FEF2F2','#B91C1C','#DC2626'] }; return m[st]||['#F1F1F3','#4B5563','#9CA3AF']; }
+  chip(st){ const c=this.stMeta(st); return 'display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:16px;font-size:11px;font-weight:700;background:'+c[0]+';color:'+c[1]+';'; }
+  stName(st){ if(this.state.lang!=='id') return st; const m={ 'Delivered':'Terkirim','Partial reject':'Retur sebagian','Full reject':'Retur semua','Failed':'Gagal' }; return m[st]||st; }
+  hoName(h){ if(h==='Received') return this.state.lang==='id'?'Serah terima: diterima':'Handover: received'; if(h==='Awaiting') return this.state.lang==='id'?'Serah terima: menunggu':'Handover: awaiting'; return '—'; }
+  hoColor(h){ return h==='Received'?'#15803D':(h==='Awaiting'?'#B45309':'#9CA3AF'); }
+
+  passFilters(r){
+    const s=this.state;
+    if(s.query){ const q=s.query.toLowerCase(); if(r.swrx.toLowerCase().indexOf(q)===-1 && r.po.toLowerCase().indexOf(q)===-1) return false; }
+    if(s.fService!=='all' && r.service!==s.fService) return false;
+    if(s.fStatus!=='all'){
+      if(s.fStatus==='ho_received'){ if(r.handover!=='Received') return false; }
+      else if(s.fStatus==='ho_awaiting'){ if(r.handover!=='Awaiting') return false; }
+      else if(r.status!==s.fStatus) return false;
+    }
+    if(s.fReturn!=='all'){ const rt = r.reject?r.reject.type:'None'; if(rt!==s.fReturn) return false; }
+    if(s.fOrigin!=='all' && r.origin!==s.fOrigin) return false;
+    if(s.fValid!=='all'){ const v = r.valid?'valid':'invalid'; if(v!==s.fValid) return false; }
+    if(s.fPo!=='all' && r.po!==s.fPo) return false;
+    if(s.dateFrom && r.ocDate < s.dateFrom) return false;
+    if(s.dateTo && r.ocDate > s.dateTo) return false;
+    return true;
+  }
+
+  renderVals(){
+    const s=this.state; const L={}; for(const k in this.dict) L[k]=this.dict[k][s.lang];
+
+    const inTab=(r,tab)=> tab==='forward' ? (r.service==='Sameday'||r.service==='Regular')
+      : tab==='reject' ? !!r.reject
+      : r.service==='Return pickup';
+    const tabDefs=[ {k:'forward',l:L.t_forward,dot:'#2563EB'}, {k:'reject',l:L.t_reject,dot:'#DC2626'}, {k:'special',l:L.t_special,dot:'#15803D'} ];
+    const tabs = tabDefs.map(t=>{ const sel=s.tab===t.k; const count=this.data.filter(r=>inTab(r,t.k)).length;
+      return { label:t.l, dot:t.dot, count,
+        pick:()=>this.setState({tab:t.k, drawer:null}),
+        style:'display:flex;align-items:center;gap:8px;min-height:40px;padding:0 18px;border-radius:9px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:'+(sel?'#fff':'transparent')+';color:'+(sel?'#1A1A1A':'#6B7280')+';box-shadow:'+(sel?'0 1px 3px rgba(0,0,0,.08)':'none')+';',
+        badge:'background:'+(sel?'#111214':'#CFD2D6')+';color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:12px;' }; });
+
+    const isSpecial = s.tab==='special';
+    const isRejectTab = s.tab==='reject';
+    const showServiceCol = !isSpecial;
+
+    const statusOpts=[{value:'all',label:L.all},{value:'Delivered',label:this.stName('Delivered')},{value:'Partial reject',label:this.stName('Partial reject')},{value:'Full reject',label:this.stName('Full reject')},{value:'Failed',label:this.stName('Failed')},{value:'ho_received',label:s.lang==='id'?'Serah terima: diterima':'Handover: received'},{value:'ho_awaiting',label:s.lang==='id'?'Serah terima: menunggu':'Handover: awaiting'}];
+    const svcOpts=[{value:'all',label:L.all},{value:'Sameday',label:'Sameday'},{value:'Regular',label:'Regular'}];
+    const returnOpts=[{value:'all',label:L.all},{value:'None',label:s.lang==='id'?'Tanpa retur':'No reject'},{value:'Partial',label:s.lang==='id'?'Sebagian':'Partial'},{value:'Full',label:s.lang==='id'?'Semua':'Full'}];
+    const originOpts=[{value:'all',label:L.all},{value:'depok',label:'TMP Depok'},{value:'bandung',label:'TMP Bandung'},{value:'surabaya',label:'TMP Surabaya'}];
+    const validOpts=[{value:'all',label:L.all},{value:'valid',label:L.valid},{value:'invalid',label:L.invalid}];
+    const poSet=[...new Set(this.data.map(r=>r.po))];
+    const poOpts=[{value:'all',label:L.all}].concat(poSet.map(p=>({value:p,label:p})));
+
+    const filters = [];
+    filters.push({ id:'fOrigin', label:L.f_origin, value:s.fOrigin, options:originOpts, onChange:(e)=>this.setState({fOrigin:e.target.value, drawer:null}) });
+    if(!isSpecial) filters.push({ id:'fService', label:L.c_service, value:s.fService, options:svcOpts, onChange:(e)=>this.setState({fService:e.target.value, drawer:null}) });
+    filters.push({ id:'fStatus', label:L.c_status, value:s.fStatus, options:statusOpts, onChange:(e)=>this.setState({fStatus:e.target.value, drawer:null}) });
+    if(!isRejectTab) filters.push({ id:'fReturn', label:L.c_return, value:s.fReturn, options:returnOpts, onChange:(e)=>this.setState({fReturn:e.target.value, drawer:null}) });
+    filters.push({ id:'fValid', label:L.c_valid, value:s.fValid, options:validOpts, onChange:(e)=>this.setState({fValid:e.target.value, drawer:null}) });
+    filters.push({ id:'fPo', label:'PO', value:s.fPo, options:poOpts, onChange:(e)=>this.setState({fPo:e.target.value, drawer:null}) });
+
+    const tabRows = this.data.filter(r=>inTab(r,s.tab)).filter(r=>this.passFilters(r));
+
+    const withReject = tabRows.filter(r=>!!r.reject).length;
+    const failed = tabRows.filter(r=>r.status==='Failed').length;
+    const validCount = tabRows.filter(r=>r.valid).length;
+    const validPct = tabRows.length? Math.round(validCount/tabRows.length*100)+'%' : '—';
+    const summary = [
+      { value:String(tabRows.length), label:s.lang==='id'?'AWB SwipeRx':'SwipeRx AWBs', color:'#1A1A1A' },
+      { value:String(withReject), label:s.lang==='id'?'Ada retur':'With reject', color:'#D97706' },
+      { value:String(failed), label:s.lang==='id'?'Gagal kirim':'Failed', color:'#DC2626' },
+      { value:validPct, label:s.lang==='id'?'RDO valid':'RDO valid', color:'#16A34A' },
+    ];
+
+    const originKeys=['depok','bandung','surabaya'];
+    const groups = originKeys.map(ok=>{
+      const rws = tabRows.filter(r=>r.origin===ok);
+      if(!rws.length) return null;
+      const open = s.groupsOpen[s.tab+'_'+ok]!==false;
+      const rows = rws.map(r=>{
+        const c=this.stMeta(r.status);
+        const col4status = isRejectTab ? (r.reject&&r.reject.type==='Full'?'Full reject':'Partial reject') : r.status;
+        const c4=this.stMeta(col4status);
+        return { swrx:r.swrx, pharmacy:r.pharmacy, service:r.service, svChip:this.svChip(r.service),
+          col4:this.stName(col4status), col4Chip:this.chip(col4status), col4Dot:c4[2],
+          handover:this.hoName(r.handover), hoColor:this.hoColor(r.handover),
+          valid:r.valid, invalid:!r.valid,
+          open:()=>this.setState({drawer:r.swrx}) };
+      });
+      return { key:ok, origin:this.origins[ok], area:this.originArea[ok], total:rws.length, open,
+        toggle:()=>this.setState(st=>{ const k=s.tab+'_'+ok; return {groupsOpen:{...st.groupsOpen,[k]:!(st.groupsOpen[k]!==false)}}; }),
+        rot: open?'rotate(90deg)':'rotate(0deg)', br: open?'0 0':'12px 12px', rows };
+    }).filter(Boolean);
+
+    // legend
+    const legendGroups = [
+      { title:s.lang==='id'?'Grup atas':'Top-level groups', items:[
+        { dot:'#2563EB', label:'Forward', desc:s.lang==='id'?'Layanan Sameday & Regular (pengiriman maju).':'Sameday & Regular services (forward delivery).' },
+        { dot:'#DC2626', label:'Reject', desc:s.lang==='id'?'AWB dengan retur yang dilaporkan dari aplikasi driver.':'AWBs with a reject reported from the Driver app.' },
+        { dot:'#15803D', label:'Special Case return', desc:s.lang==='id'?'Layanan ketiga: return pickup (tanpa varian layanan).':'The third service: return pickup (no service variants).' },
+      ]},
+      { title:s.lang==='id'?'Status (termasuk serah terima)':'Status (incl. handover)', items:[
+        { dot:'#2563EB', label:this.stName('Delivered'), desc:s.lang==='id'?'Diterima penuh, POD terekam.':'Fully accepted, POD captured.' },
+        { dot:'#D97706', label:this.stName('Partial reject'), desc:s.lang==='id'?'Sebagian barang ditolak & diretur.':'Some goods rejected & returned.' },
+        { dot:'#DC2626', label:this.stName('Full reject'), desc:s.lang==='id'?'Semua barang ditolak & diretur.':'All goods rejected & returned.' },
+        { dot:'#DC2626', label:this.stName('Failed'), desc:s.lang==='id'?'Gagal kirim, tidak ada POD.':'Could not deliver, no POD.' },
+        { dot:'#15803D', label:s.lang==='id'?'Serah terima: diterima':'Handover: received', desc:s.lang==='id'?'Dokumen sudah diterima Ninja (di bawah status).':'Docs received by Ninja (shown under the status).' },
+        { dot:'#B45309', label:s.lang==='id'?'Serah terima: menunggu':'Handover: awaiting', desc:s.lang==='id'?'Terkirim, dokumen belum diserahkan.':'Delivered, docs not yet handed over.' },
+      ]},
+      { title:s.lang==='id'?'Validitas RDO':'RDO validity', items:[
+        { dot:'#16A34A', label:L.valid, desc:s.lang==='id'?'RDO lengkap & tervalidasi.':'RDO complete & validated.' },
+        { dot:'#D97706', label:L.invalid, desc:s.lang==='id'?'RDO hilang atau gagal validasi.':'RDO missing or failed validation.' },
+      ]},
+    ];
+
+    // drawer
+    const drRow = s.drawer ? this.data.find(r=>r.swrx===s.drawer) : null;
+    let dr = null;
+    if(drRow){
+      const c=this.stMeta(drRow.status);
+      const tl = drRow.timeline.map((t,i)=>({ label:t.label, time:t.time, done:true, bg:'#16A34A', line:i<drRow.timeline.length-1, lineColor:'#16A34A', textColor:'#1A1A1A' }));
+      dr = {
+        swrx:drRow.swrx, pharmacy:drRow.pharmacy, service:drRow.service, svChip:this.svChip(drRow.service),
+        status:this.stName(drRow.status), statusChip:this.chip(drRow.status), statusDot:c[2],
+        handover:this.hoName(drRow.handover), hoColor:this.hoColor(drRow.handover),
+        timeline:tl,
+        pos: drRow.pos.map(p=>({ id:p.id, tag: p.type==='manual'?L.manual:L.electronic,
+          tagChip:'display:inline-flex;align-items:center;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:700;background:'+(p.type==='manual'?'#FFF7ED':'#EFF6FF')+';color:'+(p.type==='manual'?'#C2410C':'#1D4ED8')+';' })),
+        hasReject: !!drRow.reject,
+        rejectLines: drRow.reject ? drRow.reject.lines : [],
+        ninjaCount: drRow.ninja.length,
+        ninja: drRow.ninja.map(n=>{ const nc=this.stMeta(n.status); return { awb:n.awb, status:this.stName(n.status), chip:this.chip(n.status), dot:nc[2], receiver:n.receiver, koli:n.koli, time:n.time, photos:n.photos }; }),
+      };
+    }
+
+    const tab=a=>'min-width:34px;padding:6px 10px;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;border-radius:7px;background:'+(a?'#111214':'transparent')+';color:'+(a?'#fff':'#6B7280')+';';
+
+    return {
+      L, filters, summary, groups, legendGroups, tabs,
+      showServiceCol, col4Head: isRejectTab ? L.c_return : L.c_status,
+      colTemplate: showServiceCol ? '1.2fr 1.5fr .9fr 1.2fr .8fr .8fr' : '1.3fr 1.7fr 1.3fr .9fr .9fr',
+      guideOpen:s.guideOpen, guideChevron: s.guideOpen?'▴':'▾', toggleGuide:()=>this.setState({guideOpen:!s.guideOpen}),
+      hasGroups: groups.length>0, noGroups: groups.length===0,
+      query:s.query, onQuery:(e)=>this.setState({query:e.target.value, drawer:null}),
+      dateFrom:s.dateFrom, dateTo:s.dateTo,
+      onDateFrom:(e)=>this.setState({dateFrom:e.target.value, drawer:null}),
+      onDateTo:(e)=>this.setState({dateTo:e.target.value, drawer:null}),
+      resetFilters:()=>this.setState({ fService:'all',fStatus:'all',fReturn:'all',fOrigin:'all',fValid:'all',fPo:'all',dateFrom:'2026-07-01',dateTo:'2026-07-09',query:'', drawer:null }),
+      setEn:()=>this.setState({lang:'en'}), setId:()=>this.setState({lang:'id'}), enTab:tab(s.lang==='en'), idTab:tab(s.lang==='id'),
+      drawerOpen:!!dr, dr: dr||{swrx:'',pharmacy:'',service:'',svChip:'',status:'',statusChip:'',statusDot:'#9CA3AF',handover:'',hoColor:'#9CA3AF',timeline:[],pos:[],hasReject:false,rejectLines:[],ninjaCount:0,ninja:[]},
+      closeDrawer:()=>this.setState({drawer:null}),
+      downloadCsv:()=>{ this.setState({copied:true}); setTimeout(()=>this.setState({copied:false}),1400); },
+      csvLabel: s.copied ? (s.lang==='id'?'Terunduh!':'Downloaded!') : (s.lang==='id'?'Unduh CSV':'Download CSV'),
+    };
+  }
+}
+</script>
+</body>
+</html>

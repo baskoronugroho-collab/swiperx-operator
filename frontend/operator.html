@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Montserrat',sans-serif;color:#1A1A1A;}
+  a{color:#EE1B2C;text-decoration:none;} a:hover{color:#C2141F;}
+  ::-webkit-scrollbar{width:10px;height:10px;} ::-webkit-scrollbar-thumb{background:#D5D8DD;border-radius:6px;border:2px solid #F1F5F8;}
+  @keyframes slideIn{0%{transform:translateX(100%)}100%{transform:translateX(0)}}
+  @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+  @keyframes riseIn{0%{transform:translateY(8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+  input,select,textarea{font-family:'Montserrat',sans-serif;}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#F1F5F8;font-family:'Montserrat',sans-serif;color:#1A1A1A;">
+
+  <!-- top bar -->
+  <div style="position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:#FFFFFF;border-bottom:1px solid #E5E7EB;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:32px;height:32px;border-radius:8px;background:#EE1B2C;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;line-height:1.1;">SwipeRx Operator</div>
+        <div style="font-size:11px;color:#6B7280;">Operator dashboard · Ninja Van ID</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="position:relative;">
+        <button onClick="{{ toggleLauncher }}" style="display:flex;align-items:center;gap:8px;min-height:40px;padding:0 15px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:#1A1A1A;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EE1B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          {{ L.launcher }} <span style="color:#9CA3AF;">▾</span>
+        </button>
+        <sc-if value="{{ launcherOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;right:0;top:48px;width:340px;background:#fff;border:1px solid #E5E7EB;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.14);padding:10px;z-index:50;animation:riseIn .18s ease;">
+            <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.05em;text-transform:uppercase;padding:8px 10px 6px;">{{ L.launcher_head }}</div>
+            <sc-for list="{{ launchItems }}" as="a" hint-placeholder-count="5">
+              <button onClick="{{ a.go }}" style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 10px;border-radius:10px;border:none;background:transparent;cursor:pointer;font-family:inherit;">
+                <div style="width:34px;height:34px;border-radius:9px;flex:none;background:{{ a.bg }};display:flex;align-items:center;justify-content:center;color:{{ a.fg }};font-weight:700;font-size:13px;">{{ a.icon }}</div>
+                <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;">{{ a.title }}</div><div style="font-size:11px;color:#9CA3AF;font-weight:600;">{{ a.role }}</div></div>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;gap:2px;background:#F1F1F3;padding:3px;border-radius:9px;">
+        <button onClick="{{ setEn }}" style="{{ enTab }}">EN</button>
+        <button onClick="{{ setId }}" style="{{ idTab }}">ID</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;padding-left:6px;border-left:1px solid #E5E7EB;">
+        <div style="width:32px;height:32px;border-radius:50%;background:#1A1A1A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">RA</div>
+        <div style="line-height:1.15;"><div style="font-size:12.5px;font-weight:700;">Rina Astuti</div><div style="font-size:10.5px;color:#9CA3AF;font-weight:600;">rina@ninjavan.co</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:stretch;min-height:calc(100vh - 60px);">
+
+    <!-- left nav -->
+    <div style="width:236px;flex:none;background:#FFFFFF;border-right:1px solid #E5E7EB;padding:16px 12px;">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+        <button onClick="{{ n.go }}" style="{{ n.style }}">
+          <span style="width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;">{{ n.iconEl }}</span>
+          <span style="flex:1;text-align:left;">{{ n.label }}</span>
+          <sc-if value="{{ n.badge }}" hint-placeholder-val="{{ false }}"><span style="background:#EE1B2C;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">{{ n.badge }}</span></sc-if>
+        </button>
+      </sc-for>
+      <div style="margin-top:18px;padding:12px;background:#F7F7F8;border-radius:10px;font-size:11px;color:#9CA3AF;font-weight:600;line-height:1.5;">{{ L.role_note }}</div>
+    </div>
+
+    <!-- content -->
+    <div style="flex:1;min-width:0;padding:26px 30px 60px;position:relative;">
+
+      <!-- ORDER CREATION (3-step OC) -->
+      <sc-if value="{{ isIntake }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width:1080px;">
+        <div style="font-size:22px;font-weight:700;">{{ intakeHead }}</div>
+        <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;">{{ intakeSub }}</div>
+        <sc-if value="{{ ocReject }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:flex-start;gap:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:13px 15px;margin-top:14px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M3 7l3-3h12l3 3"/><path d="M3 7v13h18V7z"/><path d="M9 12l3 3 3-3"/></svg>
+            <div style="font-size:12px;font-weight:500;color:#991B1B;line-height:1.45;">{{ L.reject_oc_note }}</div>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;align-items:center;gap:0;margin:22px 0 18px;">
+          <sc-for list="{{ ocSteps }}" as="st" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:{{ st.bg }};color:{{ st.fg }};border:2px solid {{ st.bd }};">{{ st.num }}</div>
+              <div style="font-size:13px;font-weight:700;color:{{ st.text }};">{{ st.label }}</div>
+            </div>
+            <sc-if value="{{ st.hasLine }}" hint-placeholder-val="{{ true }}"><div style="width:46px;height:2px;background:#E5E7EB;margin:0 14px;"></div></sc-if>
+          </sc-for>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:26px;">
+          <!-- step 1 -->
+          <sc-if value="{{ ocIs1 }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:16px;font-weight:700;margin-bottom:14px;">{{ L.oc1_head }}</div>
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:150px;border:2px dashed {{ dropBd }};border-radius:12px;background:{{ dropBg }};cursor:pointer;transition:.15s;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><polyline points="7 9 12 4 17 9"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <div style="font-size:14px;font-weight:700;color:{{ dropText }};">{{ dropLabel }}</div>
+              <button onClick="{{ pickFile }}" style="min-height:40px;padding:0 18px;border-radius:9px;border:1.5px solid #1A1A1A;background:#fff;color:#1A1A1A;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">{{ L.browse }}</button>
+            </label>
+
+            <div style="font-size:13px;font-weight:700;margin:22px 0 12px;">{{ L.oc1_service }}</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <sc-for list="{{ services }}" as="sv" hint-placeholder-count="3">
+                <button onClick="{{ sv.pick }}" style="{{ sv.style }}">
+                  <div style="font-size:14px;font-weight:700;">{{ sv.name }}</div>
+                  <div style="font-size:11.5px;color:#6B7280;font-weight:600;margin-top:2px;">{{ sv.type }}</div>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="font-size:13px;font-weight:700;margin:22px 0 12px;">{{ L.oc1_shipper }}</div>
+            <sc-if value="{{ ocService }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#F7F7F8;border:1px solid #E5E7EB;border-radius:12px;padding:16px 18px;">
+                <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                  <div style="flex:1;min-width:140px;"><div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">{{ L.f_shipper_id }}</div><div style="font-size:13.5px;font-weight:700;font-family:ui-monospace,Menlo,monospace;">{{ shipper.id }}</div></div>
+                  <div style="flex:1;min-width:140px;"><div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">{{ L.f_shipper_name }}</div><div style="font-size:13.5px;font-weight:700;">{{ shipper.name }}</div></div>
+                  <div style="flex:1;min-width:140px;"><div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">{{ L.f_branch }}</div><div style="font-size:13.5px;font-weight:700;">{{ shipper.branch }}</div></div>
+                  <div style="flex:1;min-width:140px;"><div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">{{ L.f_ocdate }}</div><div style="font-size:13.5px;font-weight:700;">Jul 9, 2026</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:#9CA3AF;font-weight:600;margin-top:12px;padding-top:12px;border-top:1px solid #E5E7EB;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{ L.shipper_locked }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ noService }}" hint-placeholder-val="{{ true }}">
+              <div style="background:#FAFAFB;border:1px dashed #E5E7EB;border-radius:12px;padding:16px 18px;font-size:12.5px;color:#9CA3AF;font-weight:600;">{{ L.pick_service_first }}</div>
+            </sc-if>
+
+            <sc-if value="{{ showScenario }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:22px;padding-top:18px;border-top:1px dashed #E5E7EB;">
+                <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px;">Demo · preview scenario</div>
+                <div style="display:flex;gap:8px;">
+                  <sc-for list="{{ scenarios }}" as="sc" hint-placeholder-count="3">
+                    <button onClick="{{ sc.pick }}" style="{{ sc.style }}">{{ sc.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <!-- step 2 preview -->
+          <sc-if value="{{ ocIs2 }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px;">{{ L.oc2_head }}</div>
+            <div style="font-size:12.5px;color:#6B7280;font-weight:500;margin-bottom:18px;">{{ L.oc2_sub }}</div>
+            <div style="display:flex;gap:14px;margin-bottom:18px;">
+              <div style="flex:1;background:#ECFDF3;border:1px solid #A7F3D0;border-radius:12px;padding:16px 18px;">
+                <div style="font-size:28px;font-weight:700;color:#15803D;">{{ prev.valid }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:#166534;margin-top:2px;">{{ L.valid_awb }}</div>
+              </div>
+              <div style="flex:1;background:#F7F7F8;border:1px solid #E5E7EB;border-radius:12px;padding:16px 18px;">
+                <div style="font-size:28px;font-weight:700;color:#1A1A1A;">{{ prev.pieces }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:#6B7280;margin-top:2px;">{{ L.pieces }}</div>
+              </div>
+              <div style="flex:1;background:{{ prev.errBg }};border:1px solid {{ prev.errBd }};border-radius:12px;padding:16px 18px;">
+                <div style="font-size:28px;font-weight:700;color:{{ prev.errColor }};">{{ prev.errors }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:{{ prev.errColor }};margin-top:2px;">{{ L.failed_rows }}</div>
+              </div>
+            </div>
+
+            <sc-if value="{{ prev.rejectAll }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:flex-start;gap:11px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" style="flex:none;margin-top:1px;"><path d="M12 3 2 20h20z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".5"/></svg>
+                <div><div style="font-size:13.5px;font-weight:700;color:#991B1B;">{{ rejectAllHead }}</div><div style="font-size:12px;font-weight:500;color:#B91C1C;margin-top:3px;line-height:1.45;">{{ L.reject_all_sub }}</div></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ prev.wrongService }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:11px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".5"/></svg>
+                <div style="font-size:13.5px;font-weight:700;color:#92400E;">{{ L.wrong_service }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ prev.hasErrors }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ toggleErrs }}" style="display:flex;align-items:center;gap:8px;padding:0;border:none;background:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:#DC2626;margin-bottom:10px;">
+                {{ errToggleLabel }} <span>{{ errChevron }}</span>
+              </button>
+              <sc-if value="{{ errsOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1px solid #FCA5A5;border-radius:12px;overflow:hidden;">
+                  <div style="display:grid;grid-template-columns:80px 1fr 2fr;background:#FEF2F2;padding:10px 14px;font-size:11px;font-weight:700;color:#991B1B;letter-spacing:.03em;text-transform:uppercase;"><div>Row</div><div>AWB</div><div>Reason</div></div>
+                  <sc-for list="{{ errRows }}" as="e" hint-placeholder-count="3">
+                    <div style="display:grid;grid-template-columns:80px 1fr 2fr;padding:11px 14px;font-size:12.5px;border-top:1px solid #FEE2E2;"><div style="font-weight:700;">{{ e.row }}</div><div style="font-family:ui-monospace,Menlo,monospace;color:#6B7280;">{{ e.awb }}</div><div style="color:#B91C1C;font-weight:600;">{{ e.reason }}</div></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </sc-if>
+          </sc-if>
+
+          <!-- step 3 create/download -->
+          <sc-if value="{{ ocIs3 }}" hint-placeholder-val="{{ true }}">
+            <div style="text-align:center;padding:8px 0 6px;">
+              <div style="width:72px;height:72px;border-radius:50%;background:#ECFDF3;display:flex;align-items:center;justify-content:center;margin:0 auto;animation:riseIn .3s ease;">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 13 9 18 20 6"/></svg>
+              </div>
+              <div style="font-size:20px;font-weight:700;margin-top:16px;">{{ createdMsg }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:6px;line-height:1.5;">{{ L.created_sub }}</div>
+              <div style="display:flex;gap:12px;justify-content:center;margin-top:22px;">
+                <button style="display:flex;align-items:center;gap:9px;min-height:48px;padding:0 22px;border-radius:11px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/></svg>upload.csv
+                </button>
+              </div>
+              <div style="display:inline-flex;align-items:center;gap:8px;margin-top:18px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:600;color:#1E40AF;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>{{ L.link_embedded }}
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding-top:20px;border-top:1px solid #F1F1F3;">
+            <button onClick="{{ ocBack }}" style="{{ ocBackStyle }}">‹ {{ L.back }}</button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <sc-if value="{{ ocNextBlocked }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:6px;color:#DC2626;font-size:11.5px;font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>{{ L.oc_blocked }}</div>
+              </sc-if>
+              <button onClick="{{ ocNext }}" style="{{ ocNextStyle }}">{{ ocNextLabel }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- upload history -->
+        <div style="margin:30px 0 12px;">
+          <div style="font-size:16px;font-weight:700;">{{ L.history_head }}</div>
+          <div style="font-size:12px;color:#9CA3AF;font-weight:600;">{{ L.history_sub }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.1fr 1.8fr 1fr .8fr .8fr 1.3fr .9fr;padding:12px 16px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;">
+            <div>{{ L.h_date }}</div><div>{{ L.h_file }}</div><div>{{ L.c_service }}</div><div>{{ L.h_orders }}</div><div>Koli</div><div>{{ L.h_by }}</div><div></div>
+          </div>
+          <sc-for list="{{ histRows }}" as="h" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.1fr 1.8fr 1fr .8fr .8fr 1.3fr .9fr;padding:13px 16px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;">
+              <div style="color:#6B7280;font-weight:500;font-size:12px;">{{ h.date }}</div>
+              <div style="font-weight:600;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ h.file }}</div>
+              <div><span style="{{ h.svChip }}">{{ h.service }}</span></div>
+              <div style="font-weight:700;">{{ h.orders }}</div>
+              <div style="font-weight:600;">{{ h.pieces }}</div>
+              <div style="color:#6B7280;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ h.by }}</div>
+              <div><button onClick="{{ h.download }}" style="display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border-radius:8px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:#1A1A1A;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/></svg>.csv</button></div>
+            </div>
+          </sc-for>
+        </div>
+
+      </div>
+      </sc-if>
+
+      <!-- STATION IC — REJECT RETURNS WORKLIST -->
+      <sc-if value="{{ isPrint }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1080px;">
+        <div style="font-size:22px;font-weight:700;">{{ L.rr_head }}</div>
+        <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;">{{ L.rr_sub }}</div>
+
+        <!-- pipeline explainer -->
+        <div style="display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:16px 18px;margin:20px 0;overflow-x:auto;">
+          <sc-for list="{{ rrPipeline }}" as="p" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:12px;flex:none;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:28px;height:28px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ p.bg }};color:{{ p.fg }};">{{ p.num }}</div>
+                <div style="font-size:12px;font-weight:700;color:#1A1A1A;line-height:1.25;max-width:130px;">{{ p.label }}</div>
+              </div>
+              <sc-if value="{{ p.arrow }}" hint-placeholder-val="{{ true }}"><div style="color:#CFD2D6;font-size:16px;margin:0 14px;">→</div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px;margin-bottom:12px;">
+          <div style="display:flex;gap:6px;">
+            <sc-for list="{{ rrDlFilters }}" as="df" hint-placeholder-count="3">
+              <button onClick="{{ df.pick }}" style="{{ df.style }}">{{ df.label }} <span style="{{ df.badge }}">{{ df.count }}</span></button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;background:#F7F7F8;border:1px solid #E5E7EB;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600;">{{ L.f_area }} ▾</div>
+          <div style="display:flex;align-items:center;gap:6px;background:#F7F7F8;border:1px solid #E5E7EB;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600;">{{ L.f_service }} ▾</div>
+          <button onClick="{{ downloadReject }}" style="margin-left:auto;display:flex;align-items:center;gap:8px;min-height:42px;padding:0 18px;border-radius:10px;border:none;background:#EE1B2C;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/></svg>{{ rrDownloadLabel }}
+          </button>
+        </div>
+
+        <sc-if value="{{ rrToast }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:10px;background:#ECFDF3;border:1px solid #A7F3D0;border-radius:12px;padding:12px 15px;margin-bottom:12px;animation:riseIn .25s ease;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>
+            <div style="font-size:12.5px;font-weight:600;color:#166534;">{{ L.rr_toast }}</div>
+          </div>
+        </sc-if>
+
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.3fr 1.6fr 1.1fr .9fr 1.3fr 1.3fr;padding:12px 16px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;">
+            <div>{{ L.rr_fwd_awb }}</div><div>{{ L.c_pharmacy }}</div><div>{{ L.f_area }}</div><div>{{ L.rr_type }}</div><div>{{ L.c_returnawb }}</div><div>{{ L.rr_stage }}</div>
+          </div>
+          <sc-for list="{{ rejectRows }}" as="r" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1.3fr 1.6fr 1.1fr .9fr 1.3fr 1.3fr;padding:13px 16px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;">{{ r.awb }}</div>
+              <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.pharmacy }}</div>
+              <div style="color:#6B7280;font-weight:500;font-size:12px;">{{ r.area }}</div>
+              <div><span style="{{ r.typeChip }}">{{ r.type }}</span></div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:#DC2626;">{{ r.returnAwb }}</div>
+              <div><span style="{{ r.stageChip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.stageDot }};"></span>{{ r.stage }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:9px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:12px 15px;margin-top:14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.9" stroke-linecap="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>
+          <div style="font-size:12px;font-weight:500;color:#1E40AF;line-height:1.45;">{{ L.rr_note }}</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- IMPLANT — ARRIVAL SCAN & HANDOVER -->
+      <sc-if value="{{ isArrival }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1080px;">
+        <div style="font-size:22px;font-weight:700;">{{ L.arr_head }}</div>
+        <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;">{{ L.arr_sub }}</div>
+
+        <div style="display:flex;gap:4px;background:#EAEBEE;padding:4px;border-radius:11px;margin:20px 0 20px;width:fit-content;">
+          <sc-for list="{{ arrTabs }}" as="t" hint-placeholder-count="3">
+            <button onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }} <sc-if value="{{ t.count }}" hint-placeholder-val="{{ false }}"><span style="{{ t.badge }}">{{ t.count }}</span></sc-if></button>
+          </sc-for>
+        </div>
+
+        <!-- SCAN & HANDOVER TAB -->
+        <sc-if value="{{ arrIsScan }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:20px;align-items:flex-start;">
+          <div style="flex:1;">
+            <div style="background:#111214;border-radius:14px;padding:22px;color:#fff;margin-bottom:16px;">
+              <div style="font-size:12px;font-weight:700;color:#9CA3AF;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">{{ L.scan_head }}</div>
+              <div style="display:flex;gap:10px;">
+                <input value="{{ scanValue }}" onInput="{{ onScanInput }}" onKeyDown="{{ onScanKey }}" placeholder="{{ L.scan_ph }}" style="flex:1;min-height:52px;border-radius:11px;border:2px solid #EE1B2C;background:#1B1D22;color:#fff;padding:0 16px;font-size:16px;font-family:ui-monospace,Menlo,monospace;outline:none;"/>
+                <button onClick="{{ scanAdd }}" style="min-height:52px;padding:0 22px;border-radius:11px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">{{ L.scan_btn }}</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:12px;font-size:11.5px;color:#9CA3AF;font-weight:600;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#16A34A;box-shadow:0 0 0 3px rgba(22,163,74,.25);"></span>{{ L.scan_ready }}
+              </div>
+            </div>
+
+            <!-- open session card -->
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:18px 20px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.04em;text-transform:uppercase;">{{ L.open_session }}</div>
+                  <div style="font-size:16px;font-weight:700;font-family:ui-monospace,Menlo,monospace;margin-top:2px;">{{ sessionId }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:26px;font-weight:700;line-height:1;">{{ arrivedCount }}</div>
+                  <div style="font-size:11px;color:#9CA3AF;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:3px;">{{ L.docs_scanned }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:14px;font-weight:700;">{{ L.scanned_list }}</div>
+              <button onClick="{{ markHandover }}" style="{{ handoverBtnStyle }}">{{ L.close_handover }}</button>
+            </div>
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;max-height:280px;overflow-y:auto;">
+              <sc-for list="{{ arrivedRows }}" as="a" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid #F1F1F3;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><polyline points="5 13 10 18 19 6"/></svg>
+                  <div style="flex:1;min-width:0;"><div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;">{{ a.awb }}</div><div style="font-size:11.5px;color:#6B7280;font-weight:600;">{{ a.pharmacy }}</div></div>
+                  <span style="{{ a.chip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ a.dot }};"></span>{{ a.status }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="width:320px;flex:none;">
+            <div style="font-size:14px;font-weight:700;margin-bottom:10px;">{{ L.disc_head }}</div>
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#B45309;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>{{ L.disc_a }}</div>
+              <sc-for list="{{ discA }}" as="d" hint-placeholder-count="2">
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:#6B7280;padding:5px 0;border-top:1px solid #F1F1F3;">{{ d }}</div>
+              </sc-for>
+            </div>
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#B91C1C;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>{{ L.disc_b }}</div>
+              <sc-for list="{{ discB }}" as="d" hint-placeholder-count="2">
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:#6B7280;padding:5px 0;border-top:1px solid #F1F1F3;">{{ d }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- SESSIONS TRACKING TAB -->
+        <sc-if value="{{ arrIsSessions }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+            <sc-for list="{{ sessStatusFilters }}" as="sf" hint-placeholder-count="5">
+              <button onClick="{{ sf.pick }}" style="{{ sf.style }}">{{ sf.label }}</button>
+            </sc-for>
+          </div>
+          <sc-for list="{{ sessionDays }}" as="d" hint-placeholder-count="2">
+            <div style="margin-bottom:20px;">
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;">{{ d.day }}</div>
+              <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+                <div style="display:grid;grid-template-columns:1.3fr .8fr 1.3fr 1.1fr 1fr;padding:11px 16px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;">
+                  <div>{{ L.sess_id }}</div><div>{{ L.sess_docs }}</div><div>{{ L.c_status }}</div><div>{{ L.sess_time }}</div><div>{{ L.sess_rej }}</div>
+                </div>
+                <sc-for list="{{ d.rows }}" as="r" hint-placeholder-count="2">
+                  <div style="display:grid;grid-template-columns:1.3fr .8fr 1.3fr 1.1fr 1fr;padding:13px 16px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;">
+                    <div style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;">{{ r.id }}</div>
+                    <div style="font-weight:700;">{{ r.docs }}</div>
+                    <div><span style="{{ r.chip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.dot }};"></span>{{ r.status }}</span></div>
+                    <div style="color:#6B7280;font-weight:500;font-size:12px;">{{ r.time }}</div>
+                    <div style="font-weight:700;color:{{ r.rejColor }};">{{ r.rejected }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <!-- REJECTED DOCS TAB -->
+        <sc-if value="{{ arrIsRejected }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:16px 18px;margin-bottom:18px;overflow-x:auto;">
+            <sc-for list="{{ rejWorkflow }}" as="w" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;flex:none;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:#FEF2F2;color:#DC2626;">{{ w.num }}</div>
+                  <div style="font-size:12px;font-weight:700;color:#1A1A1A;line-height:1.25;max-width:150px;">{{ w.label }}</div>
+                </div>
+                <sc-if value="{{ w.arrow }}" hint-placeholder-val="{{ true }}"><div style="color:#CFD2D6;font-size:16px;margin:0 14px;">→</div></sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#111214;border-radius:14px;padding:18px 20px;color:#fff;margin-bottom:16px;">
+            <div style="font-size:12px;font-weight:700;color:#9CA3AF;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">{{ L.scan_returned }}</div>
+            <div style="display:flex;gap:10px;">
+              <input value="{{ rejScanValue }}" onInput="{{ onRejScanInput }}" onKeyDown="{{ onRejScanKey }}" placeholder="{{ L.scan_ph }}" style="flex:1;min-height:48px;border-radius:11px;border:2px solid #DC2626;background:#1B1D22;color:#fff;padding:0 16px;font-size:15px;font-family:ui-monospace,Menlo,monospace;outline:none;"/>
+              <button onClick="{{ rejScanAdd }}" style="min-height:48px;padding:0 22px;border-radius:11px;border:none;background:#DC2626;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">{{ L.scan_btn }}</button>
+            </div>
+          </div>
+
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">{{ L.rej_list }} <span style="color:#9CA3AF;">({{ rejCount }})</span></div>
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:1.3fr 1fr 1.7fr 1.4fr;padding:11px 16px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;">
+              <div>AWB</div><div>{{ L.sess_id }}</div><div>{{ L.rej_reason }}</div><div>{{ L.rej_action }}</div>
+            </div>
+            <sc-for list="{{ rejectedDocs }}" as="r" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:1.3fr 1fr 1.7fr 1.4fr;padding:13px 16px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;">
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;">{{ r.awb }}</div>
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#6B7280;font-weight:600;">{{ r.session }}</div>
+                <div>
+                  <sc-if value="{{ r.hasReason }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#B91C1C;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>{{ r.reasonLabel }}</span></sc-if>
+                  <sc-if value="{{ r.noReason }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                      <sc-for list="{{ r.reasonOpts }}" as="ro" hint-placeholder-count="3">
+                        <button onClick="{{ ro.pick }}" style="min-height:30px;padding:0 9px;border-radius:7px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;color:#6B7280;">{{ ro.label }}</button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <div>
+                  <sc-if value="{{ r.hasReason }}" hint-placeholder-val="{{ false }}"><span style="{{ r.actionChip }}">{{ r.action }}</span></sc-if>
+                  <sc-if value="{{ r.noReason }}" hint-placeholder-val="{{ true }}"><span style="font-size:11.5px;color:#9CA3AF;font-weight:600;">{{ L.needs_reason }}</span></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- PROGRAM MANAGER — OVERVIEW -->
+      <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1080px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div><div style="font-size:22px;font-weight:700;">{{ L.pm_head }}</div><div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;">{{ L.pm_sub }}</div></div>
+          <div style="display:flex;gap:8px;">
+            <div style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #E5E7EB;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:600;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>{{ L.date_range }} ▾</div>
+            <div style="display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #E5E7EB;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:600;">{{ L.f_service }} ▾</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px;">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="7">
+            <button onClick="{{ k.open }}" style="{{ k.style }}">
+              <div style="font-size:12px;font-weight:600;color:#6B7280;line-height:1.3;">{{ k.label }}</div>
+              <div style="font-size:30px;font-weight:700;color:{{ k.color }};margin-top:8px;">{{ k.value }}</div>
+              <div style="font-size:11px;font-weight:600;color:{{ k.linkColor }};margin-top:6px;">{{ k.linkText }}</div>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:24px;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #F1F1F3;">
+            <div style="font-size:15px;font-weight:700;">{{ pmTableTitle }}</div>
+            <sc-if value="{{ pmFiltered }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ pmClear }}" style="display:flex;align-items:center;gap:6px;min-height:34px;padding:0 13px;border-radius:8px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:#6B7280;">✕ {{ L.pm_show_all }}</button>
+            </sc-if>
+          </div>
+          <div style="display:grid;grid-template-columns:1.4fr 1.8fr 1fr 1fr 1fr;padding:11px 20px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;"><div>AWB</div><div>{{ L.c_pharmacy }}</div><div>{{ L.f_area }}</div><div>{{ L.c_status }}</div><div></div></div>
+          <sc-for list="{{ pmRows }}" as="r" hint-placeholder-count="6">
+            <div onClick="{{ r.open }}" style="display:grid;grid-template-columns:1.4fr 1.8fr 1fr 1fr 1fr;padding:12px 20px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;cursor:pointer;" style-hover="background:#FAFAFB;">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;">{{ r.awb }}</div><div style="font-weight:600;">{{ r.pharmacy }}</div><div style="color:#6B7280;font-weight:500;font-size:12px;">{{ r.area }}</div><div><span style="{{ r.chip }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.dot }};"></span>{{ r.status }}</span></div><div style="text-align:right;color:#2563EB;font-weight:700;font-size:12px;">{{ L.open_drawer }} ›</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SUPERADMIN — USERS -->
+      <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:900px;">
+        <div style="font-size:22px;font-weight:700;">{{ L.users_head }}</div>
+        <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;">{{ L.users_sub }}</div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:20px;margin:20px 0;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:14px;">{{ L.register }}</div>
+          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <input placeholder="name@ninjavan.co" style="flex:1;min-width:240px;min-height:46px;border-radius:10px;border:1px solid #E5E7EB;padding:0 14px;font-size:13.5px;outline:none;"/>
+            <button style="min-height:46px;padding:0 20px;border-radius:10px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;">{{ L.add_user }}</button>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#6B7280;margin:16px 0 10px;">{{ L.assign_roles }}</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <sc-for list="{{ roleChecks }}" as="rc" hint-placeholder-count="6">
+              <button onClick="{{ rc.toggle }}" style="{{ rc.style }}"><div style="{{ rc.box }}"><sc-if value="{{ rc.on }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></sc-if></div>{{ rc.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.6fr 2.2fr .9fr .9fr;padding:12px 18px;background:#F7F7F8;font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.03em;text-transform:uppercase;"><div>{{ L.c_email }}</div><div>{{ L.c_roles }}</div><div>{{ L.c_state }}</div><div></div></div>
+          <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.6fr 2.2fr .9fr .9fr;padding:13px 18px;border-top:1px solid #F1F1F3;align-items:center;font-size:13px;">
+              <div style="font-weight:600;font-size:12.5px;">{{ u.email }}</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;"><sc-for list="{{ u.roles }}" as="r" hint-placeholder-count="2"><span style="background:#F1F1F3;color:#4B5563;font-size:11px;font-weight:700;padding:3px 9px;border-radius:16px;">{{ r }}</span></sc-for></div>
+              <div><span style="{{ u.stateChip }}">{{ u.state }}</span></div>
+              <div style="text-align:right;"><button onClick="{{ u.toggle }}" style="min-height:34px;padding:0 12px;border-radius:8px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;color:{{ u.actionColor }};">{{ u.action }}</button></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <!-- AWB DETAIL DRAWER -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;background:rgba(17,18,20,.4);z-index:60;animation:fadeIn .2s ease;"></div>
+    <div style="position:fixed;top:0;right:0;bottom:0;width:440px;max-width:92vw;background:#fff;z-index:61;box-shadow:-14px 0 40px rgba(0,0,0,.18);animation:slideIn .28s cubic-bezier(.2,.7,.3,1);overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #F1F1F3;position:sticky;top:0;background:#fff;">
+        <div><div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.04em;text-transform:uppercase;">AWB detail</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;margin-top:2px;">{{ drawerAwb }}</div></div>
+        <button onClick="{{ closeDrawer }}" style="border:none;background:#F1F1F3;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;color:#6B7280;">✕</button>
+      </div>
+      <div style="padding:22px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <span style="{{ drawerChip }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ drawerDot }};"></span>{{ drawerStatus }}</span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#15803D;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>{{ L.rdo_valid }}</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">{{ L.timeline }}</div>
+        <div style="margin-bottom:24px;">
+          <sc-for list="{{ timeline }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;gap:13px;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex:none;">
+                <div style="width:24px;height:24px;border-radius:50%;background:{{ t.bg }};display:flex;align-items:center;justify-content:center;">
+                  <sc-if value="{{ t.done }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></sc-if>
+                </div>
+                <sc-if value="{{ t.line }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;min-height:26px;background:{{ t.lineColor }};"></div></sc-if>
+              </div>
+              <div style="padding-bottom:20px;"><div style="font-size:13.5px;font-weight:700;color:{{ t.textColor }};">{{ t.label }}</div><div style="font-size:11.5px;color:#9CA3AF;font-weight:600;font-family:ui-monospace,Menlo,monospace;">{{ t.time }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;">{{ L.captured_docs }}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px;">
+          <sc-for list="{{ drawerPhotos }}" as="ph" hint-placeholder-count="4">
+            <div><div style="height:78px;border-radius:9px;background:repeating-linear-gradient(45deg,#E7EDE9,#E7EDE9 7px,#F2F6F3 7px,#F2F6F3 14px);border:1px solid #E5E7EB;"></div><div style="font-size:10.5px;font-weight:600;color:#6B7280;margin-top:5px;line-height:1.2;">{{ ph }}</div></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#ECFDF3;border:1px solid #A7F3D0;border-radius:11px;padding:13px 15px;">
+          <div><div style="font-size:12px;font-weight:700;color:#166534;">{{ L.return_awb }}</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;color:#15803D;margin-top:2px;">RET-NVID0089241</div></div>
+          <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#15803D;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>{{ L.awb_created }}</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = {
+    nav:'intake', lang:'en', launcherOpen:false,
+    ocStep:1, ocService:'', ocFile:false, ocScenario:'clean', errsOpen:true,
+    statusFilter:'all', copiedId:null,
+    arrTab:'scan', scanValue:'', arrived:['NVIDMY0089241','NVIDMY0089242','NVIDMY0089243'], sessStatus:'all',
+    rejScanValue:'', rejReasons:{},
+    rrDownloaded:false, rrToast:false, rrDlFilter:'all',
+    pmDetail:'all', drawer:null,
+    newRoles:{}, deactivated:{},
+  };
+
+  dict = {
+    launcher:{en:'Start a task',id:'Mulai tugas'},
+    launcher_head:{en:'Action starting points',id:'Titik mulai per peran'},
+    role_note:{en:'You see only the menus for your assigned roles. Superadmin sees all.',id:'Kamu hanya melihat menu untuk peranmu. Superadmin melihat semua.'},
+    nav_intake:{en:'Order creation',id:'Buat OC'},
+    nav_reject_oc:{en:'Reject OC',id:'OC Retur'},
+    nav_print:{en:'Reject returns',id:'Retur ditolak'},
+    reject_oc_note:{en:'Reject-item order creation — upload the reject list generated from courier rejects (separate template from the normal OC). The return link is injected the same way.',id:'Buat OC untuk barang retur — unggah daftar retur dari retur kurir (template terpisah dari OC normal). Tautan retur dimasukkan dengan cara yang sama.'},
+    intake_head_reject:{en:'Reject OC creation',id:'Buat OC Retur'},
+    intake_sub_reject:{en:'Create return orders from the reject list. Upload one reject file — the return link is auto-injected.',id:'Buat order retur dari daftar retur. Unggah satu file retur — tautan retur otomatis dimasukkan.'},
+    rr_dl_all:{en:'All',id:'Semua'},
+    rr_dl_pending:{en:'Not downloaded',id:'Belum diunduh'},
+    rr_dl_progress:{en:'In progress',id:'Diproses'},
+    nav_arrival:{en:'Arrival & handover',id:'Scan & serah terima'},
+    nav_overview:{en:'Overview',id:'Ringkasan'},
+    nav_users:{en:'Users',id:'Pengguna'},
+    back:{en:'Back',id:'Kembali'},
+    intake_head:{en:'Order creation',id:'Buat OC'},
+    intake_sub:{en:'Upload one TMP file, set the shipper details, create orders. The courier link is auto-injected into the file.',id:'Unggah satu file TMP, isi detail shipper, buat order. Tautan kurir otomatis dimasukkan ke file.'},
+    oc1_head:{en:'1 · Upload the SwipeRx TMP file',id:'1 · Unggah file TMP SwipeRx'},
+    oc1_service:{en:'Service for this file',id:'Layanan untuk file ini'},
+    oc1_shipper:{en:'Shipper details',id:'Detail shipper'},
+    f_shipper_id:{en:'Shipper ID',id:'ID Shipper'},
+    f_shipper_name:{en:'Shipper name',id:'Nama shipper'},
+    f_branch:{en:'Corporate branch',id:'Cabang korporat'},
+    f_ocdate:{en:'OC date (single day)',id:'Tanggal OC (satu hari)'},
+    shipper_locked:{en:'Auto-filled from the shipper master — not editable',id:'Terisi otomatis dari master shipper — tidak bisa diubah'},
+    pick_service_first:{en:'Pick a service to load the shipper details.',id:'Pilih layanan untuk memuat detail shipper.'},
+    browse:{en:'Browse file',id:'Pilih file'},
+    drop:{en:'Drag & drop the TMP file here',id:'Tarik & letakkan file TMP di sini'},
+    dropped:{en:'swiperx_tmp_2026-07-09.csv',id:'swiperx_tmp_2026-07-09.csv'},
+    oc2_head:{en:'2 · Preview (no writes)',id:'2 · Pratinjau (belum disimpan)'},
+    oc2_sub:{en:'Nothing is created yet. If any row fails, the whole file is rejected.',id:'Belum ada yang dibuat. Kalau ada baris gagal, seluruh file ditolak.'},
+    valid_awb:{en:'Valid AWBs',id:'AWB valid'},
+    pieces:{en:'Total pieces',id:'Total koli'},
+    failed_rows:{en:'Failed rows',id:'Baris gagal'},
+    reject_all_sub:{en:'This file is all-or-nothing — no orders will be created until every row is clean. Fix the errors and re-upload.',id:'File ini semua-atau-tidak — tidak ada order dibuat sampai semua baris bersih. Perbaiki lalu unggah ulang.'},
+    wrong_service:{en:'Most rows failed — did you pick the right service for this file?',id:'Hampir semua baris gagal — sudah pilih layanan yang benar?'},
+    oc_blocked:{en:'Fix all errors before creating',id:'Perbaiki semua error dulu'},
+    created_sub:{en:'The courier link is already embedded in the file. Upload this one .csv to NV.',id:'Tautan kurir sudah ada di dalam file. Unggah satu .csv ini ke NV.'},
+    link_embedded:{en:'Link auto-injected — upload one file to NV',id:'Tautan otomatis — unggah satu file ke NV'},
+    history_head:{en:'Upload history',id:'Riwayat unggahan'},
+    history_sub:{en:'Successful order-creation uploads. Each file is kept as .csv.',id:'Unggahan pembuatan order yang berhasil. Tiap file disimpan .csv.'},
+    h_date:{en:'Created at',id:'Dibuat'}, h_file:{en:'File',id:'File'}, h_orders:{en:'Orders',id:'Order'}, h_by:{en:'Uploaded by',id:'Diunggah oleh'},
+    monitor_head:{en:'Link monitoring',id:'Monitoring tautan'},
+    monitor_sub:{en:'Convenience view — the link is already in the downloaded file.',id:'Tampilan bantu — tautan sudah ada di file unduhan.'},
+    f_service:{en:'Service',id:'Layanan'}, f_date:{en:'Date',id:'Tanggal'}, f_area:{en:'Area',id:'Area'},
+    c_pharmacy:{en:'Pharmacy',id:'Apotek'}, c_service:{en:'Service',id:'Layanan'}, c_status:{en:'Status',id:'Status'},
+    c_created:{en:'Created',id:'Dibuat'}, c_returnawb:{en:'Return AWB',id:'AWB retur'},
+    rr_head:{en:'Reject returns worklist',id:'Antrian retur ditolak'},
+    rr_sub:{en:'Populated from courier rejects. Download the reject list, generate the return OC, re-upload via Order creation.',id:'Terisi dari retur kurir. Unduh daftar, buat OC retur, unggah ulang via Buat OC.'},
+    rr_fwd_awb:{en:'Forward AWB',id:'AWB forward'},
+    rr_type:{en:'Reject',id:'Retur'},
+    rr_stage:{en:'Stage',id:'Tahap'},
+    rr_download:{en:'Download reject list (.csv)',id:'Unduh daftar retur (.csv)'},
+    rr_downloaded:{en:'Reject list downloaded',id:'Daftar retur terunduh'},
+    rr_toast:{en:'Reject OC template downloaded (.csv). Re-upload it via Order creation as a rejection intake.',id:'Template OC retur terunduh (.csv). Unggah ulang via Buat OC sebagai intake retur.'},
+    rr_note:{en:'The return OC uses a separate template engine from the forward OC. Once re-uploaded, each return is tracked and logged in the data.',id:'OC retur memakai engine template terpisah dari OC forward. Setelah diunggah ulang, tiap retur dilacak & tercatat.'},
+    arr_head:{en:'Arrival scan & handover',id:'Scan kedatangan & serah terima'},
+    arr_sub:{en:'Scan arrivals into a session, hand the session to SwipeRx, then process any rejected docs.',id:'Scan kedatangan ke sesi, serahkan ke SwipeRx, lalu proses dokumen yang ditolak.'},
+    tab_scan:{en:'Scan & handover',id:'Scan & serah terima'},
+    tab_sessions:{en:'Sessions',id:'Sesi'},
+    tab_rejected:{en:'Rejected docs',id:'Dok ditolak'},
+    scan_head:{en:'Scan AWB (barcode scanner acts as keyboard)',id:'Scan AWB (scanner sebagai keyboard)'},
+    scan_ph:{en:'Scan or type an AWB…',id:'Scan atau ketik AWB…'},
+    scan_btn:{en:'Add',id:'Tambah'},
+    scan_ready:{en:'Ready — field is always focused',id:'Siap — kolom selalu fokus'},
+    open_session:{en:'Open session',id:'Sesi terbuka'},
+    docs_scanned:{en:'docs scanned',id:'dok di-scan'},
+    session_cap:{en:'Sessions cap at ~500 docs/day and are grouped by day. One line per scanner beep.',id:'Sesi maksimum ~500 dok/hari, dikelompokkan per hari. Satu baris per bunyi scanner.'},
+    scanned_list:{en:'Scanned in this session',id:'Ter-scan di sesi ini'},
+    close_handover:{en:'Close & hand over session',id:'Tutup & serahkan sesi'},
+    disc_head:{en:'Discrepancies',id:'Ketidaksesuaian'},
+    disc_a:{en:'Delivered · never scanned',id:'Terkirim · belum di-scan'},
+    disc_b:{en:'Scanned · never delivered',id:'Di-scan · belum terkirim'},
+    sess_id:{en:'Session',id:'Sesi'}, sess_docs:{en:'Docs',id:'Dok'}, sess_time:{en:'Handed over',id:'Diserahkan'}, sess_rej:{en:'Rejected',id:'Ditolak'},
+    scan_returned:{en:'Scan returned rejected docs',id:'Scan dokumen ditolak yang dikembalikan'},
+    rej_list:{en:'Rejected docs to process',id:'Dokumen ditolak untuk diproses'},
+    rej_reason:{en:'Reject reason',id:'Alasan ditolak'},
+    rej_action:{en:'Next action',id:'Tindakan berikut'},
+    needs_reason:{en:'Pick a reason →',id:'Pilih alasan →'},
+    pm_head:{en:'Program overview',id:'Ringkasan program'},
+    pm_sub:{en:'Every rate is clickable — the table below filters to the AWBs behind it.',id:'Setiap angka bisa diklik — tabel di bawah menyaring AWB terkait.'},
+    date_range:{en:'Jul 1 – Jul 9',id:'1 Jul – 9 Jul'},
+    view_detail:{en:'View detail',id:'Lihat detail'},
+    viewing:{en:'Viewing ›',id:'Sedang dilihat ›'},
+    pm_all:{en:'All AWBs',id:'Semua AWB'},
+    pm_show_all:{en:'Show all',id:'Tampilkan semua'},
+    open_drawer:{en:'Open',id:'Buka'},
+    users_head:{en:'User management',id:'Manajemen pengguna'},
+    users_sub:{en:'Register by Google email and assign one or more roles.',id:'Daftarkan lewat email Google dan beri satu atau lebih peran.'},
+    register:{en:'Register a new user',id:'Daftarkan pengguna baru'},
+    add_user:{en:'Add user',id:'Tambah'},
+    assign_roles:{en:'Assign roles',id:'Beri peran'},
+    c_email:{en:'Google email',id:'Email Google'}, c_roles:{en:'Roles',id:'Peran'}, c_state:{en:'State',id:'Status'},
+    rdo_valid:{en:'RDO valid',id:'RDO valid'},
+    timeline:{en:'Status timeline',id:'Linimasa status'},
+    captured_docs:{en:'Captured documents',id:'Dokumen terekam'},
+    return_awb:{en:'Return AWB',id:'AWB retur'},
+    awb_created:{en:'Created',id:'Dibuat'},
+  };
+
+  services = [
+    { key:'sameday', name:'Sameday', type:{en:'Instant same-day',id:'Instan hari yang sama'} },
+    { key:'regular', name:'Regular', type:{en:'Standard forward',id:'Pengiriman standar'} },
+    { key:'return', name:'Return pickup', type:{en:'Special case return',id:'Retur kasus khusus'} },
+  ];
+
+  svChip(service){
+    const map = { 'Sameday':['#F5F3FF','#6D28D9'], 'Regular':['#EFF6FF','#1D4ED8'], 'Return pickup':['#ECFDF3','#15803D'], 'Instant':['#F5F3FF','#6D28D9'] };
+    const c = map[service] || ['#F1F1F3','#4B5563'];
+    return 'display:inline-flex;align-items:center;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:700;background:'+c[0]+';color:'+c[1]+';';
+  }
+  stMeta(st){
+    const m = { 'Not opened':['#F1F1F3','#4B5563','#9CA3AF'], 'Opened':['#EFF6FF','#1D4ED8','#2563EB'], 'Delivered':['#EFF6FF','#1D4ED8','#2563EB'], 'Handed over':['#ECFDF3','#15803D','#16A34A'], 'Failed':['#FEF2F2','#B91C1C','#DC2626'], 'Received':['#ECFDF3','#15803D','#16A34A'], 'Partially rejected':['#FFFBEB','#B45309','#D97706'], 'Open':['#EFF6FF','#1D4ED8','#2563EB'] };
+    return m[st] || m['Not opened'];
+  }
+  chip(st){ const c=this.stMeta(st); return 'display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:16px;font-size:11.5px;font-weight:700;background:'+c[0]+';color:'+c[1]+';'; }
+
+  copyLink(id){ this.setState({ copiedId:id }); setTimeout(()=>{ this.setState(s=> s.copiedId===id ? {copiedId:null} : {}); },1400); }
+  ocNextFn(){
+    const s=this.state;
+    if(s.ocStep===1){ if(s.ocFile && s.ocService) this.setState({ocStep:2}); return; }
+    if(s.ocStep===2){ const errs=this.prevData().errors; if(errs===0) this.setState({ocStep:3}); return; }
+    this.setState({ocStep:1,ocFile:false,ocService:'',ocScenario:'clean'});
+  }
+  ocBackFn(){ const s=this.state; if(s.ocStep>1) this.setState({ocStep:s.ocStep-1}); }
+  prevData(){
+    const map = {
+      clean:  { valid:24, pieces:41, errors:0, wrongService:false },
+      errors: { valid:21, pieces:37, errors:3, wrongService:false },
+      wrong:  { valid:2, pieces:3, errors:25, wrongService:true },
+    };
+    return map[this.state.ocScenario] || map.clean;
+  }
+  downloadReject(){ this.setState({ rrDownloaded:true, rrToast:true }); setTimeout(()=>this.setState({rrToast:false}),3200); }
+
+  renderVals(){
+    const s=this.state; const L={}; for(const k in this.dict) L[k]=this.dict[k][s.lang];
+
+    const icon = (p)=>({__html:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'});
+    const navDefs = [
+      { key:'intake', label:L.nav_intake, p:'<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>' },
+      { key:'reject_oc', label:L.nav_reject_oc, p:'<path d="M3 7l3-3h12l3 3"/><path d="M3 7v13h18V7z"/><path d="M9 12l6 0"/>' },
+      { key:'print', label:L.nav_print, p:'<path d="M3 7l3-3h12l3 3"/><path d="M3 7v13h18V7z"/><path d="M9 12l3 3 3-3"/><path d="M12 15V9"/>' },
+      { key:'arrival', label:L.nav_arrival, p:'<rect x="3" y="4" width="4" height="16"/><rect x="10" y="4" width="2" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="19" y="4" width="2" height="16"/>' },
+      { key:'overview', label:L.nav_overview, p:'<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="11" width="8" height="10" rx="1"/><rect x="3" y="14" width="8" height="7" rx="1"/>' },
+      { key:'users', label:L.nav_users, p:'<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 7a3 3 0 0 1 0 6"/><path d="M18 20a6 6 0 0 0-2-4.5"/>' },
+    ];
+    const navItems = navDefs.map(n=>{
+      const active = s.nav===n.key;
+      const El = (window.React).createElement('span',{style:{color:active?'#EE1B2C':'#6B7280',display:'flex'},dangerouslySetInnerHTML:icon(n.p)});
+      return { key:n.key, label:n.label, iconEl:El, badge:'',
+        go:()=>this.setState({nav:n.key, launcherOpen:false}),
+        style:'display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:700;margin-bottom:4px;text-align:left;color:'+(active?'#EE1B2C':'#4B5563')+';background:'+(active?'#FDECEE':'transparent')+';',
+      };
+    });
+
+    const launchDefs = [
+      { key:'intake', title:{en:'I want to create orders',id:'Saya ingin buat OC'}, role:'Implant / DE', icon:'OC', bg:'#FDECEE', fg:'#EE1B2C' },
+      { key:'reject_oc', title:{en:'I want to create a reject OC',id:'Saya ingin buat OC retur'}, role:'Implant / DE', icon:'RO', bg:'#FEF2F2', fg:'#DC2626' },
+      { key:'print', title:{en:'I want to process reject returns',id:'Proses retur ditolak'}, role:'Station IC', icon:'RR', bg:'#FEF2F2', fg:'#DC2626' },
+      { key:'arrival', title:{en:'I want to scan arrivals & hand over',id:'Scan & serah terima'}, role:'Implant', icon:'AR', bg:'#F5F3FF', fg:'#6D28D9' },
+      { key:'overview', title:{en:'I want to see the overview',id:'Lihat ringkasan'}, role:'Program Manager', icon:'OV', bg:'#ECFDF3', fg:'#15803D' },
+      { key:'users', title:{en:'I want to manage users',id:'Kelola pengguna'}, role:'Superadmin', icon:'US', bg:'#FFF7ED', fg:'#C2410C' },
+    ];
+    const launchItems = launchDefs.map(a=>({ title:a.title[s.lang], role:a.role, icon:a.icon, bg:a.bg, fg:a.fg, go:()=>this.setState({nav:a.key, launcherOpen:false}) }));
+
+    // OC steps indicator
+    const stepLabels = [ {en:'Upload & details',id:'Unggah & detail'}, {en:'Preview',id:'Pratinjau'}, {en:'Create & download',id:'Buat & unduh'} ];
+    const ocSteps = stepLabels.map((sl,i)=>{
+      const n=i+1; const done=s.ocStep>n; const cur=s.ocStep===n;
+      return { num: done?'✓':String(n), label:sl[s.lang], hasLine:i<2,
+        bg: done?'#16A34A':(cur?'#EE1B2C':'#fff'), fg:(done||cur)?'#fff':'#9CA3AF', bd: done?'#16A34A':(cur?'#EE1B2C':'#E5E7EB'),
+        text: cur?'#1A1A1A':(done?'#16A34A':'#9CA3AF') };
+    });
+
+    const services = this.services.map(sv=>{
+      const sel=s.ocService===sv.key;
+      return { name:sv.name, type:sv.type[s.lang], pick:()=>this.setState({ocService:sv.key}),
+        style:'flex:1;min-width:150px;text-align:left;padding:14px 16px;border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;border:2px solid '+(sel?'#EE1B2C':'#E5E7EB')+';box-shadow:'+(sel?'0 2px 12px rgba(238,27,44,.1)':'none')+';' };
+    });
+
+    const scenDefs=[ {k:'clean',l:{en:'Clean file',id:'File bersih'}}, {k:'errors',l:{en:'Has errors',id:'Ada error'}}, {k:'wrong',l:{en:'Wrong service',id:'Salah layanan'}} ];
+    const scenarios = scenDefs.map(d=>{ const sel=s.ocScenario===d.k; return { label:d.l[s.lang], pick:()=>this.setState({ocScenario:d.k}),
+      style:'min-height:34px;padding:0 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;border:1.5px solid '+(sel?'#1A1A1A':'#E5E7EB')+';background:'+(sel?'#1A1A1A':'#fff')+';color:'+(sel?'#fff':'#6B7280')+';' }; });
+
+    const pv = this.prevData();
+    const prev = { ...pv, hasErrors: pv.errors>0, rejectAll: pv.errors>0,
+      errBg: pv.errors>0?'#FEF2F2':'#F7F7F8', errBd: pv.errors>0?'#FCA5A5':'#E5E7EB', errColor: pv.errors>0?'#B91C1C':'#6B7280' };
+    const rejectAllHead = s.lang==='id' ? ('Seluruh file ditolak — '+pv.errors+' baris gagal') : ('Whole file rejected — '+pv.errors+' rows failed');
+    const errRowsAll = [
+      { row:7, awb:'NVIDMY0089260', reason:{en:'Missing piece count (koli)',id:'Koli kosong'} },
+      { row:12, awb:'NVIDMY0089265', reason:{en:'Duplicate AWB in this file',id:'AWB duplikat di file ini'} },
+      { row:19, awb:'—', reason:{en:'AWB column empty',id:'Kolom AWB kosong'} },
+    ];
+    const errRows = errRowsAll.map(e=>({ row:e.row, awb:e.awb, reason:e.reason[s.lang] }));
+    const createdMsg = pv.valid + (s.lang==='id'?' order dibuat':' orders created');
+
+    const ocNextLabel = s.ocStep===1 ? (s.lang==='id'?'Pratinjau':'Preview') : (s.ocStep===2 ? (s.lang==='id'?'Buat order':'Create orders') : (s.lang==='id'?'Buat OC baru':'New order creation'));
+    const ocNextBlocked = s.ocStep===2 && pv.errors>0;
+    const ocNextDisabled = (s.ocStep===1 && (!s.ocFile||!s.ocService)) || ocNextBlocked;
+
+    // upload history
+    const histData = [
+      { date:'Jul 9, 08:12', file:'swiperx_tmp_2026-07-09.csv', service:'Sameday', orders:24, pieces:41, by:'agus@ninjavan.co' },
+      { date:'Jul 8, 16:40', file:'swiperx_tmp_2026-07-08.csv', service:'Regular', orders:31, pieces:52, by:'agus@ninjavan.co' },
+      { date:'Jul 8, 09:05', file:'swiperx_return_2026-07-08.csv', service:'Return pickup', orders:6, pieces:9, by:'sari@ninjavan.co' },
+      { date:'Jul 7, 15:20', file:'swiperx_tmp_2026-07-07.csv', service:'Regular', orders:28, pieces:44, by:'agus@ninjavan.co' },
+    ];
+    const histRows = histData.map(h=>({ ...h, svChip:this.svChip(h.service), download:()=>{} }));
+    const shipper = { id:'11398224', name:'SwipeRx Indonesia', branch:'Jakarta HQ' };
+
+    // monitoring
+    const monAll = [
+      { awb:'NVIDMY0089241', pharmacy:'Apotek Sehat Sentosa', service:'Sameday', koli:3, status:'Delivered', created:'Jul 9, 08:12' },
+      { awb:'NVIDMY0089242', pharmacy:'Apotek Kimia Medika', service:'Regular', koli:2, status:'Opened', created:'Jul 9, 08:12' },
+      { awb:'NVIDMY0089243', pharmacy:'Apotek Bunda Farma', service:'Regular', koli:1, status:'Not opened', created:'Jul 9, 08:12' },
+      { awb:'NVIDMY0089244', pharmacy:'Apotek Cahaya Sehat', service:'Return pickup', koli:2, status:'Failed', created:'Jul 9, 07:55' },
+      { awb:'NVIDMY0089245', pharmacy:'Apotek Melati Indah', service:'Sameday', koli:4, status:'Delivered', created:'Jul 9, 07:40' },
+      { awb:'NVIDMY0089246', pharmacy:'Apotek Sumber Waras', service:'Regular', koli:1, status:'Handed over', created:'Jul 8, 16:20' },
+    ];
+    const statusFilterDefs=[ {k:'all',l:{en:'All',id:'Semua'}}, {k:'Not opened',l:{en:'Not opened',id:'Belum dibuka'}}, {k:'Opened',l:{en:'Opened',id:'Dibuka'}}, {k:'Delivered',l:{en:'Delivered',id:'Terkirim'}}, {k:'Failed',l:{en:'Failed',id:'Gagal'}} ];
+    const statusFilters = statusFilterDefs.map(d=>{ const sel=s.statusFilter===d.k; return { label:d.l[s.lang], pick:()=>this.setState({statusFilter:d.k}),
+      style:'min-height:36px;padding:0 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;border:1.5px solid '+(sel?'#EE1B2C':'#E5E7EB')+';background:'+(sel?'#FDECEE':'#fff')+';color:'+(sel?'#EE1B2C':'#6B7280')+';' }; });
+    const monFiltered = monAll.filter(m=> s.statusFilter==='all' || m.status===s.statusFilter);
+    const monRows = monFiltered.map(m=>{
+      const copied=s.copiedId===m.awb; const c=this.stMeta(m.status);
+      return { awb:m.awb, pharmacy:m.pharmacy, service:m.service, koli:m.koli, status:m.status, created:m.created,
+        svChip:this.svChip(m.service), stChip:this.chip(m.status), stDot:c[2],
+        open:()=>this.setState({drawer:m.awb}),
+        copy:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.copyLink(m.awb); },
+        copyLabel: copied?(s.lang==='id'?'Tersalin!':'Copied!'):(s.lang==='id'?'Salin':'Copy link'), copyColor: copied?'#16A34A':'#1A1A1A' };
+    });
+
+    // reject returns
+    const rrStageOrder = ['pending','downloaded','oc_created','reuploaded','logged'];
+    const rrStageLabel = { pending:{en:'Pending download',id:'Menunggu unduh'}, downloaded:{en:'Downloaded',id:'Terunduh'}, oc_created:{en:'OC created',id:'OC dibuat'}, reuploaded:{en:'Re-uploaded',id:'Diunggah ulang'}, logged:{en:'Logged',id:'Tercatat'} };
+    const rrStageColor = { pending:'#D97706', downloaded:'#2563EB', oc_created:'#6D28D9', reuploaded:'#2563EB', logged:'#16A34A' };
+    const rrStageBg = { pending:['#FFFBEB','#B45309'], downloaded:['#EFF6FF','#1D4ED8'], oc_created:['#F5F3FF','#6D28D9'], reuploaded:['#EFF6FF','#1D4ED8'], logged:['#ECFDF3','#15803D'] };
+    const rejectData = [
+      { awb:'NVIDMY0089244', pharmacy:'Apotek Cahaya Sehat', area:'Jakarta Timur', service:'Return pickup', type:'Full', returnAwb:'RET-NVID0089244', base:'pending' },
+      { awb:'NVIDMY0089251', pharmacy:'Apotek Kasih Ibu', area:'Jakarta Timur', service:'Regular', type:'Partial', returnAwb:'RET-NVID0089251', base:'pending' },
+      { awb:'NVIDMY0089258', pharmacy:'Apotek Prima Husada', area:'Kota Bandung', service:'Sameday', type:'Partial', returnAwb:'RET-NVID0089258', base:'oc_created' },
+      { awb:'NVIDMY0089262', pharmacy:'Apotek Sentra Medika', area:'Kota Bandung', service:'Regular', type:'Full', returnAwb:'RET-NVID0089262', base:'reuploaded' },
+      { awb:'NVIDMY0089270', pharmacy:'Apotek Mitra Sehat', area:'Surabaya', service:'Regular', type:'Full', returnAwb:'RET-NVID0089270', base:'logged' },
+    ];
+    // reject-returns download-status filter
+    const rrEffStage = (r)=>{ let st=r.base; if(s.rrDownloaded && st==='pending') st='downloaded'; return st; };
+    const rrCount = (pred)=> rejectData.filter(r=>pred(rrEffStage(r))).length;
+    const rrDlDefs = [
+      { k:'all', l:L.rr_dl_all, pred:()=>true },
+      { k:'pending', l:L.rr_dl_pending, pred:(st)=>st==='pending' },
+      { k:'progress', l:L.rr_dl_progress, pred:(st)=>st!=='pending' },
+    ];
+    const rrDlFilters = rrDlDefs.map(d=>{ const sel=s.rrDlFilter===d.k; const cnt=rrCount(d.pred); return { label:d.l, count:cnt, pick:()=>this.setState({rrDlFilter:d.k}),
+      style:'display:flex;align-items:center;gap:7px;min-height:38px;padding:0 14px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid '+(sel?'#EE1B2C':'#E5E7EB')+';background:'+(sel?'#FDECEE':'#fff')+';color:'+(sel?'#EE1B2C':'#6B7280')+';',
+      badge:'background:'+(sel?'#EE1B2C':'#CFD2D6')+';color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:12px;' }; });
+    const rrDlActive = rrDlDefs.find(d=>d.k===s.rrDlFilter) || rrDlDefs[0];
+    const rejectRows = rejectData.filter(r=>rrDlActive.pred(rrEffStage(r))).map(r=>{
+      let stage=r.base;
+      if(s.rrDownloaded && stage==='pending') stage='downloaded';
+      const sl=rrStageLabel[stage][s.lang]; const bg=rrStageBg[stage];
+      const typeC = r.type==='Full'?['#FEF2F2','#B91C1C']:['#FFFBEB','#B45309'];
+      return { awb:r.awb, pharmacy:r.pharmacy, area:r.area, returnAwb:r.returnAwb,
+        type:(s.lang==='id'?(r.type==='Full'?'Semua':'Sebagian'):r.type),
+        typeChip:'display:inline-flex;align-items:center;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:700;background:'+typeC[0]+';color:'+typeC[1]+';',
+        stage:sl, stageDot:rrStageColor[stage],
+        stageChip:'display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:16px;font-size:11px;font-weight:700;background:'+bg[0]+';color:'+bg[1]+';' };
+    });
+    const rrPipeDefs = [
+      {en:'Courier submits reject',id:'Kurir kirim retur'},
+      {en:'Reject list populated',id:'Daftar retur terisi'},
+      {en:'Download list → generate return OC',id:'Unduh daftar → buat OC retur'},
+      {en:'Re-upload via Order creation',id:'Unggah ulang via Buat OC'},
+      {en:'Tracked & logged',id:'Dilacak & tercatat'},
+    ];
+    const rrPipeline = rrPipeDefs.map((p,i)=>({ num:String(i+1), label:p[s.lang], arrow:i<4,
+      bg: i<2?'#ECFDF3':(i===2?'#FDECEE':'#F1F1F3'), fg: i<2?'#15803D':(i===2?'#EE1B2C':'#6B7280') }));
+    const rrDownloadLabel = s.rrDownloaded ? L.rr_downloaded : L.rr_download;
+
+    // arrival tabs
+    const arrTabDefs=[ {k:'scan',l:L.tab_scan,c:''}, {k:'sessions',l:L.tab_sessions,c:''}, {k:'rejected',l:L.tab_rejected,c:this.rejectedCount()} ];
+    const arrTabs = arrTabDefs.map(t=>{ const sel=s.arrTab===t.k; return { label:t.l, count:t.c,
+      pick:()=>this.setState({arrTab:t.k}),
+      style:'display:flex;align-items:center;gap:8px;min-height:38px;padding:0 16px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;background:'+(sel?'#fff':'transparent')+';color:'+(sel?'#1A1A1A':'#6B7280')+';box-shadow:'+(sel?'0 1px 3px rgba(0,0,0,.08)':'none')+';',
+      badge:'background:'+(sel?'#DC2626':'#CFD2D6')+';color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:12px;' }; });
+
+    // scan tab
+    const meta = { 'NVIDMY0089241':'Apotek Sehat Sentosa','NVIDMY0089242':'Apotek Kimia Medika','NVIDMY0089243':'Apotek Bunda Farma','NVIDMY0089245':'Apotek Melati Indah' };
+    const arrivedRows = s.arrived.map(awb=>({ awb, pharmacy: meta[awb]||'—', chip:this.chip('Delivered'), dot:'#2563EB', status:s.lang==='id'?'Di sesi':'In session' }));
+    const sessionExpected = 500;
+    const sessionPct = Math.min(100, Math.round(s.arrived.length/sessionExpected*100))+'%';
+    const handoverBtnStyle = 'min-height:40px;padding:0 16px;border-radius:9px;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:'+(s.arrived.length?'#16A34A':'#EEEEF0')+';color:'+(s.arrived.length?'#fff':'#9CA3AF')+';';
+
+    // sessions tracking
+    const sessStatusDefs=[ {k:'all',l:{en:'All',id:'Semua'}}, {k:'Open',l:{en:'Open',id:'Terbuka'}}, {k:'Handed over',l:{en:'Handed over',id:'Diserahkan'}}, {k:'Received',l:{en:'Received',id:'Diterima'}}, {k:'Partially rejected',l:{en:'Partially rejected',id:'Sebagian ditolak'}} ];
+    const sessStatusFilters = sessStatusDefs.map(d=>{ const sel=s.sessStatus===d.k; return { label:d.l[s.lang], pick:()=>this.setState({sessStatus:d.k}),
+      style:'min-height:36px;padding:0 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;border:1.5px solid '+(sel?'#EE1B2C':'#E5E7EB')+';background:'+(sel?'#FDECEE':'#fff')+';color:'+(sel?'#EE1B2C':'#6B7280')+';' }; });
+    const sessRaw = [
+      { day:{en:'Today · Jul 9',id:'Hari ini · 9 Jul'}, rows:[
+        { id:'HS-0709-03', docs:342, status:'Open', time:'—', rejected:0 },
+        { id:'HS-0709-02', docs:498, status:'Handed over', time:'13:20', rejected:0 },
+        { id:'HS-0709-01', docs:471, status:'Received', time:'10:05', rejected:0 },
+      ]},
+      { day:{en:'Yesterday · Jul 8',id:'Kemarin · 8 Jul'}, rows:[
+        { id:'HS-0708-02', docs:503, status:'Received', time:'16:40', rejected:0 },
+        { id:'HS-0708-01', docs:488, status:'Partially rejected', time:'11:15', rejected:4 },
+      ]},
+    ];
+    const sessionDays = sessRaw.map(d=>({ day:d.day[s.lang],
+      rows: d.rows.filter(r=> s.sessStatus==='all' || r.status===s.sessStatus).map(r=>{ const c=this.stMeta(r.status);
+        return { id:r.id, docs:r.docs, time:r.time, rejected:r.rejected, chip:this.chip(r.status), dot:c[2],
+          status:this.stName(r.status), rejColor: r.rejected>0?'#DC2626':'#9CA3AF' }; }) }))
+      .filter(d=>d.rows.length>0);
+
+    // rejected docs
+    const rejReasonDefs = [
+      { k:'not_signed', label:{en:'Not signed/stamped',id:'Tak ditandatangani'}, action:{en:'Re-collect from courier',id:'Ambil ulang dari kurir'} },
+      { k:'illegible', label:{en:'Illegible photo',id:'Foto tak terbaca'}, action:{en:'Re-scan document',id:'Scan ulang dokumen'} },
+      { k:'mismatch', label:{en:'AWB mismatch',id:'AWB tidak cocok'}, action:{en:'Escalate to DE',id:'Eskalasi ke DE'} },
+      { k:'missing', label:{en:'Missing document',id:'Dokumen hilang'}, action:{en:'Re-collect from courier',id:'Ambil ulang dari kurir'} },
+    ];
+    const rejDocsData = [
+      { awb:'NVIDMY0089281', session:'HS-0708-01' },
+      { awb:'NVIDMY0089283', session:'HS-0708-01' },
+      { awb:'NVIDMY0089288', session:'HS-0708-01' },
+      { awb:'NVIDMY0089290', session:'HS-0708-01' },
+    ];
+    const rejectedDocs = rejDocsData.map(d=>{
+      const chosen = s.rejReasons[d.awb];
+      const rd = chosen ? rejReasonDefs.find(r=>r.k===chosen) : null;
+      return { awb:d.awb, session:d.session,
+        hasReason: !!chosen, noReason: !chosen,
+        reasonLabel: rd?rd.label[s.lang]:'',
+        action: rd?rd.action[s.lang]:'',
+        actionChip:'display:inline-flex;align-items:center;padding:4px 11px;border-radius:16px;font-size:11px;font-weight:700;background:#EFF6FF;color:#1D4ED8;',
+        reasonOpts: rejReasonDefs.map(r=>({ label:r.label[s.lang], pick:()=>this.setState(st=>({rejReasons:{...st.rejReasons,[d.awb]:r.k}})) })) };
+    });
+    const rejWorkflowDefs = [
+      {en:'Scan all docs to hand over',id:'Scan semua dok untuk diserahkan'},
+      {en:'Handover done — SwipeRx receives',id:'Serah terima — SwipeRx terima'},
+      {en:'Scan the returned rejected docs',id:'Scan dok ditolak yang kembali'},
+      {en:'Give a reason for each rejected doc',id:'Beri alasan tiap dok ditolak'},
+    ];
+    const rejWorkflow = rejWorkflowDefs.map((w,i)=>({ num:String(i+1), label:w[s.lang], arrow:i<3 }));
+    const rejCount = rejectedDocs.length;
+
+    // pm kpis
+    const kpiDefs = [
+      { key:'completed', label:{en:'% completed',id:'% selesai'}, value:'94%', color:'#16A34A' },
+      { key:'validated', label:{en:'% RDO validated',id:'% RDO tervalidasi'}, value:'88%', color:'#2563EB' },
+      { key:'return', label:{en:'% return recorded',id:'% retur tercatat'}, value:'97%', color:'#16A34A' },
+      { key:'failed', label:{en:'% failed',id:'% gagal'}, value:'3.1%', color:'#DC2626' },
+      { key:'invalid', label:{en:'% invalid RDO',id:'% RDO invalid'}, value:'5.4%', color:'#D97706' },
+      { key:'tth', label:{en:'Avg time-to-handover',id:'Rata2 waktu serah terima'}, value:'4.2h', color:'#1A1A1A' },
+      { key:'backlog', label:{en:'Backlog aging (>2d)',id:'Backlog (>2 hari)'}, value:'12', color:'#D97706' },
+    ];
+    const kpis = kpiDefs.map(k=>{ const active=s.pmDetail===k.key; return { key:k.key, value:k.value, color:k.color, label:k.label[s.lang],
+      open:()=>this.setState({pmDetail:k.key}),
+      linkText: active ? L.viewing : (L.view_detail+' ›'), linkColor: active ? '#EE1B2C' : '#2563EB',
+      style:'text-align:left;padding:16px 18px;border-radius:13px;background:'+(active?'#FDECEE':'#fff')+';cursor:pointer;font-family:inherit;border:2px solid '+(active?'#EE1B2C':'#E5E7EB')+';' }; });
+    const pmTitleMap={}; kpiDefs.forEach(k=>pmTitleMap[k.key]=k.label[s.lang]);
+
+    const allPmRows=[
+      { awb:'NVIDMY0089241', pharmacy:'Apotek Sehat Sentosa', area:'Jakarta Timur', status:'Handed over', kpis:['completed','validated','return'] },
+      { awb:'NVIDMY0089245', pharmacy:'Apotek Melati Indah', area:'Jakarta Timur', status:'Delivered', kpis:['completed'] },
+      { awb:'NVIDMY0089244', pharmacy:'Apotek Cahaya Sehat', area:'Jakarta Timur', status:'Failed', kpis:['failed'] },
+      { awb:'NVIDMY0089246', pharmacy:'Apotek Sumber Waras', area:'Kota Bandung', status:'Handed over', kpis:['completed','return','backlog'] },
+      { awb:'NVIDMY0089258', pharmacy:'Apotek Prima Husada', area:'Kota Bandung', status:'Delivered', kpis:['completed','invalid'] },
+      { awb:'NVIDMY0089270', pharmacy:'Apotek Mitra Sehat', area:'Surabaya', status:'Handed over', kpis:['completed','validated','tth'] },
+    ];
+    const pmFiltered = s.pmDetail!=='all';
+    const pmVisible = pmFiltered ? allPmRows.filter(r=>r.kpis.indexOf(s.pmDetail)!==-1) : allPmRows;
+    const pmRows = pmVisible.map(r=>{ const c=this.stMeta(r.status); return { awb:r.awb, pharmacy:r.pharmacy, area:r.area,
+      status:this.stName(r.status), chip:this.chip(r.status), dot:c[2], open:()=>this.setState({drawer:r.awb}) }; });
+    const pmTableTitle = (pmFiltered ? pmTitleMap[s.pmDetail] : L.pm_all) + ' (' + pmVisible.length + ')';
+
+    // users
+    const roleDefs=['Superadmin','Program Manager','DE','Implant','Station IC','Validator'];
+    const roleChecks = roleDefs.map(r=>{ const on=!!s.newRoles[r]; return { label:r, on, toggle:()=>this.setState(st=>({newRoles:{...st.newRoles,[r]:!st.newRoles[r]}})),
+      style:'display:flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;background:#fff;color:'+(on?'#1A1A1A':'#6B7280')+';border:1.5px solid '+(on?'#1A1A1A':'#E5E7EB')+';',
+      box:'width:18px;height:18px;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;background:'+(on?'#1A1A1A':'#fff')+';border:2px solid '+(on?'#1A1A1A':'#CFD2D6')+';' }; });
+    const usersData=[
+      { email:'rina@ninjavan.co', roles:['Superadmin','Program Manager'] },
+      { email:'agus@ninjavan.co', roles:['Implant','DE'] },
+      { email:'sari@ninjavan.co', roles:['Station IC'] },
+      { email:'ops@swiperx.com', roles:['Validator'] },
+    ];
+    const userRows = usersData.map(u=>{ const off=!!s.deactivated[u.email]; return { email:u.email, roles:u.roles,
+      state: off?(s.lang==='id'?'Nonaktif':'Inactive'):(s.lang==='id'?'Aktif':'Active'),
+      stateChip:'display:inline-flex;align-items:center;padding:4px 11px;border-radius:16px;font-size:11px;font-weight:700;background:'+(off?'#F1F1F3':'#ECFDF3')+';color:'+(off?'#9CA3AF':'#15803D')+';',
+      action: off?(s.lang==='id'?'Aktifkan':'Reactivate'):(s.lang==='id'?'Nonaktifkan':'Deactivate'), actionColor: off?'#16A34A':'#DC2626',
+      toggle:()=>this.setState(st=>({deactivated:{...st.deactivated,[u.email]:!st.deactivated[u.email]}})) }; });
+
+    // drawer
+    const drawerAwb = s.drawer || '';
+    const tlDefs=[
+      { label:'CREATED', time:'Jul 9 · 08:12', done:true },
+      { label:'DELIVERED', time:'Jul 9 · 14:07', done:true },
+      { label:'ARRIVED_AT_IMPLANT', time:'Jul 9 · 15:22', done:true },
+      { label:'HANDED_OVER', time:'Jul 9 · 16:40', done:true },
+    ];
+    const timeline = tlDefs.map((t,i)=>({ label:t.label, time:t.time, done:t.done,
+      bg:t.done?'#16A34A':'#E5E7EB', line:i<3, lineColor:'#16A34A', textColor:t.done?'#1A1A1A':'#9CA3AF' }));
+    const drawerPhotos = [
+      s.lang==='id'?'POD Apotek':'Pharmacy POD',
+      s.lang==='id'?'POD Penerima':'Receiver POD',
+      s.lang==='id'?'Surat Jalan':'Delivery Note',
+      s.lang==='id'?'SP Manual':'SP Manual' ];
+
+    const tab=a=>'min-width:34px;padding:6px 10px;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;border-radius:7px;background:'+(a?'#EE1B2C':'transparent')+';color:'+(a?'#fff':'#6B7280')+';';
+
+    return {
+      L,
+      launcherOpen:s.launcherOpen, toggleLauncher:()=>this.setState({launcherOpen:!s.launcherOpen}), launchItems,
+      setEn:()=>this.setState({lang:'en'}), setId:()=>this.setState({lang:'id'}), enTab:tab(s.lang==='en'), idTab:tab(s.lang==='id'),
+      navItems,
+      isIntake:s.nav==='intake'||s.nav==='reject_oc', isPrint:s.nav==='print', isArrival:s.nav==='arrival', isOverview:s.nav==='overview', isUsers:s.nav==='users',
+      ocReject:s.nav==='reject_oc',
+      intakeHead: s.nav==='reject_oc' ? L.intake_head_reject : L.intake_head,
+      intakeSub: s.nav==='reject_oc' ? L.intake_sub_reject : L.intake_sub,
+      rrDlFilters,
+      ocSteps, ocIs1:s.ocStep===1, ocIs2:s.ocStep===2, ocIs3:s.ocStep===3,
+      services, scenarios, showScenario:s.ocStep===1,
+      dropBd:s.ocFile?'#16A34A':'#CFD2D6', dropBg:s.ocFile?'#F0FDF4':'#FAFAFB', dropText:s.ocFile?'#15803D':'#6B7280',
+      dropLabel:s.ocFile?L.dropped:L.drop, pickFile:()=>this.setState({ocFile:true}),
+      prev, rejectAllHead, errRows, errsOpen:s.errsOpen, toggleErrs:()=>this.setState({errsOpen:!s.errsOpen}),
+      errToggleLabel:(s.errsOpen?(s.lang==='id'?'Sembunyikan error':'Hide error rows'):(s.lang==='id'?'Lihat error':'Show error rows'))+' ('+pv.errors+')',
+      errChevron:s.errsOpen?'▴':'▾',
+      createdMsg,
+      ocNext:()=>this.ocNextFn(), ocBack:()=>this.ocBackFn(), ocNextLabel, ocNextBlocked,
+      ocNextStyle: ocNextDisabled ? 'min-height:46px;padding:0 24px;border-radius:11px;border:none;background:#EEEEF0;color:#9CA3AF;font-family:inherit;font-size:14px;font-weight:700;cursor:not-allowed;' : 'min-height:46px;padding:0 24px;border-radius:11px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;',
+      ocBackStyle: s.ocStep>1 ? 'min-height:46px;padding:0 20px;border-radius:11px;border:1.5px solid #E5E7EB;background:#fff;color:#1A1A1A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;' : 'min-height:46px;padding:0 20px;border-radius:11px;border:1.5px solid transparent;background:transparent;color:#CFD2D6;font-family:inherit;font-size:14px;font-weight:700;cursor:default;',
+      histRows, statusFilters, monRows, shipper, ocService:s.ocService, noService:!s.ocService,
+      rrPipeline, rejectRows, rrDownloadLabel, downloadReject:()=>this.downloadReject(), rrToast:s.rrToast,
+      arrTabs, arrIsScan:s.arrTab==='scan', arrIsSessions:s.arrTab==='sessions', arrIsRejected:s.arrTab==='rejected',
+      scanValue:s.scanValue, onScanInput:(e)=>this.setState({scanValue:e.target.value}),
+      onScanKey:(e)=>{ if(e.key==='Enter'){ this.scanAdd(); } }, scanAdd:()=>this.scanAdd(),
+      arrivedRows, arrivedCount:s.arrived.length, sessionId:'HS-0709-03', sessionExpected, sessionPct,
+      markHandover:()=>{ if(s.arrived.length) this.setState({arrived:[]}); }, handoverBtnStyle,
+      discA:['NVIDMY0089239','NVIDMY0089240'], discB:['NVIDMY0089248'],
+      sessStatusFilters, sessionDays,
+      rejWorkflow, rejectedDocs, rejCount,
+      rejScanValue:s.rejScanValue, onRejScanInput:(e)=>this.setState({rejScanValue:e.target.value}),
+      onRejScanKey:(e)=>{ if(e.key==='Enter') this.setState({rejScanValue:''}); }, rejScanAdd:()=>this.setState({rejScanValue:''}),
+      kpis, pmRows, pmTableTitle, pmFiltered, pmClear:()=>this.setState({pmDetail:'all'}),
+      roleChecks, userRows,
+      drawerOpen:!!s.drawer, drawerAwb, closeDrawer:()=>this.setState({drawer:null}),
+      drawerChip:this.chip('Handed over'), drawerDot:'#16A34A', drawerStatus:s.lang==='id'?'Sudah diserahkan':'Handed over',
+      timeline, drawerPhotos,
+    };
+  }
+
+  stName(st){
+    if(this.state.lang!=='id') return st;
+    const m={ 'Delivered':'Terkirim','Handed over':'Diserahkan','Failed':'Gagal','Received':'Diterima','Partially rejected':'Sebagian ditolak','Open':'Terbuka','Opened':'Dibuka','Not opened':'Belum dibuka' };
+    return m[st]||st;
+  }
+  rejectedCount(){ return 4; }
+  scanAdd(){
+    const v=(this.state.scanValue||'').trim().toUpperCase();
+    if(!v) return;
+    if(this.state.arrived.indexOf(v)!==-1){ this.setState({scanValue:''}); return; }
+    this.setState({ arrived:[v,...this.state.arrived], scanValue:'' });
+  }
+}
+</script>
+</body>
+</html>

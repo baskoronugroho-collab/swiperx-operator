@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:'Montserrat',sans-serif;}
+  a{color:#EE1B2C;text-decoration:none;} a:hover{color:#C2141F;}
+  ::-webkit-scrollbar{width:0;height:0;}
+  @keyframes popIn{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+  @keyframes riseIn{0%{transform:translateY(8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+  @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+  @keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(2000%)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#E7E7EB;font-family:'Montserrat',sans-serif;color:#1A1A1A;">
+
+  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:11px 22px;background:#FFFFFF;border-bottom:1px solid #E5E7EB;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:30px;height:30px;border-radius:7px;background:#EE1B2C;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;">S</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;line-height:1.1;">SwipeRx Operator · Courier</div>
+        <div style="font-size:11px;color:#6B7280;">Alpha 0.1 · PRD v2.3 · phased wizard</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;background:#F1F1F3;padding:4px;border-radius:10px;">
+      <button onClick="{{ showApp }}" style="{{ appTab }}">Prototype</button>
+      <button onClick="{{ showSheet }}" style="{{ sheetTab }}">Components</button>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:center;padding:26px 16px 60px;">
+
+    <sc-if value="{{ isApp }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;gap:26px;align-items:flex-start;">
+
+      <div style="width:390px;height:812px;background:#FFFFFF;border-radius:42px;border:10px solid #111214;box-shadow:0 30px 70px rgba(0,0,0,.28);overflow:hidden;position:relative;display:flex;flex-direction:column;">
+
+        <div style="height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex:none;background:{{ topBg }};">
+          <span style="font-size:13px;font-weight:600;">{{ timeStr }}</span>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="display:flex;align-items:flex-end;gap:2px;height:11px;">
+              <div style="width:3px;height:5px;background:#1A1A1A;border-radius:1px;"></div>
+              <div style="width:3px;height:7px;background:#1A1A1A;border-radius:1px;"></div>
+              <div style="width:3px;height:9px;background:#1A1A1A;border-radius:1px;"></div>
+              <div style="width:3px;height:11px;background:#1A1A1A;border-radius:1px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;">5G</span>
+            <div style="width:24px;height:12px;border:1.5px solid #1A1A1A;border-radius:3px;padding:1.5px;position:relative;"><div style="width:75%;height:100%;background:#1A1A1A;border-radius:1px;"></div></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 14px 12px;border-bottom:1px solid #EEF0F2;flex:none;background:{{ topBg }};">
+          <sc-if value="{{ canBack }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ back }}" style="width:44px;height:44px;flex:none;border:none;background:transparent;cursor:pointer;font-size:26px;line-height:1;color:#1A1A1A;border-radius:10px;">‹</button>
+          </sc-if>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Menlo,monospace;">{{ awb }}</div>
+            <div style="font-size:12px;color:#6B7280;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ pharmacy }}</div>
+          </div>
+          <div style="display:flex;gap:2px;background:#F1F1F3;padding:3px;border-radius:9px;flex:none;">
+            <button onClick="{{ setId }}" style="{{ idTab }}">ID</button>
+            <button onClick="{{ setEn }}" style="{{ enTab }}">EN</button>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow-y:auto;background:{{ bodyBg }};position:relative;">
+
+          <sc-if value="{{ isOrder }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:16px;">
+            <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:6px 16px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F1F1F3;"><span style="font-size:13px;color:#6B7280;font-weight:500;">{{ L.order_service }}</span><span style="font-size:13px;font-weight:600;">{{ info.service }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F1F1F3;"><span style="font-size:13px;color:#6B7280;font-weight:500;">{{ L.order_shipper }}</span><span style="font-size:13px;font-weight:600;">{{ info.shipperName }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F1F1F3;"><span style="font-size:13px;color:#6B7280;font-weight:500;">{{ L.order_shipper_id }}</span><span style="font-size:13px;font-weight:600;font-family:ui-monospace,Menlo,monospace;">{{ info.shipperId }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F1F1F3;"><span style="font-size:13px;color:#6B7280;font-weight:500;">{{ L.order_hub }}</span><span style="font-size:13px;font-weight:600;">{{ info.hub }}</span></div>
+              <div style="display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid #F1F1F3;"><span style="font-size:13px;color:#6B7280;font-weight:500;flex:none;">{{ L.order_addr }}</span><span style="font-size:13px;font-weight:600;text-align:right;">{{ address }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;"><span style="font-size:13px;color:#6B7280;font-weight:500;">{{ L.order_koli }}</span><span style="font-size:13px;font-weight:700;">{{ totalKoli }}</span></div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:0 2px 10px;">{{ L.order_po }} · {{ poCount }}</div>
+            <sc-for list="{{ poLines }}" as="po" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+                <div style="min-width:0;">
+                  <div style="font-size:14px;font-weight:700;white-space:nowrap;">{{ po.id }}</div>
+                  <div style="font-size:12px;color:#6B7280;font-weight:500;margin-top:2px;white-space:nowrap;">{{ po.desc }}</div>
+                </div>
+                <div style="text-align:right;flex:none;">
+                  <div style="font-size:17px;font-weight:700;line-height:1;">{{ po.koli }}</div>
+                  <div style="font-size:10.5px;color:#9CA3AF;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:2px;">{{ L.koli_word }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#F1F1F3;border-radius:12px;padding:13px 16px;margin-top:2px;">
+              <span style="font-size:13px;font-weight:700;">{{ L.order_koli }}</span>
+              <span style="font-size:17px;font-weight:700;">{{ totalKoli }} {{ L.koli_word }}</span>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isOutcome }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px;">
+            <div style="font-size:19px;font-weight:700;margin:2px 2px 4px;">{{ L.out_head }}</div>
+            <div style="font-size:12.5px;color:#6B7280;font-weight:500;margin:0 2px 16px;line-height:1.4;">{{ L.out_sub }}</div>
+            <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.pick }}" style="{{ o.cardStyle }}">
+                <div style="width:10px;height:10px;border-radius:50%;background:{{ o.accent }};flex:none;"></div>
+                <div style="flex:1;">
+                  <div style="font-size:15px;font-weight:700;">{{ o.title }}</div>
+                  <div style="font-size:12px;color:#6B7280;font-weight:500;margin-top:2px;">{{ o.sub }}</div>
+                </div>
+                <div style="{{ o.radio }}">
+                  <sc-if value="{{ o.selected }}" hint-placeholder-val="{{ false }}"><div style="width:10px;height:10px;border-radius:50%;background:#EE1B2C;"></div></sc-if>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isCapture }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 8px;">
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.04em;">{{ stepText }}</div>
+              <div style="font-size:12px;font-weight:600;color:{{ accentColor }};">{{ outcomeLabel }}</div>
+            </div>
+            <div style="height:7px;border-radius:6px;background:#EAEBED;overflow:hidden;margin-bottom:16px;display:flex;gap:3px;">
+              <sc-for list="{{ pips }}" as="p" hint-placeholder-count="5">
+                <div style="flex:1;height:100%;border-radius:6px;background:{{ p.color }};transition:background .3s ease;"></div>
+              </sc-for>
+            </div>
+
+            <!-- PARTIAL-REJECT QUESTION -->
+            <sc-if value="{{ step.isPartialAsk }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:20px;font-weight:700;line-height:1.2;margin:0 2px 2px;">{{ L.pa_head }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin:0 2px 16px;line-height:1.45;">{{ L.pa_sub }}</div>
+              <button onClick="{{ pickPartialNo }}" style="{{ paNoStyle }}">
+                <div style="{{ paNoRadio }}"><sc-if value="{{ partialNo }}" hint-placeholder-val="{{ false }}"><div style="width:10px;height:10px;border-radius:50%;background:#16A34A;"></div></sc-if></div>
+                <div style="flex:1;text-align:left;"><div style="font-size:15px;font-weight:700;">{{ L.pa_no }}</div><div style="font-size:12px;color:#6B7280;font-weight:500;margin-top:2px;">{{ L.pa_no_s }}</div></div>
+              </button>
+              <button onClick="{{ pickPartialYes }}" style="{{ paYesStyle }}">
+                <div style="{{ paYesRadio }}"><sc-if value="{{ partialYes }}" hint-placeholder-val="{{ false }}"><div style="width:10px;height:10px;border-radius:50%;background:#D97706;"></div></sc-if></div>
+                <div style="flex:1;text-align:left;"><div style="font-size:15px;font-weight:700;">{{ L.pa_yes }}</div><div style="font-size:12px;color:#6B7280;font-weight:500;margin-top:2px;">{{ L.pa_yes_s }}</div></div>
+              </button>
+            </sc-if>
+
+            <!-- REJECT SCREENSHOT GUIDE (last) -->
+            <sc-if value="{{ step.isRejectNotice }}" hint-placeholder-val="{{ false }}">
+              <div style="width:56px;height:56px;border-radius:50%;background:#ECFDF3;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 13 9 18 20 6"/></svg>
+              </div>
+              <div style="font-size:20px;font-weight:700;line-height:1.2;margin:0 2px 2px;">{{ L.rn_head }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin:0 2px 16px;line-height:1.45;">{{ L.rn_sub }}</div>
+              <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:14px;padding:16px;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
+                  <div style="font-size:13px;font-weight:700;color:#991B1B;">{{ L.rn_action }}</div>
+                </div>
+                <div style="background:#fff;border:1px dashed #FCA5A5;border-radius:10px;padding:12px 14px;">
+                  <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;">{{ L.rn_return_awb }}</div>
+                  <sc-for list="{{ returnAwbs }}" as="ra" hint-placeholder-count="1">
+                    <div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:#DC2626;padding:3px 0;">{{ ra }}</div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:9px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:11px 13px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16" r=".4"/></svg>
+                <div style="font-size:11.5px;line-height:1.45;color:#92400E;font-weight:500;">{{ L.rn_note }}</div>
+              </div>
+            </sc-if>
+
+            <!-- PHOTO / DN / RETURN capture -->
+            <sc-if value="{{ step.isPhoto }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size:20px;font-weight:700;line-height:1.2;margin:0 2px 2px;">{{ step.title }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin:0 2px 14px;">{{ step.sub }}</div>
+
+              <sc-if value="{{ step.returnHint }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:flex-start;gap:9px;background:#ECFDF3;border:1px solid #A7F3D0;border-radius:12px;padding:11px 13px;margin-bottom:14px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"/><polyline points="8 12 11 15 16 9"/></svg>
+                  <div style="font-size:12px;line-height:1.45;color:#166534;font-weight:500;">{{ L.return_note }}</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ shotEmpty }}" hint-placeholder-val="{{ true }}">
+                <div style="position:relative;border-radius:16px;overflow:hidden;height:{{ vfHeight }};background:#16181C;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+                  <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#20232A,#20232A 12px,#191C21 12px,#191C21 24px);opacity:.9;"></div>
+                  <div style="position:absolute;left:16px;top:16px;width:26px;height:26px;border-left:3px solid rgba(255,255,255,.85);border-top:3px solid rgba(255,255,255,.85);border-radius:4px 0 0 0;"></div>
+                  <div style="position:absolute;right:16px;top:16px;width:26px;height:26px;border-right:3px solid rgba(255,255,255,.85);border-top:3px solid rgba(255,255,255,.85);border-radius:0 4px 0 0;"></div>
+                  <div style="position:absolute;left:16px;bottom:16px;width:26px;height:26px;border-left:3px solid rgba(255,255,255,.85);border-bottom:3px solid rgba(255,255,255,.85);border-radius:0 0 0 4px;"></div>
+                  <div style="position:absolute;right:16px;bottom:16px;width:26px;height:26px;border-right:3px solid rgba(255,255,255,.85);border-bottom:3px solid rgba(255,255,255,.85);border-radius:0 0 4px 0;"></div>
+                  <div style="position:absolute;left:0;right:0;top:0;height:34%;background:linear-gradient(180deg,rgba(37,99,235,.28),transparent);animation:scanline 2.4s linear infinite;"></div>
+                  <div style="position:relative;text-align:center;color:rgba(255,255,255,.62);font-size:12px;font-weight:600;padding:0 30px;">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" style="margin-bottom:8px;"><path d="M3 8.5h3.5L8 6.5h8l1.5 2H21v11H3z"/><circle cx="12" cy="13.5" r="3.3"/></svg>
+                    <div>{{ step.vfHint }}</div>
+                  </div>
+                </div>
+                <label style="width:100%;min-height:56px;border-radius:14px;border:none;background:#1A1A1A;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:10px;">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 8.5h3.5L8 6.5h8l1.5 2H21v11H3z"/><circle cx="12" cy="13.5" r="3.3"/></svg>{{ L.shoot }}
+                  <input type="file" accept="image/*" capture="environment" onChange="{{ onShootFile }}" style="display:none;"/>
+                </label>
+                <label style="width:100%;min-height:44px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;color:#6B7280;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><polyline points="8 8 12 4 16 8"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>{{ L.upload_instead }}
+                  <input type="file" accept="image/*" onChange="{{ onUploadFile }}" style="display:none;"/>
+                </label>
+                <div style="font-size:11px;color:#9CA3AF;font-weight:500;text-align:center;line-height:1.4;margin-bottom:12px;">{{ L.upload_hint }}</div>
+              </sc-if>
+              <sc-if value="{{ shotDone }}" hint-placeholder-val="{{ false }}">
+                <div style="position:relative;border-radius:16px;overflow:hidden;height:{{ vfHeight }};margin-bottom:12px;background:repeating-linear-gradient(45deg,#E7EDE9,#E7EDE9 10px,#F2F6F3 10px,#F2F6F3 20px);animation:fadeIn .3s ease;">
+                  <div style="position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:6px;background:{{ shotBadgeBg }};color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:20px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>{{ shotBadge }}
+                  </div>
+                  <div style="position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:6px;background:rgba(17,18,20,.72);color:#fff;font-size:11px;font-weight:600;padding:5px 10px;border-radius:8px;font-family:ui-monospace,Menlo,monospace;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>{{ L.logged_at }} {{ shotTime }}
+                  </div>
+                </div>
+                <button onClick="{{ retake }}" style="width:100%;min-height:48px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;color:#1A1A1A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.6"/><polyline points="20 4 20 11 13 11"/></svg>{{ L.retake }}
+                </button>
+              </sc-if>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <button onClick="{{ openExample }}" style="padding:0;border:none;background:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:#2563EB;display:flex;align-items:center;gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.9"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M3 16l5-4 4 3 3-2 6 5"/></svg>{{ L.example }}
+                </button>
+              </div>
+
+              <sc-if value="{{ step.isDn }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ toggleAttest }}" style="{{ attestStyle }}">
+                  <div style="{{ attestBox }}">
+                    <sc-if value="{{ attestOn }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></sc-if>
+                  </div>
+                  <div style="flex:1;font-size:13px;font-weight:600;line-height:1.4;color:{{ attestText }};">{{ L.attest }}</div>
+                </button>
+              </sc-if>
+              <sc-if value="{{ step.isReturn }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ toggleAttest }}" style="{{ attestStyle }}">
+                  <div style="{{ attestBox }}">
+                    <sc-if value="{{ attestOn }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></sc-if>
+                  </div>
+                  <div style="flex:1;font-size:13px;font-weight:600;line-height:1.4;color:{{ attestText }};">{{ L.attest_return }}</div>
+                </button>
+              </sc-if>
+
+              <div style="display:flex;align-items:flex-start;gap:9px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:11px 13px;margin-top:14px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16" r=".4"/></svg>
+                <div style="font-size:11.5px;line-height:1.45;color:#1E40AF;font-weight:500;">{{ L.capture_notice }}</div>
+              </div>
+            </sc-if>
+
+            <!-- FLAG SP MANUAL -->
+            <sc-if value="{{ step.isFlag }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:20px;font-weight:700;line-height:1.2;margin:0 2px 2px;">{{ L.flag_head }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin:0 2px 14px;line-height:1.4;">{{ L.flag_sub }}</div>
+              <sc-for list="{{ flagLines }}" as="f" hint-placeholder-count="3">
+                <button onClick="{{ f.toggle }}" style="{{ f.style }}">
+                  <div style="flex:1;text-align:left;">
+                    <div style="font-size:14px;font-weight:700;">{{ f.id }}</div>
+                    <div style="font-size:12px;color:#6B7280;font-weight:500;margin-top:2px;">{{ f.koliLabel }}</div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:{{ f.tagColor }};">{{ f.tag }}</div>
+                  <div style="{{ f.switch }}"><div style="{{ f.knob }}"></div></div>
+                </button>
+              </sc-for>
+              <div style="display:flex;align-items:flex-start;gap:9px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:11px 13px;margin-top:6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div style="font-size:11.5px;line-height:1.45;color:#92400E;font-weight:500;">{{ L.flag_note }}</div>
+              </div>
+            </sc-if>
+
+            <!-- FAILED DELIVERY -->
+            <sc-if value="{{ step.isFailReason }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.9" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14.5"/><circle cx="12" cy="17.5" r=".5"/></svg>
+                <div style="font-size:13.5px;font-weight:700;color:#991B1B;line-height:1.3;">{{ L.fail_head }}</div>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:0 2px 10px;">{{ L.fail_reason }}</div>
+              <sc-for list="{{ failReasons }}" as="fr" hint-placeholder-count="9">
+                <button onClick="{{ fr.pick }}" style="{{ fr.style }}">
+                  <span style="flex:1;text-align:left;line-height:1.3;">{{ fr.label }}</span>
+                  <div style="{{ fr.radio }}">
+                    <sc-if value="{{ fr.selected }}" hint-placeholder-val="{{ false }}"><div style="width:9px;height:9px;border-radius:50%;background:#DC2626;"></div></sc-if>
+                  </div>
+                </button>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ step.isFailPhoto }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:flex-start;gap:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.9" stroke-linecap="round" style="flex:none;margin-top:1px;"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14.5"/><circle cx="12" cy="17.5" r=".5"/></svg>
+                <div><div style="font-size:11px;font-weight:700;color:#B91C1C;letter-spacing:.04em;text-transform:uppercase;">{{ L.fail_reason }}</div><div style="font-size:13.5px;font-weight:700;color:#991B1B;line-height:1.3;margin-top:2px;">{{ failReasonLabel }}</div></div>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:0 2px 10px;">{{ L.fail_proof }}</div>
+              <sc-if value="{{ shotEmpty }}" hint-placeholder-val="{{ true }}">
+                <div style="position:relative;border-radius:14px;overflow:hidden;height:150px;background:#16181C;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+                  <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#20232A,#20232A 12px,#191C21 12px,#191C21 24px);"></div>
+                  <div style="position:relative;text-align:center;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" style="margin-bottom:6px;"><path d="M3 8.5h3.5L8 6.5h8l1.5 2H21v11H3z"/><circle cx="12" cy="13.5" r="3.3"/></svg>
+                    <div>{{ L.fail_proof_s }}</div>
+                  </div>
+                </div>
+                <label style="width:100%;min-height:52px;border-radius:13px;border:none;background:#1A1A1A;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:8px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 8.5h3.5L8 6.5h8l1.5 2H21v11H3z"/><circle cx="12" cy="13.5" r="3.3"/></svg>{{ L.shoot }}
+                  <input type="file" accept="image/*" capture="environment" onChange="{{ onProofShoot }}" style="display:none;"/>
+                </label>
+                <label style="width:100%;min-height:42px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;color:#6B7280;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><polyline points="8 8 12 4 16 8"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>{{ L.upload_instead }}
+                  <input type="file" accept="image/*" onChange="{{ onProofUpload }}" style="display:none;"/>
+                </label>
+              </sc-if>
+              <sc-if value="{{ shotDone }}" hint-placeholder-val="{{ false }}">
+                <div style="position:relative;border-radius:14px;overflow:hidden;height:150px;margin-bottom:12px;background:repeating-linear-gradient(45deg,#EDEEF0,#EDEEF0 10px,#F7F7F8 10px,#F7F7F8 20px);animation:fadeIn .3s ease;">
+                  <div style="position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:6px;background:rgba(17,18,20,.72);color:#fff;font-size:11px;font-weight:600;padding:5px 10px;border-radius:8px;font-family:ui-monospace,Menlo,monospace;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>{{ L.logged_at }} {{ shotTime }}
+                  </div>
+                </div>
+              </sc-if>
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:4px 2px 8px;">{{ L.fail_note }}</div>
+              <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px 14px;font-size:13px;color:#9CA3AF;font-weight:500;">{{ L.fail_note_ph }}</div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px;">
+            <div style="font-size:19px;font-weight:700;margin:2px 2px 4px;">{{ L.sum_head }}</div>
+            <div style="font-size:12.5px;color:#6B7280;font-weight:500;margin:0 2px 16px;line-height:1.4;">{{ L.sum_sub }}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+              <span style="font-size:13px;color:#6B7280;font-weight:600;">{{ L.sum_outcome }}</span>
+              <span style="display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700;color:{{ accentColor }};"><span style="width:9px;height:9px;border-radius:50%;background:{{ accentColor }};"></span>{{ outcomeLabel }}</span>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:0 2px 10px;">{{ L.sum_docs }}</div>
+            <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;padding:4px 16px;margin-bottom:16px;">
+              <sc-for list="{{ capturedList }}" as="c" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #F1F1F3;">
+                  <div style="width:38px;height:38px;border-radius:8px;flex:none;background:repeating-linear-gradient(45deg,#E7EDE9,#E7EDE9 5px,#F2F6F3 5px,#F2F6F3 10px);"></div>
+                  <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.25;">{{ c.title }}</div><div style="font-size:11px;color:#6B7280;font-weight:500;font-family:ui-monospace,Menlo,monospace;">{{ L.logged_at }} {{ c.time }}</div></div>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ hasAttest }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:9px;background:#ECFDF3;border:1px solid #A7F3D0;border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>
+                <div style="font-size:12.5px;font-weight:600;color:#166534;line-height:1.35;">{{ attestSummary }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isFailOutcome }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin:0 2px 10px;">{{ L.fail_reason }}</div>
+              <div style="display:flex;align-items:center;gap:9px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.9" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>
+                <div style="font-size:13px;font-weight:700;color:#991B1B;line-height:1.3;">{{ failReasonLabel }}</div>
+              </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isSuccess }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:32px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;">
+            <div style="width:88px;height:88px;border-radius:50%;background:{{ successBg }};display:flex;align-items:center;justify-content:center;animation:popIn .35s ease-out;">
+              <sc-if value="{{ successOk }}" hint-placeholder-val="{{ true }}">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 13 9 18 20 6"/></svg>
+              </sc-if>
+              <sc-if value="{{ successFail }}" hint-placeholder-val="{{ false }}">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg>
+              </sc-if>
+            </div>
+            <div style="font-size:22px;font-weight:700;margin-top:22px;">{{ successTitle }}</div>
+            <div style="font-size:14px;color:#6B7280;font-weight:500;margin-top:6px;line-height:1.4;">{{ successSub }}</div>
+            <div style="margin-top:20px;background:#F7F7F8;border:1px solid #E5E7EB;border-radius:12px;padding:14px 20px;font-size:13px;font-weight:600;font-family:ui-monospace,Menlo,monospace;">{{ awb }} · {{ shotTimeOrNow }}</div>
+            <div style="margin-top:16px;display:flex;align-items:flex-start;gap:10px;background:{{ driverBg }};border:1px solid {{ driverBd }};border-radius:12px;padding:14px 15px;text-align:left;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ driverStroke }}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+              <div><div style="font-size:13px;font-weight:700;color:{{ driverHeadColor }};line-height:1.3;">{{ driverHead }}</div><div style="font-size:12px;font-weight:500;color:{{ driverColor }};line-height:1.45;margin-top:3px;">{{ driverBody }}</div></div>
+            </div>
+            <button onClick="{{ askRestart }}" style="margin-top:18px;padding:8px 14px;border:none;background:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:#9CA3AF;display:flex;align-items:center;gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16" r=".4"/></svg>{{ L.something_wrong }}
+            </button>
+          </div>
+          </sc-if>
+
+        </div>
+
+        <div style="flex:none;padding:14px 16px 18px;background:#FFFFFF;border-top:1px solid #EEF0F2;">
+          <sc-if value="{{ isOrder }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ start }}" style="width:100%;min-height:52px;border-radius:13px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;">{{ L.start }}</button>
+          </sc-if>
+          <sc-if value="{{ isOutcome }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ proceed }}" style="width:100%;min-height:52px;border-radius:13px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;">{{ L.continue }}</button>
+          </sc-if>
+          <sc-if value="{{ isCapture }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ nextDisabled }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;color:#D97706;font-size:12.5px;font-weight:600;text-align:center;animation:riseIn .3s ease;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" style="flex:none;"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16" r=".4"/></svg>{{ gateReason }}
+              </div>
+            </sc-if>
+            <button onClick="{{ nextClick }}" style="width:100%;min-height:52px;border-radius:13px;border:none;background:{{ nextBg }};color:{{ nextColor }};font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .25s ease;">
+              <sc-if value="{{ nextReady }}" hint-placeholder-val="{{ false }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{ nextColor }}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></sc-if>
+              {{ nextLabel }}
+            </button>
+          </sc-if>
+          <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ submitError }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 12px;margin-bottom:10px;color:#991B1B;font-size:12px;font-weight:600;animation:riseIn .3s ease;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>{{ L.submit_err }}
+              </div>
+            </sc-if>
+            <button onClick="{{ submit }}" style="width:100%;min-height:52px;border-radius:13px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;">{{ L.submit }}</button>
+          </sc-if>
+        </div>
+
+        <!-- RESTART CONFIRMATION -->
+        <sc-if value="{{ confirmRestart }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:rgba(17,18,20,.5);display:flex;align-items:flex-end;z-index:45;animation:fadeIn .2s ease;">
+            <div style="width:100%;background:#FFFFFF;border-radius:20px 20px 0 0;padding:24px 20px 26px;animation:riseIn .3s ease;">
+              <div style="width:52px;height:52px;border-radius:50%;background:#FFF7ED;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".5"/></svg>
+              </div>
+              <div style="font-size:18px;font-weight:700;">{{ L.rc_head }}</div>
+              <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:6px;line-height:1.5;">{{ L.rc_body }}</div>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+                <button onClick="{{ doRestart }}" style="width:100%;min-height:50px;border-radius:12px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">{{ L.rc_yes }}</button>
+                <button onClick="{{ cancelRestart }}" style="width:100%;min-height:50px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;color:#1A1A1A;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">{{ L.rc_no }}</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hasExample }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ clearExample }}" style="position:absolute;inset:0;background:rgba(17,18,20,.45);display:flex;align-items:flex-end;z-index:40;">
+            <div style="width:100%;background:#FFFFFF;border-radius:20px 20px 0 0;padding:20px 18px 26px;animation:riseIn .3s ease;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="font-size:16px;font-weight:700;">{{ L.example_modal }}</div>
+                <button onClick="{{ clearExample }}" style="border:none;background:#F1F1F3;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:17px;color:#6B7280;">✕</button>
+              </div>
+              <div style="height:220px;border-radius:12px;background:repeating-linear-gradient(45deg,#EDEEF0,#EDEEF0 10px,#F7F7F8 10px,#F7F7F8 20px);display:flex;align-items:center;justify-content:center;">
+                <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#9CA3AF;text-align:center;padding:0 20px;">{{ L.example_ph }}<br>{{ exampleTitle }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+
+      <!-- reviewer controls -->
+      <div style="width:240px;flex:none;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;padding:18px;box-shadow:0 12px 34px rgba(0,0,0,.06);">
+        <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;">Demo controls</div>
+        <div style="font-size:11px;font-weight:700;color:#9CA3AF;margin-bottom:7px;">Capture treatment</div>
+        <div style="display:flex;gap:6px;margin-bottom:18px;">
+          <button onClick="{{ setVfTall }}" style="{{ vfTallBtn }}">Viewfinder</button>
+          <button onClick="{{ setVfShort }}" style="{{ vfShortBtn }}">Compact</button>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#9CA3AF;margin-bottom:7px;">Service</div>
+        <div style="display:flex;gap:6px;margin-bottom:18px;">
+          <button onClick="{{ setSvcForward }}" style="{{ svcFwdBtn }}">Forward</button>
+          <button onClick="{{ setSvcReturn }}" style="{{ svcRetBtn }}">Return</button>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#9CA3AF;margin-bottom:7px;">Jump to outcome</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px;">
+          <sc-for list="{{ jumpBtns }}" as="j" hint-placeholder-count="4">
+            <button onClick="{{ j.go }}" style="{{ j.style }}">{{ j.label }}</button>
+          </sc-for>
+        </div>
+        <button onClick="{{ resetAll }}" style="width:100%;min-height:40px;border-radius:9px;border:1.5px solid #E5E7EB;background:#fff;color:#1A1A1A;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Restart flow</button>
+        <div style="margin-top:16px;font-size:11px;color:#9CA3AF;line-height:1.5;font-weight:500;">Normal flow asks "any partial reject?" inline; if yes it adds the return captures and ends on the screenshot guide. Capture buttons open the device camera.</div>
+      </div>
+
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ false }}">
+    <div style="width:900px;max-width:100%;background:#FFFFFF;border-radius:16px;border:1px solid #E5E7EB;padding:32px;box-shadow:0 20px 50px rgba(0,0,0,.08);">
+      <div style="font-size:22px;font-weight:700;">Component sheet</div>
+      <div style="font-size:13px;color:#6B7280;font-weight:500;margin-top:4px;margin-bottom:28px;">Ninja Van ID tokens · Montserrat · red #EE1B2C · ≥48px targets · <strong>no quantity stepper</strong></div>
+
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;">Buttons</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:34px;">
+        <button style="min-height:48px;padding:0 26px;border-radius:12px;border:none;background:#EE1B2C;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">Primary</button>
+        <button style="min-height:48px;padding:0 26px;border-radius:12px;border:1.5px solid #1A1A1A;background:#fff;color:#1A1A1A;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">Secondary</button>
+        <button style="min-height:44px;padding:0 22px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;color:#6B7280;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">Upload instead</button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+          <div style="display:flex;align-items:center;gap:6px;color:#D97706;font-size:11px;font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>Capture the Delivery Note to continue</div>
+          <button disabled style="min-height:48px;padding:0 26px;border-radius:12px;border:none;background:#EEEEF0;color:#9CA3AF;font-family:inherit;font-size:15px;font-weight:700;">Disabled · with reason</button>
+        </div>
+        <button style="min-height:48px;padding:0 26px;border-radius:12px;border:none;background:#DC2626;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">Danger</button>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;">Status chips</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:34px;">
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:#F1F1F3;color:#4B5563;font-size:13px;font-weight:600;"><span style="width:8px;height:8px;border-radius:50%;background:#6B7280;"></span>Created</div>
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:#EFF6FF;color:#1D4ED8;font-size:13px;font-weight:600;"><span style="width:8px;height:8px;border-radius:50%;background:#2563EB;"></span>Delivered</div>
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:#ECFDF3;color:#15803D;font-size:13px;font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>Handed over</div>
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:#FFFBEB;color:#B45309;font-size:13px;font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/></svg>Return pending</div>
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:#FEF2F2;color:#B91C1C;font-size:13px;font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>Failed</div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;">Live-capture slot (opens device camera)</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:34px;">
+        <div>
+          <div style="position:relative;border-radius:12px;overflow:hidden;height:120px;background:#16181C;display:flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#20232A,#20232A 10px,#191C21 10px,#191C21 20px);"></div>
+            <div style="position:absolute;left:10px;top:10px;width:18px;height:18px;border-left:2.5px solid rgba(255,255,255,.8);border-top:2.5px solid rgba(255,255,255,.8);"></div>
+            <div style="position:absolute;right:10px;bottom:10px;width:18px;height:18px;border-right:2.5px solid rgba(255,255,255,.8);border-bottom:2.5px solid rgba(255,255,255,.8);"></div>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" style="position:relative;"><path d="M3 8.5h3.5L8 6.5h8l1.5 2H21v11H3z"/><circle cx="12" cy="13.5" r="3.3"/></svg>
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-top:7px;">Empty · live viewfinder</div>
+        </div>
+        <div>
+          <div style="position:relative;border-radius:12px;overflow:hidden;height:120px;background:repeating-linear-gradient(45deg,#E7EDE9,#E7EDE9 8px,#F2F6F3 8px,#F2F6F3 16px);">
+            <div style="position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:5px;background:rgba(22,163,74,.95);color:#fff;font-size:10px;font-weight:700;padding:4px 8px;border-radius:16px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg>Captured</div>
+            <div style="position:absolute;left:8px;bottom:8px;background:rgba(17,18,20,.72);color:#fff;font-size:10px;font-weight:600;padding:3px 7px;border-radius:6px;font-family:ui-monospace,Menlo,monospace;">14:07</div>
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-top:7px;">Captured · time logged</div>
+        </div>
+        <div>
+          <div style="position:relative;border-radius:12px;overflow:hidden;height:120px;background:#FEF2F2;border:1px solid #FCA5A5;display:flex;align-items:center;justify-content:center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="1.8" stroke-linecap="round"><path d="M12 3 2 20h20z"/><line x1="12" y1="10" x2="12" y2="14"/></svg>
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-top:7px;color:#DC2626;">Error · retry</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:40px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:300px;">
+          <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;">Required attestation tick</div>
+          <div style="display:flex;align-items:flex-start;gap:11px;background:#fff;border:2px solid #16A34A;border-radius:12px;padding:13px 14px;">
+            <div style="width:24px;height:24px;border-radius:7px;background:#16A34A;flex:none;display:flex;align-items:center;justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 6"/></svg></div>
+            <div style="font-size:13px;font-weight:600;line-height:1.4;">I confirm the Delivery Note (DN) is signed + stamped by the receiver</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:300px;">
+          <div style="font-size:12px;font-weight:700;color:#6B7280;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;">Reject screenshot guide (last step)</div>
+          <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:13px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#991B1B;margin-bottom:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Screenshot & inform Station IC</div>
+            <div style="background:#fff;border:1px dashed #FCA5A5;border-radius:8px;padding:8px 12px;font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;color:#DC2626;">RET-NVID0089241</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;startLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;id&quot;,&quot;options&quot;:[&quot;id&quot;,&quot;en&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;service&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;forward&quot;,&quot;options&quot;:[&quot;forward&quot;,&quot;return&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;startOutcome&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;normal&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;full&quot;,&quot;failed&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;captureStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;viewfinder&quot;,&quot;options&quot;:[&quot;viewfinder&quot;,&quot;compact&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = {
+    view:'app', lang:'id', screen:'order', outcome:'normal',
+    stepIndex:0, captured:{}, capTime:{}, uploaded:{}, attest:{},
+    spFlags:{}, partialReject:null, failReason:null, submitError:false, example:false, vfTall:true, confirmRestart:false,
+    service:'forward'
+  };
+
+  pharmacy = 'Apotek Sehat Sentosa';
+  awb = 'SWRX-88213';
+  ninjaAwb = 'SWRX-88213';
+  info = { service:'Instant (Sameday)', shipperName:'SwipeRx Indonesia', shipperId:'SWRX-ID-014', hub:'Jakarta — Cakung' };
+  address = 'Jl. Melati Raya No. 12, Cakung, Jakarta Timur 13910';
+  poLines = [
+    { id:'PO-2401', koli:2, desc:{id:'Obat resep · reguler',en:'Prescription · regular'} },
+    { id:'PO-2402', koli:1, desc:{id:'Rantai dingin (cold chain)',en:'Cold chain'} },
+    { id:'PO-2403', koli:1, desc:{id:'Alat kesehatan',en:'Medical devices'} },
+  ];
+  returnAwb = 'RET-NVID0089241';
+
+  dict = {
+    start:{id:'Mulai',en:'Start'},
+    continue:{id:'Lanjut',en:'Continue'},
+    order_service:{id:'Layanan',en:'Service'},
+    order_shipper:{id:'Pengirim (shipper)',en:'Shipper'},
+    order_shipper_id:{id:'ID Pengirim',en:'Shipper ID'},
+    order_hub:{id:'Hub',en:'Hub'},
+    order_addr:{id:'Alamat',en:'Address'},
+    order_koli:{id:'Total Koli',en:'Total parcels (Koli)'},
+    order_po:{id:'Pesanan (PO)',en:'Orders (PO)'},
+    koli_word:{id:'Koli',en:'Koli'},
+    out_head:{id:'Pilih hasil pengiriman',en:'Select delivery outcome'},
+    out_sub:{id:'Untuk pengiriman normal, retur sebagian ditanyakan nanti.',en:'For a normal delivery, a partial reject is asked later.'},
+    out_normal:{id:'Pengiriman (normal)',en:'Delivery (normal)'},
+    out_normal_s:{id:'Diterima — retur sebagian ditanya nanti',en:'Accepted — partial reject asked later'},
+    out_full:{id:'Retur Semua',en:'Full reject'},
+    out_full_s:{id:'Semua barang ditolak',en:'All goods rejected'},
+    out_failed:{id:'Pengiriman gagal',en:'Failed delivery'},
+    out_failed_s:{id:'Tidak dapat dikirim',en:'Could not deliver'},
+    out_noreturn:{id:'Tidak ada retur (sukses)',en:'No return to collect (success)'},
+    out_noreturn_s:{id:'Tidak ada barang untuk ditarik',en:'Nothing to collect'},
+    out_full_return:{id:'Retur tidak diambil semua',en:'Full return not collected'},
+    out_full_return_s:{id:'Penerima tolak seluruh pengambilan retur',en:'Consignee refused the whole return pickup'},
+    out_failed_return:{id:'Pengambilan retur gagal',en:'Failed return pickup'},
+    out_failed_return_s:{id:'Tidak dapat mengambil retur',en:'Could not collect the return'},
+    capture_notice:{id:'Sebaiknya foto diambil langsung dari kamera aplikasi supaya waktunya tercatat otomatis. Kalau kamera tidak bisa, gunakan "Unggah foto" 🙂',en:'Photos are best taken live in the app so the time is logged automatically. If the camera won\u2019t work, use "Upload a photo" 🙂'},
+    captured:{id:'Terekam (live)',en:'Captured (live)'},
+    uploaded_badge:{id:'Diunggah',en:'Uploaded'},
+    shoot:{id:'Buka kamera',en:'Open camera'},
+    upload_instead:{id:'Unggah foto (kalau kamera tidak bisa)',en:'Upload a photo instead'},
+    upload_hint:{id:'Kamera langsung lebih disarankan — waktunya tercatat otomatis.',en:'Live camera is preferred — its time is logged automatically.'},
+    retake:{id:'Ambil ulang',en:'Retake'},
+    logged_at:{id:'Tercatat',en:'Logged'},
+    example:{id:'Lihat contoh',en:'See example'},
+    example_ph:{id:'[ contoh foto ]',en:'[ example photo ]'},
+    example_modal:{id:'Contoh foto',en:'Example photo'},
+    attest:{id:'Saya konfirmasi Surat Jalan (DN) sudah ditandatangani & distempel oleh penerima.',en:'I confirm the Delivery Note (DN) is signed + stamped by the receiver.'},
+    attest_return:{id:'Saya konfirmasi formulir retur sudah ditandatangani & distempel penerima.',en:'I confirm the return form is signed + stamped by the consignee.'},
+    next:{id:'Lanjut',en:'Next'},
+    review:{id:'Lanjut ke ringkasan',en:'Continue to review'},
+    slot_pharmacy:{id:'POD Apotek',en:'Pharmacy POD'},
+    slot_pharmacy_s:{id:'Foto tampak depan apotek',en:'Storefront photo'},
+    slot_pharmacy_vf:{id:'Arahkan ke tampak depan apotek',en:'Point at the storefront'},
+    slot_receiver:{id:'POD Penerima',en:'Receiver POD'},
+    slot_receiver_s:{id:'Foto orang penerima',en:'Photo of the receiver'},
+    slot_receiver_vf:{id:'Arahkan ke penerima',en:'Point at the receiver'},
+    slot_faktur:{id:'Dokumen Surat Jalan / DN (halaman penuh)',en:'Delivery Note (DN) — full page'},
+    slot_faktur_s:{id:'Foto seluruh dokumen — ditandatangani + distempel',en:'Whole document — signed + stamped'},
+    slot_faktur_vf:{id:'Ambil seluruh halaman Surat Jalan (DN)',en:'Frame the whole Delivery Note page'},
+    slot_dn2:{id:'Surat Jalan · Kotak 2 (retur)',en:'Delivery Note · Box 2 (reject)'},
+    slot_dn_s:{id:'Harus ditandatangani + distempel',en:'Must be signed + stamped'},
+    slot_dn_vf:{id:'Arahkan ke kotak tanda tangan',en:'Point at the signature box'},
+    slot_sp:{id:'SP Manual',en:'SP Manual'},
+    slot_sp_s:{id:'Surat Pesanan manual (SP)',en:'Manual order form (SP)'},
+    slot_sp_vf:{id:'Arahkan ke SP / Surat Pesanan',en:'Point at the SP / order form'},
+    slot_parcel:{id:'Foto barang retur',en:'Returned parcel photo'},
+    slot_parcel_s:{id:'Satu foto seluruh barang yang diretur',en:'One photo of the returned parcel'},
+    slot_parcel_vf:{id:'Arahkan ke barang yang diretur',en:'Point at the returned parcel'},
+    slot_awb:{id:'Stiker AWB (forward)',en:'Forward AWB sticker'},
+    slot_awb_s:{id:'Foto stiker AWB pengembalian',en:'Photo of the forward AWB sticker'},
+    slot_awb_vf:{id:'Arahkan ke stiker AWB',en:'Point at the AWB sticker'},
+    slot_return_form:{id:'Formulir retur (bagian dari dokumen)',en:'Return form (part of the docs)'},
+    slot_return_form_s:{id:'Harus ditandatangani + distempel penerima',en:'Must be signed + stamped by the receiver'},
+    slot_return_form_vf:{id:'Arahkan ke formulir retur',en:'Point at the return form'},
+    slot_rfull:{id:'Formulir retur · halaman penuh',en:'Return form · full page'},
+    slot_rfull_s:{id:'Foto seluruh halaman — ditandatangani & distempel',en:'Full page — signed & stamped'},
+    slot_rfull_vf:{id:'Ambil seluruh halaman formulir',en:'Frame the whole form page'},
+    return_note:{id:'Ini pengiriman SUKSES — tidak ada barang untuk ditarik. Tetap ambil foto halaman penuh formulir retur yang sudah ditandatangani & distempel.',en:'This is a SUCCESS — nothing to collect. Still capture the full-page return form, signed & stamped.'},
+    pa_head:{id:'Ada barang yang diretur sebagian?',en:'Any partial reject?'},
+    pa_sub:{id:'Kalau ada barang yang ditolak penerima, pilih "Ya" untuk mengambil foto retur.',en:'If the receiver rejected some goods, choose "Yes" to capture the return.'},
+    pa_no:{id:'Tidak — semua diterima',en:'No — all accepted'},
+    pa_no_s:{id:'Lanjut ke ringkasan',en:'Continue to review'},
+    pa_yes:{id:'Ya — ada retur sebagian',en:'Yes — partial reject'},
+    pa_yes_s:{id:'Tambah foto formulir retur, barang & stiker AWB',en:'Add return form, parcel & AWB sticker photos'},
+    rn_head:{id:'Hampir selesai — retur dicatat',en:'Almost done — reject logged'},
+    rn_sub:{id:'Screenshot halaman ini dan beri tahu Station IC kamu.',en:'Screenshot this page and inform your Station IC.'},
+    rn_action:{id:'Screenshot halaman ini & kirim ke Station IC',en:'Screenshot this page & send it to your Station IC'},
+    rn_return_awb:{id:'AWB retur',en:'Return AWB'},
+    rn_note:{id:'Station IC memakai AWB ini untuk membuat OC retur. Tanpa ini, retur tidak bisa dilacak.',en:'Your Station IC uses this AWB to create the return OC. Without it, the return can\u2019t be tracked.'},
+    flag_head:{id:'Tandai PO yang SP Manual',en:'Flag SP Manual POs'},
+    flag_sub:{id:'Baca Surat Pesanan di lokasi. Aktifkan PO yang butuh Surat Pesanan manual — tiap PO aktif akan minta satu foto SP.',en:'Read the order form on site. Turn on any PO that needs a manual order form — each opens one SP capture.'},
+    flag_note:{id:'SP Manual tidak ada di data — kamu yang menentukan di lokasi.',en:'SP Manual isn\u2019t in the data — you decide on site.'},
+    flag_tag_on:{id:'SP Manual',en:'SP Manual'},
+    flag_tag_off:{id:'Bukan',en:'Not SP'},
+    fail_head:{id:'Pengiriman gagal — tidak ada POD',en:'Failed delivery — no POD set'},
+    fail_reason:{id:'Alasan kegagalan',en:'Failure reason'},
+    fr_cancelled:{id:'Penerima membatalkan pesanan',en:'Recipient cancels the order'},
+    fr_not_ordered:{id:'Penerima tidak memesan paket',en:'Recipient did not order the package'},
+    fr_address_wrong:{id:'Alamat tidak lengkap atau salah',en:'Address incomplete or wrong'},
+    fr_moved:{id:'Penerima sudah pindah dari lokasi',en:'Recipient has moved from the location'},
+    fr_no_receiver:{id:'Penerima tidak ada di lokasi',en:'Recipient not at the location'},
+    fr_reschedule:{id:'Penerima meminta penjadwalan ulang',en:'Recipient asks for a reschedule'},
+    fr_office_closed:{id:'Kantor tutup',en:'Office closed'},
+    fr_force_majeure:{id:'Bencana alam, huru-hara, atau musibah/kecelakaan',en:'Natural disaster, riot, or accident'},
+    fr_refused_sign:{id:'Penerima tidak mau menandatangani dokumen',en:'Recipient refuses to sign the documents'},
+    fail_proof:{id:'Foto bukti (waktu dicatat)',en:'Proof photo (time is logged)'},
+    fail_proof_s:{id:'Arahkan kamera ke lokasi',en:'Point the camera at the location'},
+    fail_note:{id:'Catatan (opsional)',en:'Note (optional)'},
+    fail_note_ph:{id:'Tambahkan catatan…',en:'Add a note…'},
+    fail_submit:{id:'Simpan kegagalan',en:'Save failure'},
+    sum_head:{id:'Ringkasan',en:'Review'},
+    sum_sub:{id:'Periksa lagi sebelum kirim. Setelah dikirim, data terkunci.',en:'Double-check before submitting. Once sent, data is locked.'},
+    sum_outcome:{id:'Hasil',en:'Outcome'},
+    sum_docs:{id:'Dokumen terekam',en:'Captured documents'},
+    submit:{id:'Kirim & Selesai',en:'Submit & Finish'},
+    submit_err:{id:'Gagal mengirim. Periksa sinyal, coba lagi.',en:'Submit failed. Check signal and retry.'},
+    succ_ok:{id:'Pengiriman dikonfirmasi',en:'Delivery confirmed'},
+    succ_reject:{id:'Retur tercatat',en:'Reject recorded'},
+    succ_failed:{id:'Kegagalan tercatat',en:'Failure recorded'},
+    succ_ok_sub:{id:'Data terkirim ke pusat.',en:'Data sent to the hub.'},
+    succ_reject_sub:{id:'Detail retur & bukti terkirim ke pusat.',en:'Reject details & proof sent to the hub.'},
+    succ_fail_sub:{id:'Alasan & bukti terkirim ke pusat.',en:'Reason & proof sent to the hub.'},
+    driver_ok_head:{id:'Selesaikan di aplikasi driver',en:'Finish in the driver app'},
+    driver_ok_body:{id:'Jangan lupa: selesaikan pengiriman ini sebagai SUKSES di aplikasi Ninja Driver seperti biasa.',en:'Don\u2019t forget: complete this as a SUCCESSFUL delivery in the Ninja Driver app as usual.'},
+    driver_full_head:{id:'Selesaikan sebagai RETUR di aplikasi driver',en:'Finish as a REJECT in the driver app'},
+    driver_full_body:{id:'Selesaikan pengiriman ini sebagai retur/penuh di aplikasi Ninja Driver.',en:'Complete this as a full reject in the Ninja Driver app.'},
+    driver_fail_head:{id:'Selesaikan sebagai GAGAL di aplikasi driver',en:'Finish as FAILED in the driver app'},
+    driver_fail_body:{id:'Selesaikan pengiriman ini sebagai gagal kirim di aplikasi Ninja Driver.',en:'Complete this as a failed delivery in the Ninja Driver app.'},
+    something_wrong:{id:'Ada yang salah?',en:'Something wrong?'},
+    rc_head:{id:'Kirim ulang dari awal?',en:'Resubmit from the start?'},
+    rc_body:{id:'Kalau ada yang salah, kamu bisa mulai ulang seluruh proses dan kirim ulang. Data yang sudah terkirim akan diganti.',en:'If something is wrong, you can start the whole process over and resubmit. Submitted data will be replaced.'},
+    rc_yes:{id:'Ya, mulai ulang & kirim ulang',en:'Yes, restart & resubmit'},
+    rc_no:{id:'Batal',en:'Cancel'},
+    gate_photo:{id:'Ambil foto dulu untuk lanjut',en:'Capture the photo to continue'},
+    gate_attest:{id:'Centang konfirmasi tanda tangan & stempel',en:'Tick the sign + stamp confirmation'},
+    gate_partial:{id:'Pilih dulu: ada retur sebagian atau tidak',en:'Choose whether there is a partial reject'},
+    gate_reason_pick:{id:'Pilih alasan kegagalan dulu',en:'Select a failure reason first'},
+    gate_proof:{id:'Ambil foto bukti dulu',en:'Capture the proof photo first'},
+  };
+
+  componentDidMount(){
+    const p = this.props || {};
+    const patch = {};
+    if (p.startLang && p.startLang !== this.state.lang) patch.lang = p.startLang;
+    if (p.startOutcome && p.startOutcome !== this.state.outcome) patch.outcome = p.startOutcome;
+    if (p.service && p.service !== this.state.service) patch.service = p.service;
+    if (p.captureStyle) patch.vfTall = p.captureStyle !== 'compact';
+    if (Object.keys(patch).length) this.setState(patch);
+  }
+
+  stepDefs(){
+    const o = this.state.outcome, flags = this.state.spFlags, svc = this.state.service;
+    if (o==='failed') return [
+      { key:'fail_reason', kind:'fail_reason' },
+      { key:'fail_photo', kind:'fail_photo' },
+    ];
+    if (o==='no_return' || (o==='normal' && svc==='return')) return [
+      { key:'return_full', kind:'return', titleKey:'slot_rfull', subKey:'slot_rfull_s', vfKey:'slot_rfull_vf', returnHint:true },
+    ];
+    if (o==='full') return [
+      { key:'dn2', kind:'dn', titleKey:'slot_dn2', subKey:'slot_dn_s', vfKey:'slot_dn_vf' },
+      { key:'parcel', kind:'photo', titleKey:'slot_parcel', subKey:'slot_parcel_s', vfKey:'slot_parcel_vf' },
+      { key:'reject_notice', kind:'reject_notice' },
+    ];
+    // normal
+    const base = [
+      { key:'pod_pharmacy', kind:'photo', titleKey:'slot_pharmacy', subKey:'slot_pharmacy_s', vfKey:'slot_pharmacy_vf' },
+      { key:'pod_receiver', kind:'photo', titleKey:'slot_receiver', subKey:'slot_receiver_s', vfKey:'slot_receiver_vf' },
+      { key:'faktur', kind:'dn', titleKey:'slot_faktur', subKey:'slot_faktur_s', vfKey:'slot_faktur_vf' },
+      { key:'flag_sp', kind:'flag' },
+    ];
+    this.poLines.forEach(p => { if (flags[p.id]) base.push({ key:'sp_'+p.id, kind:'photo', titleKey:'slot_sp', subKey:'slot_sp_s', vfKey:'slot_sp_vf', suffix:p.id }); });
+    base.push({ key:'partial_ask', kind:'partial_ask' });
+    if (this.state.partialReject===true) {
+      base.push({ key:'return_form', kind:'photo', titleKey:'slot_return_form', subKey:'slot_return_form_s', vfKey:'slot_return_form_vf' });
+      base.push({ key:'parcel', kind:'photo', titleKey:'slot_parcel', subKey:'slot_parcel_s', vfKey:'slot_parcel_vf' });
+      base.push({ key:'awb_sticker', kind:'photo', titleKey:'slot_awb', subKey:'slot_awb_s', vfKey:'slot_awb_vf' });
+      base.push({ key:'reject_notice', kind:'reject_notice' });
+    }
+    return base;
+  }
+
+  nowStr(){ const n=new Date(); return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+
+  markCap(key, isUpload){
+    const st=this.state;
+    const up={...st.uploaded}; if(isUpload) up[key]=true; else delete up[key];
+    this.setState({ captured:{...st.captured,[key]:true}, capTime:{...st.capTime,[key]:this.nowStr()}, uploaded:up });
+  }
+  retake(key){ const st=this.state; const c={...st.captured}; delete c[key]; const t={...st.capTime}; delete t[key]; const up={...st.uploaded}; delete up[key]; this.setState({ captured:c, capTime:t, uploaded:up }); }
+  toggleAttest(key){ this.setState(s => ({ attest:{...s.attest, [key]:!s.attest[key]} })); }
+  toggleFlag(id){ this.setState(s => ({ spFlags:{...s.spFlags, [id]:!s.spFlags[id]} })); }
+
+  next(){
+    const defs = this.stepDefs();
+    if (this.state.stepIndex >= defs.length-1) { this.setState({ screen:'preview', submitError:false }); }
+    else this.setState({ stepIndex: this.state.stepIndex+1 });
+  }
+  back(){
+    const s = this.state;
+    if (s.screen==='preview') { this.setState({ screen:'capture' }); return; }
+    if (s.screen==='capture') {
+      if (s.stepIndex>0) this.setState({ stepIndex:s.stepIndex-1 });
+      else this.setState({ screen:'outcome' });
+      return;
+    }
+    if (s.screen==='outcome') this.setState({ screen:'order' });
+  }
+  reset(){ this.setState({ screen:'order', outcome:'normal', stepIndex:0, captured:{}, capTime:{}, uploaded:{}, attest:{}, spFlags:{}, partialReject:null, failReason:null, submitError:false, example:false, confirmRestart:false }); }
+  jumpTo(o){ this.setState({ outcome:o, screen:'capture', stepIndex:0, captured:{}, capTime:{}, uploaded:{}, attest:{}, spFlags:{}, partialReject:null, failReason:null, submitError:false }); }
+
+  renderVals(){
+    const s = this.state;
+    const L = {}; for (const k in this.dict) L[k] = this.dict[k][s.lang];
+    const screen = s.screen;
+
+    const totalKoli = this.poLines.reduce((a,p)=>a+p.koli,0);
+    const poLines = this.poLines.map(p => ({ id:p.id, koli:p.koli, desc:p.desc[s.lang] }));
+    const poCount = this.poLines.length + ' PO';
+
+    const isReturnSvc = s.service==='return';
+    const outDefs = [
+      { key:'normal', title: isReturnSvc?L.out_noreturn:L.out_normal, sub: isReturnSvc?L.out_noreturn_s:L.out_normal_s, accent:'#16A34A' },
+      { key:'full',   title: isReturnSvc?L.out_full_return:L.out_full, sub: isReturnSvc?L.out_full_return_s:L.out_full_s, accent:'#DC2626' },
+      { key:'failed', title: isReturnSvc?L.out_failed_return:L.out_failed, sub: isReturnSvc?L.out_failed_return_s:L.out_failed_s, accent:'#DC2626' },
+    ];
+    const outcomes = outDefs.map(o => {
+      const selected = s.outcome===o.key;
+      return { ...o, selected,
+        pick: () => this.setState({ outcome:o.key }),
+        cardStyle:'display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px;border-radius:12px;background:#FFFFFF;cursor:pointer;margin-bottom:11px;font-family:inherit;min-height:48px;border:2px solid '+(selected?'#EE1B2C':'#E5E7EB')+';box-shadow:'+(selected?'0 2px 12px rgba(238,27,44,.10)':'none')+';',
+        radio:'width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid '+(selected?'#EE1B2C':'#CFD2D6')+';',
+      };
+    });
+    const curOut = outDefs.find(o => o.key===s.outcome) || outDefs[0];
+    const outcomeLabel = curOut.title, accentColor = curOut.accent;
+
+    const defs = this.stepDefs();
+    const stepTotal = defs.length;
+    const idx = Math.min(s.stepIndex, stepTotal-1);
+    const def = defs[idx] || {};
+    const key = def.key;
+    const title = def.titleKey ? (L[def.titleKey] + (def.suffix ? ' · '+def.suffix : '')) : '';
+    const sub = def.subKey ? L[def.subKey] : '';
+    const vfHint = def.vfKey ? L[def.vfKey] : '';
+
+    const step = {
+      isPhoto: def.kind==='photo' || def.kind==='dn' || def.kind==='return',
+      isDn: def.kind==='dn',
+      isReturn: def.kind==='return',
+      isFlag: def.kind==='flag',
+      isFailReason: def.kind==='fail_reason',
+      isFailPhoto: def.kind==='fail_photo',
+      isPartialAsk: def.kind==='partial_ask',
+      isRejectNotice: def.kind==='reject_notice',
+      returnHint: !!def.returnHint,
+      title, sub, vfHint,
+    };
+
+    const shotDone = !!s.captured[key];
+    const shotEmpty = !shotDone;
+    const shotTime = s.capTime[key] || this.nowStr();
+    const shotUploaded = !!s.uploaded[key];
+    const attestOn = !!s.attest[key];
+
+    let nextReady = false, gateReason = '';
+    if (def.kind==='flag' || def.kind==='reject_notice') { nextReady = true; }
+    else if (def.kind==='partial_ask') {
+      if (s.partialReject===null) { nextReady=false; gateReason=L.gate_partial; } else nextReady=true;
+    }
+    else if (def.kind==='fail_reason') {
+      if (!s.failReason) { nextReady=false; gateReason=L.gate_reason_pick; } else nextReady=true;
+    }
+    else if (def.kind==='fail_photo') {
+      if (!s.captured['fail_proof']) { nextReady=false; gateReason=L.gate_proof; } else nextReady=true;
+    } else if (def.kind==='dn' || def.kind==='return') {
+      if (!shotDone) { nextReady=false; gateReason=L.gate_photo; }
+      else if (!attestOn) { nextReady=false; gateReason=L.gate_attest; }
+      else nextReady=true;
+    } else {
+      if (!shotDone) { nextReady=false; gateReason=L.gate_photo; }
+      else nextReady=true;
+    }
+    const isLast = idx>=stepTotal-1;
+    const nextLabel = def.kind==='fail_photo' ? L.fail_submit : (isLast ? L.review : L.next);
+
+    const pips = defs.map((d,i) => ({ color: i<idx ? '#16A34A' : (i===idx ? accentColor : '#EAEBED') }));
+
+    const flagLines = this.poLines.map(p => {
+      const on = !!s.spFlags[p.id];
+      return { id:p.id, koliLabel:(s.lang==='id'?'Koli ':'Parcels ')+p.koli, on,
+        tag: on ? L.flag_tag_on : L.flag_tag_off, tagColor: on ? '#DC2626' : '#9CA3AF',
+        toggle: () => this.toggleFlag(p.id),
+        style:'display:flex;align-items:center;gap:12px;width:100%;padding:14px 15px;border-radius:12px;background:#fff;cursor:pointer;margin-bottom:10px;font-family:inherit;min-height:48px;border:2px solid '+(on?'#DC2626':'#E5E7EB')+';',
+        switch:'width:44px;height:26px;border-radius:20px;flex:none;position:relative;transition:background .2s ease;background:'+(on?'#DC2626':'#D1D5DB')+';',
+        knob:'position:absolute;top:3px;left:'+(on?'21px':'3px')+';width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s ease;box-shadow:0 1px 3px rgba(0,0,0,.25);',
+      };
+    });
+
+    const rKeys = ['cancelled','not_ordered','address_wrong','moved','no_receiver','reschedule','office_closed','force_majeure','refused_sign'];
+    const failReasons = rKeys.map(k => {
+      const selected = s.failReason===k;
+      return { key:k, label:L['fr_'+k], selected,
+        pick: () => this.setState({ failReason:k }),
+        style:'display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 15px;border-radius:11px;cursor:pointer;margin-bottom:8px;font-family:inherit;font-size:13.5px;font-weight:600;color:#1A1A1A;min-height:48px;background:'+(selected?'#FEF2F2':'#FFFFFF')+';border:2px solid '+(selected?'#DC2626':'#E5E7EB')+';',
+        radio:'width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid '+(selected?'#DC2626':'#CFD2D6')+';',
+      };
+    });
+    const failReasonLabel = s.failReason ? L['fr_'+s.failReason] : '';
+
+    const capturedList = defs.filter(d => d.kind==='photo' || d.kind==='dn' || d.kind==='return')
+      .filter(d => s.captured[d.key])
+      .map(d => ({ title: L[d.titleKey] + (d.suffix ? ' · '+d.suffix : '') + (s.uploaded[d.key]?' · '+L.uploaded_badge:''), time: s.capTime[d.key] || '' }));
+    if (s.outcome==='failed' && s.captured['fail_proof']) capturedList.push({ title:L.fail_proof, time:s.capTime['fail_proof']||'' });
+
+    const attestKeys = defs.filter(d => (d.kind==='dn'||d.kind==='return') && s.attest[d.key]);
+    const hasAttest = attestKeys.length>0;
+    const attestSummary = s.lang==='id'
+      ? attestKeys.length+' konfirmasi tanda tangan & stempel tercentang'
+      : attestKeys.length+' sign + stamp confirmation(s) ticked';
+
+    const isFailOutcome = s.outcome==='failed';
+    const successOk = s.outcome==='normal' || s.outcome==='no_return';
+    const infoService = isReturnSvc ? (s.lang==='id'?'Ambil retur (return pickup)':'Return pickup') : this.info.service;
+    // driver-app message per outcome
+    let driverHead, driverBody, driverBg, driverBd, driverStroke, driverHeadColor, driverColor, successTitle, successSub, successBg;
+    if (s.outcome==='failed') {
+      driverHead=L.driver_fail_head; driverBody=L.driver_fail_body; driverBg='#FEF2F2'; driverBd='#FCA5A5'; driverStroke='#B91C1C'; driverHeadColor='#991B1B'; driverColor='#B91C1C';
+      successTitle=L.succ_failed; successSub=L.succ_fail_sub; successBg='#DC2626';
+    } else if (s.outcome==='full') {
+      driverHead=L.driver_full_head; driverBody=L.driver_full_body; driverBg='#FEF2F2'; driverBd='#FCA5A5'; driverStroke='#B91C1C'; driverHeadColor='#991B1B'; driverColor='#B91C1C';
+      successTitle=L.succ_reject; successSub=L.succ_reject_sub; successBg='#DC2626';
+    } else {
+      driverHead=L.driver_ok_head; driverBody=L.driver_ok_body; driverBg='#FFF7ED'; driverBd='#FDBA74'; driverStroke='#C2410C'; driverHeadColor='#9A3412'; driverColor='#9A3412';
+      successTitle=L.succ_ok; successSub= (s.outcome==='normal' && s.partialReject===true) ? L.succ_reject_sub : L.succ_ok_sub; successBg='#16A34A';
+    }
+
+    const jumpDefs = isReturnSvc ? [
+      { o:'normal', label:'No return to collect (success)' },
+      { o:'full', label:'Full return not collected' },
+      { o:'failed', label:'Failed return pickup' },
+    ] : [
+      { o:'normal', label:'Delivery (normal)' },
+      { o:'full', label:'Full reject' },
+      { o:'failed', label:'Failed delivery' },
+    ];
+    const jumpBtns = jumpDefs.map(j => ({ label:j.label, go: () => this.jumpTo(j.o),
+      style:'width:100%;min-height:40px;padding:0 12px;border-radius:9px;border:1.5px solid #E5E7EB;background:#fff;color:#1A1A1A;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;' }));
+
+    const tab = a => 'padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px;background:'+(a?'#1A1A1A':'transparent')+';color:'+(a?'#FFFFFF':'#6B7280')+';';
+    const langTab = a => 'min-width:34px;padding:6px 9px;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;border-radius:7px;background:'+(a?'#EE1B2C':'transparent')+';color:'+(a?'#FFFFFF':'#6B7280')+';';
+    const ctlBtn = a => 'flex:1;min-height:36px;border-radius:8px;border:1.5px solid '+(a?'#1A1A1A':'#E5E7EB')+';background:'+(a?'#1A1A1A':'#fff')+';color:'+(a?'#fff':'#6B7280')+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;';
+    const paCard = (sel,color) => 'display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:16px;border-radius:12px;background:#fff;cursor:pointer;margin-bottom:11px;font-family:inherit;min-height:48px;border:2px solid '+(sel?color:'#E5E7EB')+';';
+    const paRadio = (sel,color) => 'width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;border:2px solid '+(sel?color:'#CFD2D6')+';';
+
+    return {
+      L, pharmacy:this.pharmacy, awb:this.awb, info:{ ...this.info, service:infoService }, address:this.address,
+      poLines, poCount, totalKoli, outcomes, outcomeLabel, accentColor,
+      returnAwbs: [this.returnAwb],
+      step, stepText:(s.lang==='id'?'Langkah ':'Step ')+(idx+1)+(s.lang==='id'?' dari ':' of ')+stepTotal,
+      pips, shotEmpty, shotDone, shotTime, attestOn,
+      shotBadge: shotUploaded ? L.uploaded_badge : L.captured,
+      shotBadgeBg: shotUploaded ? 'rgba(37,99,235,.95)' : 'rgba(22,163,74,.95)',
+      vfHeight: s.vfTall ? '210px' : '140px',
+      onShootFile: () => this.markCap(key, false), onUploadFile: () => this.markCap(key, true),
+      onProofShoot: () => this.markCap('fail_proof', false), onProofUpload: () => this.markCap('fail_proof', true),
+      retake: () => this.retake(key),
+      toggleAttest: () => this.toggleAttest(key),
+      attestStyle:'display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:13px 14px;border-radius:12px;cursor:pointer;font-family:inherit;background:'+(attestOn?'#F0FDF4':'#FFF7ED')+';border:2px solid '+(attestOn?'#16A34A':'#FDBA74')+';',
+      attestBox:'width:24px;height:24px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;background:'+(attestOn?'#16A34A':'#fff')+';border:2px solid '+(attestOn?'#16A34A':'#D97706')+';',
+      attestText: attestOn ? '#166534' : '#92400E',
+      flagLines, failReasons, failReasonLabel,
+      capturedList, hasAttest, attestSummary, isFailOutcome,
+      partialYes: s.partialReject===true, partialNo: s.partialReject===false,
+      pickPartialYes: () => this.setState({ partialReject:true }), pickPartialNo: () => this.setState({ partialReject:false }),
+      paYesStyle: paCard(s.partialReject===true,'#D97706'), paNoStyle: paCard(s.partialReject===false,'#16A34A'),
+      paYesRadio: paRadio(s.partialReject===true,'#D97706'), paNoRadio: paRadio(s.partialReject===false,'#16A34A'),
+      openExample: () => this.setState({ example:true }), clearExample: () => this.setState({ example:false }),
+      hasExample: s.example, exampleTitle: title || L.example_modal,
+      nextReady, gateReason, nextDisabled: !nextReady, nextLabel,
+      nextBg: nextReady ? (s.outcome==='failed'||s.outcome==='full' ? '#DC2626' : '#EE1B2C') : '#EEEEF0',
+      nextColor: nextReady ? '#FFFFFF' : '#9CA3AF',
+      nextClick: nextReady ? (() => this.next()) : (() => {}),
+      start: () => this.setState({ screen:'outcome' }),
+      proceed: () => this.setState({ screen:'capture', stepIndex:0 }),
+      back: () => this.back(),
+      askRestart: () => this.setState({ confirmRestart:true }),
+      cancelRestart: () => this.setState({ confirmRestart:false }),
+      doRestart: () => this.reset(),
+      confirmRestart: s.confirmRestart,
+      resetAll: () => this.reset(),
+      submit: () => { if (!s.submitError) this.setState({ submitError:true }); else this.setState({ screen:'success', submitError:false }); },
+      submitError: s.submitError,
+      setId: () => this.setState({ lang:'id' }), setEn: () => this.setState({ lang:'en' }),
+      idTab: langTab(s.lang==='id'), enTab: langTab(s.lang==='en'),
+      showApp: () => this.setState({ view:'app' }), showSheet: () => this.setState({ view:'sheet' }),
+      appTab: tab(s.view==='app'), sheetTab: tab(s.view==='sheet'),
+      isApp: s.view==='app', isSheet: s.view==='sheet',
+      isOrder: screen==='order', isOutcome: screen==='outcome', isCapture: screen==='capture',
+      isPreview: screen==='preview', isSuccess: screen==='success',
+      canBack: ['outcome','capture','preview'].indexOf(screen)!==-1,
+      topBg: ((s.outcome==='failed'||s.outcome==='full') && (screen==='capture')) ? '#FFF5F5' : '#FFFFFF',
+      bodyBg: '#F7F7F8',
+      timeStr: this.nowStr(),
+      successOk, successFail: !successOk,
+      successTitle, successSub, successBg,
+      driverHead, driverBody, driverBg, driverBd, driverStroke, driverHeadColor, driverColor,
+      shotTimeOrNow: this.nowStr(),
+      jumpBtns,
+      setVfTall: () => this.setState({ vfTall:true }), setVfShort: () => this.setState({ vfTall:false }),
+      vfTallBtn: ctlBtn(s.vfTall), vfShortBtn: ctlBtn(!s.vfTall),
+      setSvcForward: () => this.setState({ service:'forward', outcome:'normal', screen:'order' }),
+      setSvcReturn: () => this.setState({ service:'return', outcome:'normal', screen:'order' }),
+      svcFwdBtn: ctlBtn(!isReturnSvc), svcRetBtn: ctlBtn(isReturnSvc),
+    };
+  }
+}
+</script>
+</body>
+</html>
