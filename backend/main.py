@@ -17,8 +17,10 @@ from fastapi.responses import Response
 import config
 import db
 from auth import router as auth_router
-from oc import public_router as courier_router
+from courier import router as courier_router
+from oc import public_router as courier_landing_router
 from oc import router as oc_router
+from returns import router as returns_router
 from security import current_user
 from storage import store
 from users import router as users_router
@@ -36,7 +38,11 @@ app = FastAPI(title="SwipeRx Operator", version=config.APP_VERSION, lifespan=lif
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(oc_router)
+app.include_router(returns_router)
+# courier_router owns /api/c/<token>/*; courier_landing_router keeps the bare
+# /api/c/<token> HTML page working for links already printed on col R.
 app.include_router(courier_router)
+app.include_router(courier_landing_router)
 
 
 @app.get("/health")
@@ -46,7 +52,13 @@ def health() -> dict:
 
 @app.get("/api/version")
 async def version() -> dict:
-    """Current system name + changelog for the in-app 'What's new' panel."""
+    """Current system name + changelog, plus which sign-in methods actually work.
+
+    `auth` lets the sign-in screen offer only what's configured: with GOOGLE_CLIENT_ID
+    unset, the app's own Google button would dead-end on 503 oidc_not_configured. Note
+    this is the app's INNER login — separate from Substrait's platform SSO gateway,
+    which has already gated the request by the time it reaches here.
+    """
     notes = []
     if db.available():
         notes = await db.fetch_all(
@@ -54,7 +66,15 @@ async def version() -> dict:
         )
         for n in notes:
             n["released_at"] = str(n["released_at"])
-    return {"name": config.APP_VERSION, "env": config.APP_ENV, "changelog": notes}
+    return {
+        "name": config.APP_VERSION,
+        "env": config.APP_ENV,
+        "changelog": notes,
+        "auth": {
+            "google": bool(config.GOOGLE_CLIENT_ID),
+            "dev_login": config.DEV_LOGIN_ENABLED,
+        },
+    }
 
 
 @app.get("/api/media/{key}")

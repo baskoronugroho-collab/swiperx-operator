@@ -30,3 +30,7 @@ Updated design.zip
 # --- OS cruft ---
 .DS_Store
 Thumbs.db
+
+# --- Python test cache ---
+backend/tests/__pycache__/
+frontend/tsconfig.tsbuildinfo

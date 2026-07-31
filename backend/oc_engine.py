@@ -45,11 +45,26 @@ class OcError(ValueError):
 
 
 def services() -> list[dict]:
-    """Public service list for the intake UI (code, name, movement, service level)."""
+    """Public service list for the intake UI.
+
+    Carries the read-only shipper identity FR-OC1 requires the UI to show once a
+    service is picked: shipper id + name + corporate branch. Col B always holds the
+    MASTER shipper; the per-service shipper is what `branch_id` selects.
+    """
     out = []
     for code, s in CFG["services"].items():
+        # A service can be switched off in config without deleting its layout/engine
+        # support (S3 Return-Pickup is parked this way, 27 Jul 2026). Disabled services
+        # disappear from the API, so the UI can't offer them and intake rejects them
+        # as unknown_service.
+        if not s.get("enabled", True):
+            continue
         out.append({"code": code, "name": s["name"], "movement": s["movement"],
-                    "service_level": s["service_level"], "direction": s["direction"]})
+                    "service_level": s["service_level"], "direction": s["direction"],
+                    "branch_id": s["branch_id"], "shipper_id": s["shipper_id"],
+                    "shipper_name": s.get("shipper_name", ""),
+                    "master_shipper_id": CFG["master_shipper_id"],
+                    "master_shipper_name": CFG.get("master_shipper_name", "")})
     return out
 
 
@@ -201,12 +216,40 @@ def _parse_return(ws, layout, errors) -> list[dict]:
 
 
 def piece_trids(awb: dict) -> list[str]:
-    """MPS pieces for an AWB: base = awb_id, children -1..-N (N = Σ collies); returns get -01."""
-    base = awb["awb_id"]
+    """Child piece TRIDs inside the AWB's single MPS bundle (guide §2.3, rev. 27 Jul 2026).
+
+    Forward: one child per collie, prefixed with the **PO Number** that collie belongs to,
+    numbered **continuously across the whole AWB** (not restarting per PO) and zero-padded
+    to two digits. PO-prefixed is deliberate — NV permits custom piece ids, and it is what
+    lets the per-PO RDO / SP-Manual check work at the door.
+
+        AWB02U24V: PO1(2 koli), PO2(1), PO3(1)
+        -> PO1-01, PO1-02, PO2-03, PO3-04
+
+    Return (S3): the pre-supplied AWBR with a single -01 piece.
+
+    These are the CHILDREN only. The bundle's own tracking number is the SwipeAWB and is
+    written to cols A and D by `_upload_row` — never taken from this list.
+    """
     if awb["is_return"]:
-        return [f"{base}-01"]
-    total = awb["collies"]
-    return [base] if total == 1 else [f"{base}-{i}" for i in range(1, total + 1)]
+        return [f'{awb["awb_id"]}-01']
+    out: list[str] = []
+    n = 0
+    for p in awb["po_lines"]:
+        for _ in range(max(1, int(p["koli"] or 1))):
+            n += 1
+            out.append(f'{p["po_number"]}-{n:02d}')
+    return out
+
+
+def instr_truncated(text: str) -> bool:
+    """True when _fit_instr had to ellipsis-trim to fit the 500-char cap.
+
+    The forward RDO wording is compliance text (guide §2.4) and currently lands at exactly
+    500/500 with a 32-char token — zero spare. A longer PUBLIC_BASE_URL would silently eat
+    the tail, so callers surface this as an operator-visible warning instead.
+    """
+    return "…" in text
 
 
 def delivery_instructions(service_code: str, awb: dict, url: str) -> str:
@@ -227,7 +270,11 @@ def _item_description(awb: dict) -> str:
 
 
 def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today: str) -> dict:
-    """One NV upload row (dict keyed by field name) for a single MPS piece."""
+    """One NV upload row = one AWB = one MPS order (guide §2.3: 1 WP = 1 MPS TRID = 1 SwipeAWB).
+
+    `trid` is the bundle's tracking number (the SwipeAWB); `trids` are its child pieces,
+    which live only in `requested_piece_tracking_numbers`.
+    """
     svc = CFG["services"][service_code]
     wh = CFG["warehouse"]
     fx = CFG["fixed"]
@@ -290,10 +337,11 @@ def build_upload_xlsx(service_code: str, awbs: list[dict], today: str | None = N
     ws.title = "Upload"
     ws.append(cols)
     for awb in awbs:
+        # ONE row per AWB (guide §2.3, rev. 27 Jul 2026). The previous build emitted a row
+        # per collie, which created N separate orders each claiming to be a bundle of N.
         trids = piece_trids(awb)
-        for trid in trids:
-            row = _upload_row(service_code, awb, trid, trids, today)
-            ws.append([str(row.get(col, "")) for col in cols])
+        row = _upload_row(service_code, awb, awb["awb_id"], trids, today)
+        ws.append([str(row.get(col, "")) for col in cols])
     bio = io.BytesIO()
     wb.save(bio)
     return bio.getvalue()

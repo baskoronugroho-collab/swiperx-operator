@@ -62,6 +62,18 @@ Every SwipeRx **forward** delivery carries an RDO obligation — documents the p
 
 ## 4. Goals & non-goals
 
+> ⚠️ **26 Jul 2026 — build scope re-cut.** The **shipping target** is now
+> [`SCOPE_V3_MVP.md`](SCOPE_V3_MVP.md): three end-to-end lanes (Implant order+link creation ·
+> driver capture via the link · Ops reject-return acknowledge + TID confirmation). §4.1 below
+> remains the full product intent; where the two differ on **what gets built next**, the v3 scope
+> wins. Arrival scan/handover, Validator, PM dashboard, the reject-OC template engine, the
+> Special-Case return service, and SSO are **deferred** — see `SCOPE_V3_MVP.md` §4.
+>
+> ⚠️ **Blocking defect:** the OC engine's parent/child TID output does not match what Ninja accepts —
+> see [`OC_LINKING_BUG.md`](OC_LINKING_BUG.md). This also puts **FR-OC3** (§11.2) in question: it
+> states we do *not* generate collie children, but all three production templates ship them
+> populated. Resolve before any further OC work.
+
 ### 4.1 Goals
 - Make **complete photographic POD/RDO capture** a hard precondition for delivery completion.
 - Capture every reject (partial or full) as **structured data** with photographic proof.

@@ -3,22 +3,86 @@
   "public_base_url": "swiperx-operator.apps.substrait.build",
   "master_shipper_id": "11398423",
   "services": {
-    "S1": { "name": "Ninja Express Intercity (Regular)", "movement": 1, "branch_id": "1", "service_level": "STANDARD", "direction": "forward", "layout": "forward_regular", "shipper_id": "11398224" },
-    "S2": { "name": "Sameday CTM (Instant)", "movement": 2, "branch_id": "3", "service_level": "SAMEDAY", "direction": "forward", "layout": "forward_sameday", "shipper_id": "11549046" },
-    "S3": { "name": "RTS Account (Return Pickup)", "movement": 3, "branch_id": "2", "service_level": "STANDARD", "direction": "return", "layout": "return", "shipper_id": "11398434" }
+    "S1": {
+      "name": "Regular B2BR",
+      "movement": 1,
+      "branch_id": "1",
+      "service_level": "STANDARD",
+      "direction": "forward",
+      "layout": "forward_regular",
+      "shipper_id": "11398224",
+      "shipper_name": "PT Teknologi Medika Pratama HW (B2BR)"
+    },
+    "S2": {
+      "name": "Sameday CTM (Instant)",
+      "movement": 2,
+      "branch_id": "3",
+      "service_level": "SAMEDAY",
+      "direction": "forward",
+      "layout": "forward_sameday",
+      "shipper_id": "11549046",
+      "shipper_name": "PT Teknologi Medika Pratama Sameday CTM (B2BR)"
+    },
+    "S3": {
+      "name": "RTS Account (Return Pickup)",
+      "movement": 3,
+      "branch_id": "2",
+      "service_level": "STANDARD",
+      "direction": "return",
+      "layout": "return",
+      "shipper_id": "11398434",
+      "shipper_name": "PT Teknologi Medika Pratama HW - RTS Account (B2BR)",
+      "enabled": false,
+      "_enabled_note": "DISABLED 27 Jul 2026 (Baskoro): Return-Pickup flow removed from the UI for now. Layout + engine code kept for re-enabling later."
+    }
   },
   "source_layouts": {
     "forward_regular": {
-      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
-      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "J", "zip": "K", "city": "L", "phone": "M", "koli": "N" }
+      "data_start_row": 5,
+      "group_key_col": "C",
+      "koli_mode": "count",
+      "cols": {
+        "name": "B",
+        "swipe_awb": "C",
+        "weight": "D",
+        "po": "F",
+        "address": "J",
+        "zip": "K",
+        "city": "L",
+        "phone": "M",
+        "koli": "N"
+      }
     },
     "forward_sameday": {
-      "data_start_row": 5, "group_key_col": "C", "koli_mode": "count",
-      "cols": { "name": "B", "swipe_awb": "C", "weight": "D", "po": "F", "address": "M", "zip": "N", "city": "O", "phone": "P", "koli": "W" }
+      "data_start_row": 5,
+      "group_key_col": "C",
+      "koli_mode": "count",
+      "cols": {
+        "name": "B",
+        "swipe_awb": "C",
+        "weight": "D",
+        "po": "F",
+        "address": "M",
+        "zip": "N",
+        "city": "O",
+        "phone": "P",
+        "koli": "W"
+      }
     },
     "return": {
-      "data_start_row": 4, "group_key_col": "D", "koli_mode": "single",
-      "cols": { "return_awb": "D", "po": "G", "inv": "H", "detail": "I", "pharmacy_name": "C", "address": "L", "city": "M", "phone": "O" }
+      "data_start_row": 4,
+      "group_key_col": "D",
+      "koli_mode": "single",
+      "cols": {
+        "return_awb": "D",
+        "po": "G",
+        "inv": "H",
+        "detail": "I",
+        "pharmacy_name": "C",
+        "address": "L",
+        "city": "M",
+        "phone": "O"
+      }
     }
   },
   "max_collies_per_awb": 200,
@@ -40,12 +104,19 @@
     "is_dangerous_good": "FALSE",
     "insured_value": "0",
     "item_description_return": "OBAT",
-    "timeslot": { "start_time": "09:00", "end_time": "22:00", "timezone": "Asia/Jakarta" }
+    "timeslot": {
+      "start_time": "09:00",
+      "end_time": "22:00",
+      "timezone": "Asia/Jakarta"
+    }
   },
   "rdo_text": {
-    "forward": "Semua dokumen wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima. Silahkan selesaikan delivery melalui link berikut:",
+    "forward": "Delivery Note wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima sesuai dengan jumlah PO yang butuh SP Manual. Apabila ada retur, catat di Delivery Note dan update ke IC. Selesaikan delivery di link:",
     "return_delivery_short": "Pickup Return. Detail barang & nomor invoice WAJIB dibuka di link berikut. Wajib bawa form BA Return. ",
-    "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA"
+    "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA",
+    "_forward_comment": "UPDATED 27 Jul 2026 per OC_TEMPLATE_AND_ENGINE_GUIDE §2.4 (New RDO deck). Mandated text is 267 chars; the CTA adds 29. Budget is tight — if PUBLIC_BASE_URL grows, shorten the CTA, or the engine silently ellipsis-truncates the mandated text."
   },
-  "link_char_limit": 500
+  "link_char_limit": 500,
+  "master_shipper_name": "PT Teknologi Medika Pratama (B2BR)",
+  "_shipper_names_comment": "Added 26 Jul 2026 for FR-OC1: picking a service shows read-only shipper id/name/branch. Source: the DE team's converter Config sheet."
 }

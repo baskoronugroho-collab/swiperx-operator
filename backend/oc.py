@@ -9,11 +9,11 @@ courier wizard arrives in M2).
 Hub is NOT assigned here — NV assigns it after the OC is created; the Implant then
 re-uploads AWB→hub separately (BUILD_HANDOFF §3.6).
 """
-import html
 import secrets
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import RedirectResponse, Response
 
 import config
 import db
@@ -26,6 +26,16 @@ public_router = APIRouter(tags=["courier"])  # unauthenticated courier link entr
 intake_roles = require_roles("implant", "de")
 
 XLSX_CT = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _parse_delivery_date(value: str | None) -> str | None:
+    """Validate the operator-chosen delivery day (ISO yyyy-mm-dd). None → engine uses today."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="bad_delivery_date") from None
 
 
 def _err_line(e: dict) -> str:
@@ -77,8 +87,14 @@ async def preview(service: str = Form(...), file: UploadFile = File(...),
 
 @router.post("/create", status_code=201)
 async def create(service: str = Form(...), file: UploadFile = File(...),
+                 delivery_date: str | None = Form(default=None),
                  user: dict = Depends(intake_roles)):
-    """Commit the batch: persist AWBs + tokens and generate the NV upload .xlsx + links.csv."""
+    """Commit the batch: persist AWBs + tokens and generate the NV upload .xlsx + links.csv.
+
+    `delivery_date` is a SINGLE day (FR-OC1, Round 5 — not a range); it lands in col S
+    of the upload. Omitted → today.
+    """
+    day = _parse_delivery_date(delivery_date)
     data, result = await _parse_upload(service, file)
     awbs = result["awbs"]
     if not awbs:
@@ -98,9 +114,11 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
             continue
         token = secrets.token_urlsafe(24)
         a["token"] = token
-        # /api/* is the only path the ingress routes to the backend, so the courier link
-        # lives under /api to guarantee it resolves (the M2 SPA can later own a /c/ route).
-        a["url"] = f"{config.PUBLIC_BASE_URL}/api/c/{token}"
+        # The courier link is the SPA wizard route: {base}/c/{token} (guide §2.4). Both
+        # /c/* and /api/c/* are allowlisted past the platform SSO gateway, so a rider with
+        # no Google account can open it. Links printed before 27 Jul used /api/c/<token>;
+        # that route still resolves and 307s here, so old sheets keep working.
+        a["url"] = f"{config.PUBLIC_BASE_URL}/c/{token}"
         a["delivery_instructions"] = oc_engine.delivery_instructions(service, a, a["url"])
         await db.execute(
             "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
@@ -118,14 +136,23 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
             )
         committed.append(a)
 
-    upload_ref = await store.put(oc_engine.build_upload_xlsx(service, committed), XLSX_CT)
+    upload_ref = await store.put(oc_engine.build_upload_xlsx(service, committed, day), XLSX_CT)
     links_ref = await store.put(oc_engine.build_links_csv(committed), "text/csv")
     piece_count = sum(len(oc_engine.piece_trids(a)) for a in committed)
     err_text = "; ".join(_err_line(e) for e in errors) or None
+
+    # Col R is compliance text with a hard 500-char cap; if the link pushed it over, the
+    # engine trimmed the RDO wording. That must never pass unnoticed.
+    truncated = [a["awb_id"] for a in committed
+                 if oc_engine.instr_truncated(a["delivery_instructions"])]
+    warn_text = (f"{len(truncated)} AWB(s) had the RDO instruction text truncated to fit the "
+                 f"500-char limit: {', '.join(truncated[:5])}"
+                 f"{'…' if len(truncated) > 5 else ''}") if truncated else None
+
     await db.execute(
         "UPDATE order_intake SET oc_template_ref=%s, links_file_ref=%s, awb_count=%s, piece_count=%s, "
-        "row_count=%s, status='created', error_summary=%s WHERE id=%s",
-        (upload_ref, links_ref, len(committed), piece_count, len(committed), err_text, intake_id),
+        "row_count=%s, status='created', error_summary=%s, warning_summary=%s WHERE id=%s",
+        (upload_ref, links_ref, len(committed), piece_count, len(committed), err_text, warn_text, intake_id),
     )
     await db.execute(
         "INSERT INTO audit_log (actor, action, entity, entity_id) VALUES (%s, 'oc_create', 'order_intake', %s)",
@@ -135,6 +162,9 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
         "intake_id": intake_id, "service": service,
         "awb_count": len(committed), "piece_count": piece_count,
         "error_count": len(errors), "errors": errors,
+        "warning": warn_text,
+        "links": [{"awb_id": a["awb_id"], "pharmacy_name": a["pharmacy_name"],
+                   "city": a["city"], "koli": a["collies"], "url": a["url"]} for a in committed],
         "upload_url": f"/api/oc/intakes/{intake_id}/upload.xlsx",
         "links_url": f"/api/oc/intakes/{intake_id}/links.csv",
     }
@@ -166,8 +196,40 @@ async def intake_detail(intake_id: int, _: dict = Depends(intake_roles)):
     )
     for a in awbs:
         a["is_return"] = bool(a["is_return"])
-        a["courier_url"] = f"{config.PUBLIC_BASE_URL}/api/c/{a.pop('link_token')}"
+        a["courier_url"] = f"{config.PUBLIC_BASE_URL}/c/{a.pop('link_token')}"
     return {"intake": intake, "awbs": awbs}
+
+
+@router.get("/links")
+async def list_links(
+    q: str | None = None,
+    limit: int = 500,
+    _: dict = Depends(intake_roles),
+):
+    """Every courier link created, newest first — the operator's copy-paste view.
+
+    Same data as the links .csv, but on screen so a link can be found and copied without
+    downloading anything (guide §5 step 8: "plus a copy-of-links view").
+    """
+    sql = (
+        "SELECT a.awb_id, a.pharmacy_name, a.city, a.koli, a.status, a.is_return, "
+        "a.link_token, a.service_id, a.intake_id, a.created_at "
+        "FROM awb a"
+    )
+    params: tuple = ()
+    if q:
+        like = f"%{q.strip()}%"
+        sql += " WHERE a.awb_id LIKE %s OR a.pharmacy_name LIKE %s OR a.city LIKE %s"
+        params = (like, like, like)
+    sql += " ORDER BY a.created_at DESC, a.awb_id DESC LIMIT %s"
+    params = params + (max(1, min(limit, 2000)),)
+
+    rows = await db.fetch_all(sql, params)
+    for r in rows:
+        r["is_return"] = bool(r["is_return"])
+        r["created_at"] = str(r["created_at"])
+        r["courier_url"] = f"{config.PUBLIC_BASE_URL}/c/{r.pop('link_token')}"
+    return {"links": rows, "count": len(rows)}
 
 
 async def _download(intake_id: int, ref_col: str, filename: str, content_type: str) -> Response:
@@ -193,48 +255,15 @@ async def download_links(intake_id: int, _: dict = Depends(intake_roles)):
 
 
 # ---- Courier link entry (unauthenticated) ----------------------------------
-async def _resolve_token(token: str) -> dict:
-    awb = await db.fetch_one(
-        "SELECT awb_id, merchant_order_number, pharmacy_name, address, city, service_id, status, "
-        "is_return, invoice, item_detail FROM awb WHERE link_token = %s", (token,)
-    )
-    if not awb:
-        raise HTTPException(status_code=404, detail="invalid_link")
-    awb["is_return"] = bool(awb["is_return"])
-    awb["po_lines"] = await db.fetch_all(
-        "SELECT po_number, koli FROM po_line WHERE awb_id = %s ORDER BY id", (awb["awb_id"],)
-    )
-    return awb
+# The link injected into col R points here. The capture API lives in courier.py under
+# the same /api/c/<token> prefix; this route only bounces the courier into the SPA
+# wizard, so links already printed on delivery instructions keep working unchanged.
 
 
-@public_router.get("/api/c/{token}/order")
-async def courier_resolve(token: str):
-    """JSON the courier app (M2) will render. Public — the token is the only credential."""
-    return await _resolve_token(token)
-
-
-@public_router.get("/api/c/{token}", response_class=HTMLResponse)
+@public_router.get("/api/c/{token}")
 async def courier_landing(token: str):
-    """The injected courier link target. Minimal standalone page so a link opens today;
-    the M2 wizard (a frontend /c/ route calling /api/c/<token>/order) replaces this."""
-    awb = await _resolve_token(token)
-    e = html.escape
-    pos = "".join(f"<li>{e(p['po_number'])} — {p['koli']} koli</li>" for p in awb["po_lines"])
-    extra = (f"<p><b>Invoice:</b> {e(awb['invoice'] or '-')}</p>"
-             f"<p><b>Detail:</b> {e(awb['item_detail'] or '-')}</p>") if awb["is_return"] else ""
-    kind = "Pickup Return" if awb["is_return"] else "Delivery"
-    page = f"""<!doctype html><html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SwipeRx Operator — {e(awb['awb_id'])}</title>
-<style>body{{font-family:system-ui,sans-serif;margin:0;background:#f5f5f5;color:#222}}
-.card{{max-width:520px;margin:16px auto;background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.1)}}
-.tag{{display:inline-block;background:#EE1B2C;color:#fff;padding:2px 10px;border-radius:999px;font-size:12px}}
-h1{{font-size:18px;margin:.4em 0}}ul{{padding-left:20px}}small{{color:#777}}</style></head>
-<body><div class="card"><span class="tag">{e(kind)}</span>
-<h1>{e(awb['pharmacy_name'])}</h1>
-<p>{e(awb['address'] or '')}<br><small>{e(awb['city'] or '')}</small></p>
-<p><b>AWB:</b> {e(awb['awb_id'])} &nbsp; <b>Status:</b> {e(awb['status'])}</p>
-<p><b>PO / koli:</b></p><ul>{pos}</ul>{extra}
-<p><small>Aplikasi kurir lengkap menyusul (M2). Link ini valid — pesanan ditemukan.</small></p>
-</div></body></html>"""
-    return HTMLResponse(content=page)
+    """Redirect the printed link to the courier wizard route served by the frontend."""
+    exists = await db.fetch_one("SELECT 1 AS ok FROM awb WHERE link_token = %s", (token,))
+    if not exists:
+        raise HTTPException(status_code=404, detail="invalid_link")
+    return RedirectResponse(url=f"/c/{token}", status_code=307)

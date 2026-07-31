@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* SwipeRx Operator — modernized token system (DESIGN_BRIEF_MODERN_UI.md, 27 Jul 2026).
+   Colours are the NV palette unchanged; the modernization is in their ROLES, the type
+   trio (Montserrat display · Inter body · JetBrains Mono for codes), and quieter chrome. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", "Inter", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  --color-nv-red: #ee1b2c;
+  --color-nv-red-dark: #c2141f;
+  --color-nv-red-soft: #fdecee;
+
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #6b7280;
+  --color-line: #e8e8ec;
+  --color-surface: #ffffff;
+  --color-canvas: #f4f4f6;
+  --color-canvas-soft: #eeeef1;
+
+  --color-ok: #15803d;
+  --color-ok-soft: #dcfce7;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-info: #1d4ed8;
+  --color-info-soft: #dbeafe;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "tnum"; /* tabular numerals — counts line up in tables */
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* The quiet Ninja signature: a 2px brand hairline across the very top of every page.
+   Red gets rarer everywhere else, which makes this line (and the buttons) louder. */
+.brand-hairline {
+  height: 2px;
+  background: var(--color-nv-red);
+}
+
+/* The signature element — every tracking identifier (AWB, PO, TID, link) renders as one
+   consistent code chip. Codes are the atoms of this business; treat them like objects. */
+.awb-chip {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  background: var(--color-canvas-soft);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+/* Micro-label: table headers, eyebrows. */
+.micro-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-muted);
+}
+
+/* The courier wizard is explicitly "no scrolling" (PRD FR-D1) — it manages its own
+   height. Everything else scrolls normally. */
+.no-scroll-shell {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Single orchestrated motion moment: the wizard phase change. */
+@keyframes phase-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.phase-in {
+  animation: phase-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-in {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

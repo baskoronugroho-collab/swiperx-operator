@@ -1,0 +1,23 @@
+# Substrait app manifest. Required at the repo root since ~26 Jul 2026 — uploads without
+# it are rejected before the build starts.
+#
+# ⚠ `services:` is authoritative, not additive: a manifest that OMITS a service the app
+# currently has will REMOVE it on deploy. Only edit this list deliberately.
+
+description: >-
+  SwipeRx Operator is Ninja Van Indonesia's delivery-compliance and returns tool for the
+  SwipeRx pharmaceutical account. Implant/DE staff turn a SwipeRx batch file into a Ninja
+  Van order-creation upload with a tokenized link per AWB; couriers open that link at the
+  pharmacy to capture the required POD/RDO photos and flag any rejected goods; ops then
+  acknowledge each reject and record the replacement return TIDs. Built for Ninja Van
+  operations staff and SwipeRx, not for public use.
+
+# Must be a MAPPING of service name → options, never a list (the platform rejects a list
+# outright). Empty braces mean "default options".
+services:
+  # Redis is declared to PRESERVE the instance this app was provisioned with — the
+  # pre-manifest platform contract injected REDIS_URL automatically. No application code
+  # reads it today (backend/config.py defines REDIS_URL but nothing consumes it), so this
+  # entry can be dropped once someone confirms the instance is genuinely unused.
+  # The OceanBase database is provisioned automatically per app and is NOT declared here.
+  redis: {}
