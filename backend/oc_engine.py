@@ -242,6 +242,32 @@ def piece_trids(awb: dict) -> list[str]:
     return out
 
 
+def _fit_forward(mandated: str, cta: str, url: str, limit: int) -> str:
+    """Build col R with the mandated RDO wording protected.
+
+    That wording is compliance text (guide §2.4) and must never be silently trimmed —
+    only the call-to-action is discretionary, so it is dropped WHOLE when the budget is
+    tight. This stopped being theoretical on 27 Jul 2026: the platform moved the app to
+    an org-scoped host, the URL grew 9 chars, and since the URL is counted twice the
+    text budget fell from 296 to 278 — less than the 296 the old text+CTA needed.
+
+    If even the bare mandated text cannot fit, the result is ellipsised AND reported by
+    `instr_truncated()`, so it surfaces as an operator warning instead of quietly
+    shipping incomplete legal wording.
+    """
+    def build(text: str) -> str:
+        return f'<updated_addr>{text}<a href="{url}">{url}</a></updated_addr>'
+
+    if len(build(mandated + cta)) <= limit:
+        return build(mandated + cta)
+    if len(build(mandated)) <= limit:
+        return build(mandated)
+    t = mandated
+    while t and len(build(t[:-1] + "…")) > limit:
+        t = t[:-1]
+    return build((t[:-1] + "…") if t else "…")
+
+
 def instr_truncated(text: str) -> bool:
     """True when _fit_instr had to ellipsis-trim to fit the 500-char cap.
 
@@ -258,7 +284,8 @@ def delivery_instructions(service_code: str, awb: dict, url: str) -> str:
     limit = CFG["link_char_limit"]
     if svc["direction"] == "return":
         return _fit_instr(CFG["rdo_text"]["return_delivery_short"], "", url, limit)
-    return _fit_instr(CFG["rdo_text"]["forward"], "", url, limit)
+    return _fit_forward(CFG["rdo_text"]["forward"], CFG["rdo_text"].get("forward_cta", ""),
+                        url, limit)
 
 
 def _item_description(awb: dict) -> str:

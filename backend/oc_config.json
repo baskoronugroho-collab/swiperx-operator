@@ -111,10 +111,11 @@
     }
   },
   "rdo_text": {
-    "forward": "Delivery Note wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima sesuai dengan jumlah PO yang butuh SP Manual. Apabila ada retur, catat di Delivery Note dan update ke IC. Selesaikan delivery di link:",
+    "forward": "Delivery Note wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima sesuai dengan jumlah PO yang butuh SP Manual. Apabila ada retur, catat di Delivery Note dan update ke IC.",
     "return_delivery_short": "Pickup Return. Detail barang & nomor invoice WAJIB dibuka di link berikut. Wajib bawa form BA Return. ",
     "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA",
-    "_forward_comment": "UPDATED 27 Jul 2026 per OC_TEMPLATE_AND_ENGINE_GUIDE §2.4 (New RDO deck). Mandated text is 267 chars; the CTA adds 29. Budget is tight — if PUBLIC_BASE_URL grows, shorten the CTA, or the engine silently ellipsis-truncates the mandated text."
+    "_forward_comment": "Guide §2.4 (New RDO deck). `forward` is MANDATED compliance wording and is never trimmed. `forward_cta` is discretionary and is dropped whole when the 500-char col-R budget is tight — which happened 27 Jul when the host gained a '.ninjavan.' segment, growing the URL 9 chars (counted twice) and cutting CTA room from 29 to 11.",
+    "forward_cta": " Buka link:"
   },
   "link_char_limit": 500,
   "master_shipper_name": "PT Teknologi Medika Pratama (B2BR)",
