@@ -1,9 +1,13 @@
-"""OC intake engine (Python port of the validated Node harness in ../oc-engine).
+"""OC intake engine — the single source of truth for the TMP -> Ninja Van transform.
+
+Originally ported from a Node prototype in ../oc-engine; that harness went stale and was
+DELETED 18 Aug 2026 (it still had the pre-lock TMP layout and the pre-27-Jul per-piece row
+shape). Nothing replaces it — this module is authoritative. Recover from git if ever needed.
 
 Pure transform, no DB/HTTP: parse a SwipeRx TMP .xlsx for a chosen service (S1/S2/S3),
 group into AWBs + PO lines, MPS-expand per AWB, and emit the Ninja Van upload columns
 (with the courier link injected into delivery_instructions). Rules + provenance:
-../oc-engine/EXTRACTION_NOTES.md and ../OC Template/OC_TEMPLATE_AND_ENGINE_GUIDE.md.
+../OC Template/OC_ENGINE_EXTRACTION_NOTES.md and ../OC Template/OC_TEMPLATE_AND_ENGINE_GUIDE.md.
 
 Tokens are assigned by the caller (oc.py) so they persist in the DB and back the /c/<token>
 route — this module only builds the link string once a URL is known.
@@ -216,17 +220,27 @@ def _parse_return(ws, layout, errors) -> list[dict]:
 
 
 def piece_trids(awb: dict) -> list[str]:
-    """Child piece TRIDs inside the AWB's single MPS bundle (guide §2.3, rev. 27 Jul 2026).
+    """Child piece TRIDs inside the AWB's single MPS bundle (guide §2.3).
 
     Forward: one child per collie, prefixed with the **PO Number** that collie belongs to,
     numbered **continuously across the whole AWB** (not restarting per PO) and zero-padded
-    to two digits. PO-prefixed is deliberate — NV permits custom piece ids, and it is what
-    lets the per-PO RDO / SP-Manual check work at the door.
+    to two digits.
 
         AWB02U24V: PO1(2 koli), PO2(1), PO3(1)
         -> PO1-01, PO1-02, PO2-03, PO3-04
 
     Return (S3): the pre-supplied AWBR with a single -01 piece.
+
+    PO-prefixed is deliberate. NV permits custom piece ids, and the children still attach to
+    their parent when the order is created from the manual template — confirmed by Baskoro,
+    10 and 18 Aug 2026. It is also what makes the per-PO RDO / SP-Manual check work at the
+    door, since each piece traces to its own PO.
+
+    ⚠️ This was briefly changed to parent-prefixed children on 10 Aug 2026, on the strength of
+    an audit showing 1035/1035 children in three accepted BULK uploads used prefix == col A.
+    That inference was wrong: it read a property of the bulk-upload path as a universal rule,
+    and the manual-template path this account actually uses accepts PO prefixes. Converter v6
+    rolled the same change back. Do not "fix" this again without asking.
 
     These are the CHILDREN only. The bundle's own tracking number is the SwipeAWB and is
     written to cols A and D by `_upload_row` — never taken from this list.
@@ -366,7 +380,13 @@ def build_upload_xlsx(service_code: str, awbs: list[dict], today: str | None = N
     for awb in awbs:
         # ONE row per AWB (guide §2.3, rev. 27 Jul 2026). The previous build emitted a row
         # per collie, which created N separate orders each claiming to be a bundle of N.
-        trids = piece_trids(awb)
+        #
+        # `children_mode="blank"` leaves AC empty so NV mints the children itself. That is
+        # the C4 claim in OC_AWB_PARENT_CHECK §2, which has never actually been shipped —
+        # every one of the 1035 children in the three accepted uploads was filled in. The
+        # manual test module sets this per-AWB so one trial upload can settle it; the TMP
+        # intake path never does, and stays on the shape with production evidence.
+        trids = [] if awb.get("children_mode") == "blank" else piece_trids(awb)
         row = _upload_row(service_code, awb, awb["awb_id"], trids, today)
         ws.append([str(row.get(col, "")) for col in cols])
     bio = io.BytesIO()

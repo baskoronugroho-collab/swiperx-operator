@@ -16,7 +16,7 @@ The single most important correction from the real data:
 | **SwipeAWB** | SwipeRx's own order number, e.g. `AWB02S5X7`. **One per pharmacy order / delivery visit.** Becomes NV's `merchant_order_number` (shipper reference). **This is what the courier link is scoped to** (one DN per SwipeAWB). | *not* `NVIDMY…` |
 | **PO Number** | A long code, e.g. `26060908042940Pt0L9chLQ`. SwipeRx's internal purchase-order id, one per PO line. **No longer the TRID base** — the TRID base is now the SwipeAWB (§2.3). Still used for the col-Y PO/collie cross-check. | *not* a short human `PO-2401` |
 | **Koli** | Number of parcels (collies) **per PO line** (TMP col N). | — |
-| **TRID / MPS piece** | Per-parcel tracking number. **MPS bundles per AWB**: base = SwipeAWB; children `SwipeAWB-1 … -N` (N = Σ collies) — see §2.3. | *not* per-PO bundles |
+| **TRID / MPS piece** | Per-parcel tracking number. **MPS bundles per AWB**: parent (col A) = SwipeAWB; children are **PO-prefixed**, one per collie, numbered continuously across the AWB and zero-padded — see §2.3. | *not* per-PO bundles |
 | **SP type (Manual/Electronic)** | **NOT present anywhere in the batch data.** The rider identifies it by reading the **Faktur at the door** (Bible Open Item #4). | *not* a per-PO column we can pre-count |
 
 **Structure:** `SwipeAWB` → many `PO lines` → each PO line has `Koli` parcels.
@@ -75,7 +75,7 @@ One row **per pharmacy order per PO line**. The file has **3 header rows** the e
 | B | Pharmacy Name | Destination pharmacy | → upload `to.name` |
 | C | **SwipeAWB** | SwipeRx order number | → `merchant_order_number` (**AWB grouping key**) |
 | D | Total Weight per AWB (kg) | Actual weight | → `weight` (see W bug) |
-| F | **PO Number** | SwipeRx PO id (long code) | → TRID base (`requested_tracking_number`) |
+| F | **PO Number** | SwipeRx PO id (long code) | → `po_line` + col-Y cross-check only. **Never a tracking number** (§2.3) |
 | G | Pharmacy's ID | Numeric pharmacy id | prepended to address |
 | J | Pharmacy's ID - Address | Full formatted address | → `to.address.address1` |
 | K | Zip Code | Postcode | → `postcode` |
@@ -122,32 +122,48 @@ One row **per TRID** (MPS expands one PO with Koli>1 into multiple rows). Legend
 | AD | insured_value | 🔒 | `0` |
 | AE | **corporate.branch_id** | 🔒 | **The service selector** — `1` Regular (→11398224) · `2` Return-Pickup RTS (→11398434) · `3` Instant/Sameday (→11549046) |
 
-### 2.3 MPS expansion — **per AWB** (target model)
+### 2.3 MPS expansion — **per AWB** (rev. 10 Aug 2026)
 
-> **Change (03 Jul):** MPS is bundled **per AWB**, not per PO line. All PO lines under one SwipeAWB roll up into **one MPS bundle**, and the bundle has **Σ collies** child tracking IDs.
->
-> **Example:** `AWB A` → `PO1` (3 collies) + `PO2` (2 collies) → **one MPS bundle with 5 child TRIDs**.
+> MPS is bundled **per AWB**, not per PO line. All PO lines under one SwipeAWB roll up into
+> **one MPS bundle** = **one upload row** = **one DN** = **one courier link**.
 
 ```
 for each AWB (group of TMP rows sharing the same SwipeAWB):
-    total = sum(Koli of all PO lines in the AWB)      # e.g. PO1(3)+PO2(2) = 5
-    base  = SwipeAWB                                    # TRID base = SwipeAWB (NOT PO Number)
-    if total == 1:
-        childTRIDs = [ base ]                           # single parcel → TRID = SwipeAWB
-    else:
-        childTRIDs = [ base + "-" + i  for i in 1..total ]   # base-1, base-2, … base-N (no zero pad)
-    merchant_order_number (D) = SwipeAWB
-    total_quantity (AB)       = total
-    emit one upload row per child TRID (A = that child TRID); all rows share D, R(link), etc.
+    total = sum(Koli of all PO lines in the AWB)     # e.g. PO1(3)+PO2(2) = 5
+    A  (requested_tracking_number) = SwipeAWB        # the bundle's own TRID
+    D  (merchant_order_number)     = SwipeAWB
+    AB (total_quantity)            = total
+    AC (piece tracking numbers)    = one child per collie, prefixed with ITS OWN PO Number,
+                                     numbered continuously across the AWB, zero-padded to 2
+    W  (weight)                    = the AWB total (TMP col C), because 1 row = 1 AWB
+    emit exactly ONE upload row per AWB
 ```
 
-Example: `AWB12340` with PO1=3 + PO2=2 collies → 5 children: `AWB12340-1, -2, -3, -4, -5`.
+Example: `AWB12340`, PO1=3 + PO2=2 collies → `AB = 5`,
+`AC = PO1-01, PO1-02, PO1-03, PO2-04, PO2-05`.
 
 Notes:
-- **TRID base = SwipeAWB** (the sample templates used the PO Number — we override to SwipeAWB).
-- Suffix is a **flat 1-based index across the whole AWB**, no zero padding (`-1` not `-01`).
-- The **current sample templates** bundle per PO; the engine implements the **per-AWB** target above.
-- One bundle per AWB ⇒ **one DN and one courier link per AWB**.
+- **Children are PO-prefixed**, and this is deliberate. NV permits custom piece ids, and the
+  pieces still attach to their parent when the order is created from the **manual template**
+  (confirmed by Baskoro, 10 and 18 Aug 2026). It is what lets the per-PO RDO / SP-Manual check
+  work at the door.
+- **Zero-padded to two digits**, and the counter runs **across the whole AWB** — it does not
+  restart per PO. A multi-koli PO therefore shifts every ordinal after it.
+- **Col A stays the SwipeAWB** even though the children carry PO prefixes. One bundle per AWB
+  ⇒ **one DN and one courier link per AWB**.
+
+> **History — read before "fixing" this.**
+> 1. Until 27 Jul the engine emitted **one upload row per collie**, so N orders each claimed to
+>    be a bundle of N. That was a genuine bug and is fixed.
+> 2. On 10 Aug 2026 the children were switched to **parent-prefixed** (`<A>-01…`), on the basis
+>    that 1035/1035 children in three accepted **bulk** uploads used prefix == col A. That
+>    inference was wrong — it treated a property of the bulk-upload path as a universal rule,
+>    while this account creates orders from the **manual template**, which accepts PO prefixes.
+>    Reverted in the engine, and in the converter by **v6**. Converter **v5 is superseded** and
+>    should not be used: besides the prefix, it reintroduced a fill-down formula that silently
+>    breaks on Google Sheets import.
+>
+> Pinned by `backend/tests/test_oc_engine.py::test_children_are_po_prefixed_and_numbered_continuously`.
 
 ### 2.4 Link injection (clickable hyperlink, 500-char budget)
 

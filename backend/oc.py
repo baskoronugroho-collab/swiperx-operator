@@ -118,7 +118,7 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
         # /c/* and /api/c/* are allowlisted past the platform SSO gateway, so a rider with
         # no Google account can open it. Links printed before 27 Jul used /api/c/<token>;
         # that route still resolves and 307s here, so old sheets keep working.
-        a["url"] = f"{config.PUBLIC_BASE_URL}/c/{token}"
+        a["url"] = f"{config.COURIER_BASE_URL}/c/{token}"
         a["delivery_instructions"] = oc_engine.delivery_instructions(service, a, a["url"])
         await db.execute(
             "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
@@ -135,6 +135,18 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
                 (a["awb_id"], p["po_number"], p["koli"]),
             )
         committed.append(a)
+
+    # Every AWB in the file already existed, so nothing was created. Without this the
+    # intake closed as 'created' with awb_count 0 and handed back an upload.xlsx holding
+    # only a header row — which reads like success and is the easiest way to ship nothing.
+    # Re-uploading a corrected file lands here too: existing AWBs are skipped, never
+    # updated, so the operator needs telling rather than a silent empty download.
+    if not committed:
+        await db.execute(
+            "UPDATE order_intake SET status='no_new_awbs', row_count=0, error_summary=%s "
+            "WHERE id=%s", ("; ".join(_err_line(e) for e in errors) or None, intake_id),
+        )
+        raise HTTPException(status_code=409, detail="all_awbs_already_exist")
 
     upload_ref = await store.put(oc_engine.build_upload_xlsx(service, committed, day), XLSX_CT)
     links_ref = await store.put(oc_engine.build_links_csv(committed), "text/csv")
@@ -196,7 +208,7 @@ async def intake_detail(intake_id: int, _: dict = Depends(intake_roles)):
     )
     for a in awbs:
         a["is_return"] = bool(a["is_return"])
-        a["courier_url"] = f"{config.PUBLIC_BASE_URL}/c/{a.pop('link_token')}"
+        a["courier_url"] = f"{config.COURIER_BASE_URL}/c/{a.pop('link_token')}"
     return {"intake": intake, "awbs": awbs}
 
 
@@ -228,8 +240,35 @@ async def list_links(
     for r in rows:
         r["is_return"] = bool(r["is_return"])
         r["created_at"] = str(r["created_at"])
-        r["courier_url"] = f"{config.PUBLIC_BASE_URL}/c/{r.pop('link_token')}"
+        r["courier_url"] = f"{config.COURIER_BASE_URL}/c/{r.pop('link_token')}"
     return {"links": rows, "count": len(rows)}
+
+
+def _slug(text: str) -> str:
+    """Filesystem/Content-Disposition-safe fragment: keep word chars, collapse the rest."""
+    out = "".join(c if c.isalnum() else "-" for c in text)
+    while "--" in out:
+        out = out.replace("--", "-")
+    return out.strip("-")
+
+
+async def _intake_filename(intake_id: int, kind: str, ext: str) -> str:
+    """`<Service>-<kind>_<YYYYMMDD-HHMM>.<ext>` — the DE handles many of these a day.
+
+    A bare intake id told them nothing once the file left the browser; the service and the
+    moment it was generated are what they actually sort by. Falls back to the id if the
+    row is somehow unreadable, so a download never fails over a filename.
+    """
+    row = await db.fetch_one(
+        "SELECT service_code, uploaded_at FROM order_intake WHERE id = %s", (intake_id,)
+    )
+    if not row:
+        return f"oc-{kind}-{intake_id}.{ext}"
+    svc = oc_engine.CFG["services"].get(row["service_code"], {})
+    name = _slug(svc.get("name") or row["service_code"] or "OC")
+    stamp = str(row["uploaded_at"] or "").replace("-", "").replace(":", "")
+    stamp = stamp.replace(" ", "-")[:13] or str(intake_id)  # YYYYMMDD-HHMM
+    return f"{name}-{kind}_{stamp}.{ext}"
 
 
 async def _download(intake_id: int, ref_col: str, filename: str, content_type: str) -> Response:
@@ -246,12 +285,14 @@ async def _download(intake_id: int, ref_col: str, filename: str, content_type: s
 
 @router.get("/intakes/{intake_id}/upload.xlsx")
 async def download_upload(intake_id: int, _: dict = Depends(intake_roles)):
-    return await _download(intake_id, "oc_template_ref", f"oc-upload-{intake_id}.xlsx", XLSX_CT)
+    name = await _intake_filename(intake_id, "upload", "xlsx")
+    return await _download(intake_id, "oc_template_ref", name, XLSX_CT)
 
 
 @router.get("/intakes/{intake_id}/links.csv")
 async def download_links(intake_id: int, _: dict = Depends(intake_roles)):
-    return await _download(intake_id, "links_file_ref", f"oc-links-{intake_id}.csv", "text/csv")
+    name = await _intake_filename(intake_id, "links", "csv")
+    return await _download(intake_id, "links_file_ref", name, "text/csv")
 
 
 # ---- Courier link entry (unauthenticated) ----------------------------------

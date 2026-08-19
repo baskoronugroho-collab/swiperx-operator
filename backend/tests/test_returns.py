@@ -103,3 +103,89 @@ def test_csv_export_carries_the_audit_trail(de_client, rejected):  # noqa: ARG00
     assert "AWBTEST01" in body
     assert "RTS-999" in body
     assert "dewi.k@ninjavan.co" in body
+
+
+# --- full reject closes by RTS, not by a new return TID (deck slide 7, 19 Aug 2026) ---
+
+
+@pytest.fixture()
+def fully_rejected(client, awb):
+    """Same courier flow, but the apotek refuses the WHOLE consignment."""
+    t = awb["token"]
+    for doc in ("pharmacy_pod", "receiver_pod"):
+        client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
+    dn = client.post(f"/api/c/{t}/capture", data={"doc_type": "delivery_note"}, files=photo()).json()
+    client.patch(f"/api/c/{t}/capture/{dn['id']}", json={"signed_stamped": True})
+    for doc in ("delivery_note", "rejected_goods", "awb_sticker"):
+        client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
+    client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "semua"})
+    return awb
+
+
+def _row(de_client):
+    return de_client.get("/api/returns").json()["returns"][0]
+
+
+def test_full_reject_is_flagged_to_close_by_rts(de_client, fully_rejected):  # noqa: ARG001
+    r = _row(de_client)
+    assert r["return_type"] == "semua"
+    assert r["closes_by"] == "rts"
+    assert r["stage"] == "pending_ack"
+
+
+def test_partial_reject_still_closes_by_tids(de_client, rejected):  # noqa: ARG001
+    assert _row(de_client)["closes_by"] == "tids"
+
+
+def test_rts_needs_acknowledgement_first(de_client, fully_rejected):  # noqa: ARG001
+    rid = _row(de_client)["id"]
+    r = de_client.post(f"/api/returns/{rid}/rts")
+    assert r.status_code == 409
+    assert r.json()["detail"] == "not_acknowledged"
+
+
+def test_requesting_rts_closes_the_row(de_client, fully_rejected):  # noqa: ARG001
+    rid = _row(de_client)["id"]
+    de_client.post(f"/api/returns/{rid}/acknowledge", json={"acknowledged": True})
+    body = de_client.post(f"/api/returns/{rid}/rts").json()
+    assert body["stage"] == "rts_requested"
+    assert body["rts_requested_at"]
+    assert body["rts_requested_by_email"] == "dewi.k@ninjavan.co"
+    # No second tracking number was invented — that is the entire point.
+    assert not body["return_tids"]
+    # And it shows under its own filter.
+    rows = de_client.get("/api/returns?stage=rts_requested").json()["returns"]
+    assert [x["id"] for x in rows] == [rid]
+
+
+def test_rts_cannot_be_requested_twice(de_client, fully_rejected):  # noqa: ARG001
+    rid = _row(de_client)["id"]
+    de_client.post(f"/api/returns/{rid}/acknowledge", json={"acknowledged": True})
+    assert de_client.post(f"/api/returns/{rid}/rts").status_code == 200
+    assert de_client.post(f"/api/returns/{rid}/rts").status_code == 409
+
+
+def test_the_two_closing_paths_do_not_cross(de_client, fully_rejected):  # noqa: ARG001
+    """A full reject must not accept TIDs, and a partial must not accept RTS."""
+    rid = _row(de_client)["id"]
+    de_client.post(f"/api/returns/{rid}/acknowledge", json={"acknowledged": True})
+    r = de_client.post(f"/api/returns/{rid}/tids", json={"return_tids": "RTS-123"})
+    assert r.status_code == 409
+    assert r.json()["detail"] == "full_reject_uses_rts"
+
+
+def test_partial_reject_rejects_the_rts_path(de_client, rejected):  # noqa: ARG001
+    rid = _row(de_client)["id"]
+    de_client.post(f"/api/returns/{rid}/acknowledge", json={"acknowledged": True})
+    r = de_client.post(f"/api/returns/{rid}/rts")
+    assert r.status_code == 409
+    assert r.json()["detail"] == "partial_reject_uses_tids"
+
+
+def test_csv_carries_the_rts_columns(de_client, fully_rejected):  # noqa: ARG001
+    rid = _row(de_client)["id"]
+    de_client.post(f"/api/returns/{rid}/acknowledge", json={"acknowledged": True})
+    de_client.post(f"/api/returns/{rid}/rts")
+    text = de_client.get("/api/returns/export.csv").text
+    assert "rts_requested_at" in text and "closes_by" in text
+    assert "rts_requested" in text and "dewi.k@ninjavan.co" in text

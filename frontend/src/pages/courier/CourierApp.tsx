@@ -4,6 +4,11 @@ import { useParams } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import type { CourierOrder, DocType, FailReason, Outcome } from "../../lib/api";
 import PhotoCapture from "./PhotoCapture";
+import {
+  DeliveryNoteGuide,
+  DnReturnCloseUpGuide,
+  SpManualGuide,
+} from "./PhotoGuides";
 
 type Phase =
   | "start"
@@ -208,6 +213,7 @@ export default function CourierApp() {
           docType={docType}
           existing={dn}
           onChange={reload}
+          guide={<DeliveryNoteGuide />}
           label={isReturn ? "Foto BA Retur" : "Foto Delivery Note (halaman penuh)"}
           hint={
             isReturn
@@ -243,12 +249,15 @@ export default function CourierApp() {
   if (phase === "sp_manual") {
     body = (
       <div className="space-y-4">
+        {/* Prekursor / non-prekursor was removed 10 Aug 2026: the courier cannot tell them
+            apart at the door, and it does not change what they have to do. The only signal
+            that matters is the Tipe Dokumen column on the DN — "Manual" carries the footnote
+            "Tipe dokumen manual wajib menyertakan Surat Pesanan Asli". */}
         <div className="rounded-2xl bg-warn-soft p-4 text-sm text-warn">
-          <p className="font-bold">Cek Faktur tiap PO</p>
+          <p className="font-bold">Cek kolom Tipe Dokumen di Delivery Note</p>
           <p className="mt-1">
-            Kalau tertulis <b>SP Manual</b> → minta SP ke apotek dan foto. Kalau tertulis{" "}
-            <b>SP Elektronik + Prekursor</b> → SP sudah menempel, tidak perlu minta. Kalau{" "}
-            <b>Non-Prekursor</b> → tidak perlu SP sama sekali.
+            Kalau tertulis <b>Manual</b> → minta Surat Pesanan asli ke apotek, lalu foto. Kalau
+            tertulis <b>Elektronik</b> → tidak perlu minta SP.
           </p>
         </div>
         <p className="text-sm font-bold">Tandai PO yang butuh SP Manual</p>
@@ -285,8 +294,9 @@ export default function CourierApp() {
                       poNumber={po.po_number}
                       existing={shot}
                       onChange={reload}
+                      guide={<SpManualGuide />}
                       label="Foto SP Manual"
-                      hint="Prekursor → gunakan template SP Prekursor."
+                      hint="Surat Pesanan asli dari apotek. Nomor SP harus terbaca."
                     />
                   </div>
                 )}
@@ -345,32 +355,53 @@ export default function CourierApp() {
     const dnShots = capturesBy.get("delivery_note") ?? [];
     body = (
       <div className="space-y-4">
+        {/* Both reject paths land here, so the copy must follow the branch the courier
+            actually chose — showing partial-return wording inside "Retur semua paket"
+            was the QC finding on 10 Aug (deck slide 6). */}
         <div className="rounded-2xl bg-danger-soft p-4 text-sm text-danger">
-          <p className="font-bold">Minta apotek isi bagian retur di Delivery Note</p>
-          <p className="mt-1">Apotek dan kurir sama-sama tanda tangan. Pisahkan barang retur dari yang lain.</p>
+          <p className="font-bold">
+            {fullReject
+              ? "Apotek menolak seluruh kiriman — minta DN diisi & ditandatangani"
+              : "Minta apotek isi bagian retur di Delivery Note"}
+          </p>
+          <p className="mt-1">
+            {fullReject
+              ? "Apotek dan kurir sama-sama tanda tangan. Bawa kembali SELURUH paket."
+              : "Apotek dan kurir sama-sama tanda tangan. Pisahkan barang retur dari yang lain."}
+          </p>
         </div>
         <PhotoCapture
           token={token}
           docType="delivery_note"
           existing={dnShots[1]}
           onChange={reload}
-          label="Foto bagian retur Delivery Note (close-up)"
+          guide={<DnReturnCloseUpGuide />}
+          label={
+            fullReject
+              ? "Foto Delivery Note (close-up keterangan penolakan)"
+              : "Foto bagian retur Delivery Note (close-up)"
+          }
           hint="Bagian bawah DN yang sudah diisi kondisi penerimaan + kolom retur."
         />
+        {/* Both of these accept several shots: a partial return can send back parcels from
+            more than one PO, and one frame rarely covers every label or every box. */}
         <PhotoCapture
           token={token}
           docType="rejected_goods"
-          existing={first("rejected_goods")}
+          multiple
+          all={capturesBy.get("rejected_goods") ?? []}
           onChange={reload}
-          label="Foto barang yang diretur"
-          hint="Satu foto keseluruhan barang retur — bukan per item."
+          label={fullReject ? "Foto seluruh paket yang diretur" : "Foto barang yang diretur"}
+          hint="Boleh lebih dari satu foto kalau tidak muat dalam satu bingkai."
         />
         <PhotoCapture
           token={token}
           docType="awb_sticker"
-          existing={first("awb_sticker")}
+          multiple
+          all={capturesBy.get("awb_sticker") ?? []}
           onChange={reload}
           label="Foto label AWB"
+          hint="Foto tiap label kalau ada beberapa paket retur."
         />
       </div>
     );

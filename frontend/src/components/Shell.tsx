@@ -10,6 +10,10 @@ const NAV: { to: string; label: string; roles: Role[]; end?: boolean }[] = [
   { to: "/links", label: "Courier links", roles: ["implant", "de", "station_ic"] },
   { to: "/orders", label: "Upload history", roles: ["implant", "de"], end: true },
   { to: "/returns", label: "Reject returns", roles: ["implant", "de", "station_ic", "program_manager"] },
+  // Produces a real, working courier link. Started life as the phase-1 field-test tool and
+  // still serves that, but it is also the route for a one-off order with no TMP template.
+  // Sits last because it is the exception, not the daily flow.
+  { to: "/manual", label: "Manual link", roles: ["implant", "de"] },
   // Only superadmin ever holds this role check — the shell filter hides it for everyone else.
   { to: "/users", label: "Users", roles: ["superadmin"] },
 ];

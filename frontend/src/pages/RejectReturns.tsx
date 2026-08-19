@@ -6,8 +6,9 @@ import { Badge, Button, Card, EmptyState, ErrorNote, Spinner, inputClass } from 
 
 const TABS = [
   { key: "pending_ack", label: "Not yet acknowledged" },
-  { key: "acknowledged", label: "Awaiting TIDs" },
-  { key: "tids_sent", label: "Closed" },
+  { key: "acknowledged", label: "Awaiting action" },
+  { key: "tids_sent", label: "Closed — TIDs sent" },
+  { key: "rts_requested", label: "Closed — RTS triggered" },
   { key: "", label: "All" },
 ] as const;
 
@@ -56,8 +57,12 @@ export default function RejectReturns() {
         <div>
           <h1 className="text-xl font-bold">Reject returns</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Every reject flagged by a courier. Acknowledge it, then record the replacement TIDs
-            created on the RTS account <span className="font-mono">{rtsShipper}</span>.
+            Every reject flagged by a courier. Acknowledge it, then close it. A{" "}
+            <strong className="font-semibold text-ink">partial</strong> return needs replacement
+            TIDs minted on the RTS account{" "}
+            <span className="font-mono">{rtsShipper}</span>; a{" "}
+            <strong className="font-semibold text-ink">whole-delivery refusal</strong> needs no new
+            TID at all — trigger RTS on the original forward tracking number instead.
           </p>
         </div>
         <a
@@ -135,8 +140,9 @@ export default function RejectReturns() {
 }
 
 function StageBadge({ stage }: { stage: RejectReturn["stage"] }) {
+  if (stage === "rts_requested") return <Badge tone="ok">RTS triggered</Badge>;
   if (stage === "tids_sent") return <Badge tone="ok">TIDs sent</Badge>;
-  if (stage === "acknowledged") return <Badge tone="warn">Awaiting TIDs</Badge>;
+  if (stage === "acknowledged") return <Badge tone="warn">Awaiting action</Badge>;
   return <Badge tone="danger">Not acknowledged</Badge>;
 }
 
@@ -163,6 +169,22 @@ function Row({
       onChange();
     } catch {
       setError("Couldn’t update.");
+      setBusy(false);
+    }
+  }
+
+  async function requestRts() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.returns.requestRts(row.id);
+      onChange();
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.detail === "not_acknowledged"
+          ? "Acknowledge first."
+          : "Couldn’t save.",
+      );
       setBusy(false);
     }
   }
@@ -238,7 +260,43 @@ function Row({
               )}
 
               <div className="min-w-72 flex-1">
-                {row.stage === "tids_sent" ? (
+                {/* A full reject closes by triggering RTS on the ORIGINAL forward tracking
+                    number — no second TID exists to paste, so the TID box would be a trap. */}
+                {row.closes_by === "rts" ? (
+                  row.stage === "rts_requested" ? (
+                    <div className="text-sm">
+                      <p>
+                        <span className="font-semibold">RTS triggered</span> on{" "}
+                        <span className="font-mono">{row.original_awb_id}</span>
+                      </p>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {row.rts_requested_at} by {row.rts_requested_by_email ?? "—"}
+                        {row.acknowledged_by_email && ` · acknowledged by ${row.acknowledged_by_email}`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">
+                        Whole delivery refused
+                      </p>
+                      <p className="mb-2 max-w-md text-sm text-ink-muted">
+                        No new return TID is needed. Trigger <strong className="text-ink">RTS</strong>{" "}
+                        on the forward tracking number{" "}
+                        <span className="font-mono text-ink">{row.original_awb_id}</span> in Ninja,
+                        then record it here.
+                      </p>
+                      <Button onClick={requestRts} disabled={busy || !row.acknowledged_at}>
+                        Mark RTS triggered
+                      </Button>
+                      {!row.acknowledged_at && (
+                        <p className="mt-1.5 text-xs text-ink-muted">
+                          Tick the Ack checkbox first — it records who is handling this reject.
+                        </p>
+                      )}
+                      {error && <p className="mt-1.5 text-sm font-semibold text-danger">{error}</p>}
+                    </div>
+                  )
+                ) : row.stage === "tids_sent" ? (
                   <div className="text-sm">
                     <p>
                       <span className="font-semibold">Replacement TIDs:</span>{" "}

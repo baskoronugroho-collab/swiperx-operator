@@ -12,6 +12,18 @@ description: >-
   acknowledge each reject and record the replacement return TIDs. Built for Ninja Van
   operations staff and SwipeRx, not for public use.
 
+# REQUIRED as of 10 Aug 2026. The database is provisioned — and DATABASE_URL injected —
+# only when it is declared here. It used to be automatic per app, which is why this key
+# was absent and why the 31 Jul manifest still deployed; two uploads on 10 Aug (runs
+# 5000602/5000603) were rejected for exactly this, silently, because a deploy-scoped
+# token cannot read run status.
+#
+# `oceanbase` is the right value, not postgres/mysql: db.py speaks the MySQL wire protocol
+# via asyncmy against OceanBase, and every migration in backend/resources/db/migration/
+# (V1–V7) is MySQL DDL. Removing the migrations is NOT an option — the app is entirely
+# database-backed.
+database: oceanbase
+
 # Must be a MAPPING of service name → options, never a list (the platform rejects a list
 # outright). Empty braces mean "default options".
 services:
@@ -19,5 +31,4 @@ services:
   # pre-manifest platform contract injected REDIS_URL automatically. No application code
   # reads it today (backend/config.py defines REDIS_URL but nothing consumes it), so this
   # entry can be dropped once someone confirms the instance is genuinely unused.
-  # The OceanBase database is provisioned automatically per app and is NOT declared here.
   redis: {}

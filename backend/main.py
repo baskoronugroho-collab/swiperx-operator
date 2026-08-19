@@ -18,6 +18,7 @@ import config
 import db
 from auth import router as auth_router
 from courier import router as courier_router
+from manual import router as manual_router
 from oc import public_router as courier_landing_router
 from oc import router as oc_router
 from returns import router as returns_router
@@ -39,6 +40,9 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(oc_router)
 app.include_router(returns_router)
+# Phase-1 field-test instrument: one hand-typed courier link, no TMP file. Separate from
+# oc.py so it can be removed wholesale once the OC intake path is trusted (manual.py).
+app.include_router(manual_router)
 # courier_router owns /api/c/<token>/*; courier_landing_router keeps the bare
 # /api/c/<token> HTML page working for links already printed on col R.
 app.include_router(courier_router)

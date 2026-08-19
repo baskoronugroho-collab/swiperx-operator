@@ -1,0 +1,722 @@
+<title>SwipeRx Operator Runbook</title>
+<style>
+  /* ---------- tokens: light is the complete set ---------- */
+  :root{
+    --paper:#FBF9F8;
+    --card:#FFFFFF;
+    --sunk:#F4EFEF;
+    --ink:#1A1416;
+    --ink-soft:#6B5F63;
+    --ink-faint:#9A8E91;
+    --rule:#E7E0E1;
+    --rule-strong:#D6CCCE;
+    --red:#D6002A;
+    --red-soft:#FCEEF1;
+    --red-ink:#A80021;
+    --ok:#1F7A4D;
+    --ok-soft:#E8F4ED;
+    --warn:#8A5A00;
+    --warn-soft:#FBF0DC;
+    --shadow:0 1px 2px rgb(26 20 22 / .05), 0 8px 24px -16px rgb(26 20 22 / .18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#141011;
+      --card:#1C1719;
+      --sunk:#231D1F;
+      --ink:#F2ECED;
+      --ink-soft:#B0A3A6;
+      --ink-faint:#7E7275;
+      --rule:#2E2629;
+      --rule-strong:#3D3336;
+      --red:#FF5570;
+      --red-soft:#33161C;
+      --red-ink:#FF8298;
+      --ok:#5FC98F;
+      --ok-soft:#14291E;
+      --warn:#E0A94A;
+      --warn-soft:#2E2412;
+      --shadow:0 1px 2px rgb(0 0 0 / .4), 0 8px 24px -16px rgb(0 0 0 / .7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#141011;
+    --card:#1C1719;
+    --sunk:#231D1F;
+    --ink:#F2ECED;
+    --ink-soft:#B0A3A6;
+    --ink-faint:#7E7275;
+    --rule:#2E2629;
+    --rule-strong:#3D3336;
+    --red:#FF5570;
+    --red-soft:#33161C;
+    --red-ink:#FF8298;
+    --ok:#5FC98F;
+    --ok-soft:#14291E;
+    --warn:#E0A94A;
+    --warn-soft:#2E2412;
+    --shadow:0 1px 2px rgb(0 0 0 / .4), 0 8px 24px -16px rgb(0 0 0 / .7);
+  }
+
+  /* ---------- base ---------- */
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Segoe UI Variable Text","Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{
+    font-family:"Cascadia Mono",ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    font-variant-ligatures:none;
+  }
+  a{color:var(--red-ink);text-underline-offset:.18em}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:3px;border-radius:3px}
+  h1,h2,h3{
+    font-family:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",Roboto,-apple-system,sans-serif;
+    text-wrap:balance;margin:0;
+  }
+  h1{font-size:clamp(2rem,5.2vw,3.1rem);font-weight:800;letter-spacing:-.033em;line-height:1.06}
+  h2{font-size:clamp(1.32rem,2.7vw,1.72rem);font-weight:800;letter-spacing:-.022em;line-height:1.18}
+  h3{font-size:1.02rem;font-weight:700;letter-spacing:-.008em}
+  p{margin:0}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(1.1rem,4vw,2.6rem)}
+  .stack{display:flex;flex-direction:column}
+
+  /* ---------- masthead ---------- */
+  .rule-top{height:3px;background:var(--red)}
+  .mast{padding:clamp(2.6rem,6vw,4.4rem) 0 clamp(1.8rem,4vw,2.6rem);border-bottom:1px solid var(--rule)}
+  .mast .stack{gap:1.15rem}
+  .eyebrow{
+    display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;
+    font-size:.688rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .eyebrow .dot{width:4px;height:4px;border-radius:50%;background:var(--rule-strong)}
+  .lede{font-size:clamp(1.02rem,2vw,1.16rem);color:var(--ink-soft);max-width:64ch}
+  .addr{
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem .8rem;
+    margin-top:.4rem;padding:.85rem 1.05rem;border:1px solid var(--rule);border-left:3px solid var(--red);
+    border-radius:0 8px 8px 0;background:var(--card);
+  }
+  .addr .k{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  .addr .v{font-size:.95rem;font-weight:600;word-break:break-all}
+
+  /* ---------- section rail nav ---------- */
+  .railnav{
+    position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--rule);
+  }
+  .railnav ol{
+    display:flex;gap:.15rem;overflow-x:auto;list-style:none;margin:0;
+    padding:.5rem clamp(1.1rem,4vw,2.6rem);max-width:1120px;margin-inline:auto;
+    scrollbar-width:thin;
+  }
+  .railnav a{
+    display:block;white-space:nowrap;padding:.4rem .7rem;border-radius:7px;
+    font-size:.8rem;font-weight:650;color:var(--ink-soft);text-decoration:none;
+  }
+  .railnav a:hover{background:var(--sunk);color:var(--ink)}
+
+  section{padding:clamp(2.6rem,5.5vw,4rem) 0;border-bottom:1px solid var(--rule)}
+  section > .wrap > .stack{gap:1.5rem}
+  .sec-head{display:flex;flex-direction:column;gap:.5rem}
+  .sec-num{
+    font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--red);
+  }
+  .sec-note{color:var(--ink-soft);max-width:66ch}
+
+  /* ---------- pipeline strip ---------- */
+  .pipe{display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch}
+  .pipe .node{
+    flex:1 1 128px;min-width:0;padding:.7rem .8rem;border:1px solid var(--rule);border-radius:9px;
+    background:var(--card);display:flex;flex-direction:column;gap:.28rem;
+  }
+  .pipe .n{font-size:.65rem;font-weight:800;letter-spacing:.12em;color:var(--ink-faint)}
+  .pipe .t{font-size:.82rem;font-weight:700;line-height:1.3}
+  .pipe .arrow{display:flex;align-items:center;color:var(--rule-strong);font-size:1rem;padding:0 .1rem}
+  @media (max-width:760px){ .pipe .arrow{display:none} .pipe .node{flex:1 1 42%} }
+
+  /* ---------- timeline ---------- */
+  .tl{list-style:none;margin:0;padding:0;position:relative}
+  .tl::before{content:"";position:absolute;left:15px;top:14px;bottom:14px;width:2px;background:var(--rule)}
+  .tl > li{position:relative;padding:0 0 1.5rem 3.1rem}
+  .tl > li:last-child{padding-bottom:0}
+  .tl .bead{
+    position:absolute;left:0;top:1px;width:32px;height:32px;border-radius:50%;
+    background:var(--card);border:2px solid var(--rule-strong);color:var(--ink);
+    display:grid;place-items:center;font-size:.78rem;font-weight:800;
+  }
+  .tl > li.is-driver .bead{border-color:var(--red);color:var(--red-ink);background:var(--red-soft)}
+  .tl .row{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;margin-bottom:.35rem}
+  .tl .body{color:var(--ink-soft);max-width:70ch}
+  .tl .where{
+    margin-top:.5rem;font-size:.8rem;color:var(--ink-faint);
+    display:flex;flex-wrap:wrap;gap:.3rem .5rem;align-items:baseline;
+  }
+  .tl .where b{color:var(--ink-soft);font-weight:650}
+
+  /* ---------- chips ---------- */
+  .chip{
+    display:inline-flex;align-items:center;gap:.3rem;padding:.16rem .55rem;border-radius:999px;
+    font-size:.72rem;font-weight:700;letter-spacing:.01em;white-space:nowrap;
+    background:var(--sunk);color:var(--ink-soft);border:1px solid var(--rule);
+  }
+  .chip.red{background:var(--red-soft);color:var(--red-ink);border-color:transparent}
+  .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+  .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+  .id{
+    display:inline-block;padding:.08rem .38rem;border-radius:5px;background:var(--sunk);
+    border:1px solid var(--rule);font-size:.86em;font-weight:600;white-space:nowrap;
+  }
+
+  /* ---------- cards & grid ---------- */
+  .grid{display:grid;gap:.9rem}
+  @media (min-width:720px){ .grid.two{grid-template-columns:1fr 1fr} }
+  .card{
+    background:var(--card);border:1px solid var(--rule);border-radius:11px;padding:1.15rem 1.25rem;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.6rem;
+  }
+  .card h3{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+
+  /* ---------- steps ---------- */
+  ol.steps{margin:0;padding-left:1.35rem;display:flex;flex-direction:column;gap:.55rem}
+  ol.steps li{padding-left:.2rem}
+  ol.steps li::marker{font-weight:800;color:var(--red);font-size:.92em}
+  ul.plain{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.4rem;color:var(--ink-soft)}
+
+  /* ---------- table ---------- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:11px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:600px;font-size:.92rem}
+  thead th{
+    text-align:left;font-size:.68rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--ink-faint);padding:.7rem .95rem;border-bottom:1px solid var(--rule);background:var(--sunk);
+    white-space:nowrap;
+  }
+  tbody td{padding:.72rem .95rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* ---------- callout ---------- */
+  .call{
+    border-radius:10px;padding:.95rem 1.1rem;display:flex;flex-direction:column;gap:.35rem;
+    border:1px solid var(--rule);background:var(--card);
+  }
+  .call.warn{background:var(--warn-soft);border-color:transparent}
+  .call.warn .lbl{color:var(--warn)}
+  .call.stop{background:var(--red-soft);border-color:transparent}
+  .call.stop .lbl{color:var(--red-ink)}
+  .call .lbl{font-size:.68rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+  .call p{color:var(--ink-soft)}
+  .call.warn p,.call.stop p{color:var(--ink)}
+
+  footer{padding:2.2rem 0 3.4rem;color:var(--ink-faint);font-size:.85rem}
+  footer .stack{gap:.5rem}
+</style>
+
+<div class="rule-top"></div>
+
+<header class="mast">
+  <div class="wrap stack">
+    <div class="eyebrow">
+      <span>Ninja Van Indonesia</span><span class="dot"></span>
+      <span>SwipeRx account</span><span class="dot"></span>
+      <span>Alpha</span>
+    </div>
+    <h1>SwipeRx Operator Runbook</h1>
+    <p class="lede">
+      How a SwipeRx batch file becomes Ninja Van orders, how the driver files proof at the
+      pharmacy door, and how ops closes out rejected goods. Plus who can open what, and the
+      steps to get in.
+    </p>
+    <div class="addr">
+      <span class="k">Open at</span>
+      <span class="v mono">https://swiperx-operator.ninjavan.apps.substrait.build</span>
+    </div>
+  </div>
+</header>
+
+<nav class="railnav" aria-label="Sections">
+  <ol>
+    <li><a href="#flow">Process flow</a></li>
+    <li><a href="#access">Getting access</a></li>
+    <li><a href="#roles">Roles</a></li>
+    <li><a href="#tasks">Doing the work</a></li>
+    <li><a href="#driver">The driver's side</a></li>
+    <li><a href="#ids">Tracking numbers</a></li>
+    <li><a href="#limits">Limits &amp; troubleshooting</a></li>
+  </ol>
+</nav>
+
+<!-- ============ PROCESS FLOW ============ -->
+<section id="flow">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Process flow</span>
+      <h2>One AWB, end to end</h2>
+      <p class="sec-note">
+        Six stages. Each one has an owner, and the handover between them is where things
+        usually go wrong — so the "where" line names the exact screen.
+      </p>
+    </div>
+
+    <div class="pipe" aria-hidden="true">
+      <div class="node"><span class="n mono">01</span><span class="t">Batch file</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><span class="n mono">02</span><span class="t">Order creation</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><span class="n mono">03</span><span class="t">Upload to Ninja</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><span class="n mono">04</span><span class="t">Driver captures</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><span class="n mono">05</span><span class="t">Reject returns</span></div>
+      <span class="arrow">→</span>
+      <div class="node"><span class="n mono">06</span><span class="t">Closed</span></div>
+    </div>
+
+    <ol class="tl">
+      <li>
+        <span class="bead mono">01</span>
+        <div class="row"><h3>SwipeRx sends the TMP batch file</h3><span class="chip">SwipeRx</span></div>
+        <p class="body">
+          An <span class="id mono">.xlsx</span> listing every pharmacy order for the day. One
+          <b>SwipeAWB</b> per pharmacy delivery, with its PO lines and koli underneath it.
+          Continuation rows carry only the PO columns — that blank SwipeAWB is what groups them.
+        </p>
+        <p class="where"><b>Where:</b> arrives by email or shared drive, outside this tool.</p>
+      </li>
+
+      <li>
+        <span class="bead mono">02</span>
+        <div class="row"><h3>Create the orders</h3><span class="chip">DE / Implant</span></div>
+        <p class="body">
+          Upload the TMP, pick the service and pickup date, and check the preview. Every row
+          error shows before anything is committed. On create, the tool writes one Ninja Van
+          upload row per SwipeAWB and mints an unguessable courier link for each — the link is
+          injected straight into the delivery instructions the driver will see.
+        </p>
+        <p class="where"><b>Where:</b> Order creation → download <span class="id mono">upload.xlsx</span> + <span class="id mono">links.csv</span></p>
+      </li>
+
+      <li>
+        <span class="bead mono">03</span>
+        <div class="row"><h3>Upload that file into Ninja Van</h3><span class="chip">DE / Implant</span></div>
+        <p class="body">
+          The generated <span class="id mono">upload.xlsx</span> goes into Ninja's own order
+          creation. This tool does not talk to Ninja directly — this step is a person moving a
+          file. Nothing you change here afterwards will change the order on Ninja's side.
+        </p>
+        <p class="where"><b>Where:</b> Ninja Van's order-creation system.</p>
+      </li>
+
+      <li class="is-driver">
+        <span class="bead mono">04</span>
+        <div class="row"><h3>Driver opens the link and files proof</h3><span class="chip red">Driver — no login</span></div>
+        <p class="body">
+          At the pharmacy the driver taps the link printed in the delivery instructions. It opens
+          a guided wizard: pharmacy POD, receiver POD, the Delivery Note, an SP-Manual photo for
+          any PO that needs one, then the question that drives everything downstream — was
+          anything rejected?
+        </p>
+        <p class="where"><b>Where:</b> the <span class="id mono">/c/…</span> link. Works on any phone, no account needed.</p>
+      </li>
+
+      <li>
+        <span class="bead mono">05</span>
+        <div class="row"><h3>Ops acknowledges the reject and closes it</h3><span class="chip">Station IC</span><span class="chip">DE / Implant</span><span class="chip">PM</span></div>
+        <p class="body">
+          Any rejected goods land on the reject worklist with the driver's photos attached.
+          Acknowledge the row first &mdash; nothing can be closed before that, which is deliberate.
+          <b>How it closes then depends on how much came back</b>, and the app only ever offers the
+          correct one of the two.
+        </p>
+        <div class="grid two" style="margin-top:.35rem">
+          <div class="call">
+            <span class="lbl">Part of the order came back</span>
+            <p>A genuine return: only some of the consignment travels back, so it needs its own
+            return tracking number. Record the <b>replacement TIDs</b> DE minted on the RTS account.</p>
+          </div>
+          <div class="call">
+            <span class="lbl">The whole delivery was refused</span>
+            <p><b>No new tracking number is created.</b> The parcel already has one, so Ninja simply
+            triggers <b>RTS</b> on the original forward AWB. Do that in Ninja, then press
+            <b>Mark RTS triggered</b>. Minting a second TID would duplicate the parcel and split
+            its history across two identifiers.</p>
+          </div>
+        </div>
+        <p class="where"><b>Where:</b> Reject returns → <b>Not yet acknowledged</b> → <b>Awaiting action</b> → <b>Closed &mdash; TIDs sent</b> <i>or</i> <b>Closed &mdash; RTS triggered</b></p>
+      </li>
+
+      <li>
+        <span class="bead mono">06</span>
+        <div class="row"><h3>Closed out</h3><span class="chip ok">Done</span></div>
+        <p class="body">
+          The AWB carries its final state — delivered, or delivery failed with a reason and proof
+          photo. Everything the driver captured stays attached to it, and the reject row shows who
+          acknowledged it and when.
+        </p>
+        <p class="where"><b>Where:</b> Upload history, Courier links, Reject returns (CSV export available).</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ ACCESS ============ -->
+<section id="access">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Getting access</span>
+      <h2>How to get in</h2>
+      <p class="sec-note">
+        Access is granted per person by the superadmin. Signing in with a valid work email is not
+        enough on its own — the account has to be registered first.
+      </p>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h3>If you need access</h3>
+        <ol class="steps">
+          <li>Send the superadmin your <b>Ninja Van Google work email</b> and your full name.</li>
+          <li>Say which part of the job you do — order creation, station, or oversight. That decides your role.</li>
+          <li>Wait for confirmation that you've been registered.</li>
+          <li>Open the address at the top of this page and sign in with that same Google account.</li>
+        </ol>
+        <div class="call warn">
+          <span class="lbl">If sign-in bounces</span>
+          <p>You may hit a Ninja Van platform sign-in screen first — that's expected. If you get in but land on "No access to this page", your account exists but has no role yet. Go back to the superadmin.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>If you <em>are</em> the superadmin</h3>
+        <ol class="steps">
+          <li>Open <b>Users</b> in the top menu — only you can see it.</li>
+          <li>Under <b>Register a user</b>, enter their Google email and name.</li>
+          <li>Pick one or more roles. Hover any role to see exactly what it opens.</li>
+          <li>Press <b>Register</b>. They can sign in immediately.</li>
+          <li>To change someone later, use <b>Edit roles</b>, or <b>Deactivate</b> to revoke access without deleting them.</li>
+        </ol>
+        <div class="call">
+          <span class="lbl">Worth knowing</span>
+          <p>A role change only takes effect the <b>next time that person signs in</b> — roles are baked into their session. Ask them to sign out and back in.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROLES ============ -->
+<section id="roles">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Roles</span>
+      <h2>Who can open what</h2>
+      <p class="sec-note">
+        One person can hold several roles — what they can reach is the union of them.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Role</th><th>Who it's for</th><th>Opens</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip red">Superadmin</span></td>
+            <td>The account owner</td>
+            <td>Everything, plus <b>Users</b> — the only role that can grant access</td>
+          </tr>
+          <tr>
+            <td><span class="chip">DE</span> <span class="chip">Implant</span></td>
+            <td>
+              <b>Data Entry.</b> Implant is part of the DE team — staff placed at the SwipeRx
+              site. Two names for the same job, so the two roles are identical and it doesn't
+              matter which you assign.
+            </td>
+            <td>Order creation · Upload history · Courier links · Reject returns · Manual link</td>
+          </tr>
+          <tr>
+            <td><span class="chip">Station IC</span></td>
+            <td>Station in-charge</td>
+            <td>Courier links · Reject returns</td>
+          </tr>
+          <tr>
+            <td><span class="chip">Program Manager</span></td>
+            <td>Account oversight</td>
+            <td>Reject returns</td>
+          </tr>
+          <tr>
+            <td><span class="chip warn">Validator</span></td>
+            <td>Document validation</td>
+            <td><b>Nothing yet</b> — the lane isn't built in this cut. Assigning it lets someone sign in and no more.</td>
+          </tr>
+          <tr>
+            <td><span class="chip warn">SwipeRx</span></td>
+            <td>SwipeRx's own read-only view</td>
+            <td><b>Nothing yet</b> — the report isn't built in this cut.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call">
+      <span class="lbl">Drivers are not users</span>
+      <p>Couriers never get an account. The link itself is the credential — whoever holds it can file that delivery, and nothing else. That is why the links are long and random, and why they should not be posted anywhere public.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TASKS ============ -->
+<section id="tasks">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Doing the work</span>
+      <h2>Step by step, per task</h2>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h3>Create a day's orders <span class="chip">DE / Implant</span></h3>
+        <ol class="steps">
+          <li>Open <b>Order creation</b>.</li>
+          <li>Choose the <b>service</b> — you pick it by name; shipper and branch fill in automatically.</li>
+          <li>Choose <b>one pickup date</b> — the day Ninja collects from the warehouse. A single day, not a range.</li>
+          <li>Attach the TMP <span class="id mono">.xlsx</span> and read the preview: AWB count, total koli, and any row errors.</li>
+          <li><b>Fix errors in the source file and re-attach</b> before committing. If any row fails, nothing is created — it's all or nothing.</li>
+          <li>Press <b>Create</b>, then download both files: the Ninja upload and the link map.
+            They are named by service and creation time, e.g.
+            <span class="id mono">Regular-B2BR-upload_20260819-1430.xlsx</span>, so they stay
+            sortable once they leave the browser.</li>
+          <li>Upload the Ninja file into Ninja Van's system.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h3>Find a courier link <span class="chip">DE / Implant</span><span class="chip">Station IC</span></h3>
+        <ol class="steps">
+          <li>Open <b>Courier links</b>.</li>
+          <li>Search by AWB, pharmacy, or city.</li>
+          <li>Copy the link and send it to the driver.</li>
+        </ol>
+        <p class="body">Use this when a driver says the link in their delivery instructions won't open, or the instruction text was cut off in print.</p>
+      </div>
+
+      <div class="card">
+        <h3>Work the reject queue <span class="chip">Station IC</span><span class="chip">PM</span></h3>
+        <ol class="steps">
+          <li>Open <b>Reject returns</b>. By default it shows only rows still needing attention.</li>
+          <li>Open a row and check the driver's photos — the DN return section, the goods, the AWB label.</li>
+          <li>Press <b>Acknowledge</b>. This records who you are and when.</li>
+          <li><b>Partial return</b> &mdash; once the replacement parcels are sent, record the
+            <b>return TIDs</b> on the row.</li>
+          <li><b>Whole delivery refused</b> &mdash; trigger <b>RTS</b> on the original forward AWB in
+            Ninja, then press <b>Mark RTS triggered</b>. There is no TID to paste; the app won't
+            ask for one.</li>
+          <li>Export to CSV if finance or SwipeRx need the audit trail &mdash; it carries both
+            closing paths with who and when.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h3>Build a link by hand <span class="chip">DE / Implant</span></h3>
+        <p class="body">
+          <b>Manual link</b> makes one courier link without a TMP file. The link it produces is
+          <b>real and fully working</b> — the driver app treats it exactly like one made from a
+          batch. Use it to trial a delivery before trusting the bulk path, and for any one-off
+          order that has no template.
+        </p>
+        <ol class="steps">
+          <li>Open <b>Manual link</b> and fill in the AWB, koli, pharmacy and PO lines.</li>
+          <li>Press <b>Create link</b>.</li>
+          <li>Copy each column value it gives you — A, D, AB, AC and the full R instruction string — into Ninja by hand.</li>
+          <li>Use <b>Open as courier</b> to confirm the link loads before sending anyone.</li>
+          <li><b>Delete</b> the test row when finished, which frees the AWB number for reuse.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DRIVER ============ -->
+<section id="driver">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">The driver's side</span>
+      <h2>What happens at the door</h2>
+      <p class="sec-note">
+        The wizard takes a different route depending on what the driver reports, and only shows
+        the steps that route needs. There is no login at any point.
+      </p>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h3>Normal delivery</h3>
+        <ul class="plain">
+          <li>Pharmacy POD photo</li>
+          <li>Receiver POD photo</li>
+          <li>Delivery Note, full page</li>
+          <li>SP-Manual photo for each PO whose <b>Tipe Dokumen</b> on the DN reads <b>Manual</b></li>
+          <li>"Was anything rejected?" → <b>No</b></li>
+          <li>Review and submit</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Partial reject</h3>
+        <ul class="plain">
+          <li>Same as above, but answer <b>Yes</b></li>
+          <li>Close-up of the DN return section</li>
+          <li>Photo of the rejected goods</li>
+          <li>Photo of the AWB label</li>
+          <li>Review and submit</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Whole delivery refused</h3>
+        <ul class="plain">
+          <li>Chosen up front at the first screen</li>
+          <li>PODs and Delivery Note as usual</li>
+          <li><b>SP-Manual is skipped</b> — nothing was accepted</li>
+          <li>Reject photos, then submit</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Delivery failed</h3>
+        <ul class="plain">
+          <li>Pick one of the standard failure reasons</li>
+          <li>Take one proof photo</li>
+          <li>Submit — no PODs required</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="call">
+      <span class="lbl">Example photos</span>
+      <p>The Delivery Note, SP Manual and DN return close-up each carry a <b>&ldquo;Lihat contoh foto&rdquo;</b> link showing the real document, so a driver unsure what to shoot can check. It is <b>hidden by default</b> and nothing downloads until it is tapped &mdash; steps with no example photo simply don&rsquo;t show the link.</p>
+    </div>
+
+    <div class="call">
+      <span class="lbl">When is an SP photo needed?</span>
+      <p>Read the <b>Tipe Dokumen</b> column on the Delivery Note. <b>Manual</b> means the driver must ask the pharmacy for the original Surat Pesanan and photograph it — the DN itself says so in its footnote. <b>Elektronik</b> means no SP is needed. Drivers are never asked to judge prekursor versus non-prekursor; they cannot tell from the document, and it doesn't change what they do.</p>
+    </div>
+
+    <div class="call">
+      <span class="lbl">Tell every driver this</span>
+      <p>Filing here does <b>not</b> replace confirming the delivery in the Ninja driver app. Both are required. If goods were returned, the driver should screenshot the final screen and tell their Station IC — that screen lists the AWBs coming back.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ IDS ============ -->
+<section id="ids">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Tracking numbers</span>
+      <h2>How an order is numbered</h2>
+      <p class="sec-note">
+        One SwipeAWB is one Ninja order — a single MPS bundle holding every parcel for that
+        pharmacy visit. Getting this wrong is what breaks parcels in the driver app, so it is
+        worth recognising a correct row on sight.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Column</th><th>Field</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num mono">A</td><td>requested_tracking_number</td><td>The SwipeAWB — e.g. <span class="id mono">AWB02U24V</span></td></tr>
+          <tr><td class="num mono">D</td><td>merchant_order_number</td><td>The same SwipeAWB</td></tr>
+          <tr><td class="num mono">AB</td><td>total_quantity</td><td>Total koli across every PO in that AWB</td></tr>
+          <tr><td class="num mono">AC</td><td>requested_piece_tracking_numbers</td><td>One per koli, prefixed by its own PO — e.g. <span class="id mono">PO1-01, PO1-02, PO2-03</span></td></tr>
+          <tr><td class="num mono">W</td><td>weight</td><td>The AWB total, not per parcel</td></tr>
+          <tr><td class="num mono">R</td><td>delivery_instructions</td><td>The mandated RDO wording with the courier link embedded</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid two">
+      <div class="call">
+        <span class="lbl">The rule</span>
+        <p>Each child piece is prefixed with the <b>PO number that parcel belongs to</b>, then a dash and a two-digit number. The numbering runs <b>continuously across the whole AWB</b> — it does not restart at each PO — so a PO with several koli shifts every number after it.</p>
+      </div>
+      <div class="call">
+        <span class="lbl">Why PO-prefixed</span>
+        <p>Ninja allows custom piece IDs, and the pieces still attach to their parent when the order is created from the <b>manual template</b>. Keeping the PO in the piece ID is what lets the per-PO RDO and SP-Manual check work at the door.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIMITS ============ -->
+<section id="limits">
+  <div class="wrap stack">
+    <div class="sec-head">
+      <span class="sec-num">Limits &amp; troubleshooting</span>
+      <h2>Known limits, stated plainly</h2>
+      <p class="sec-note">These are current behaviours, not bugs to report. Knowing them saves a lot of guessing.</p>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h3>Re-uploading a corrected file does not correct anything</h3>
+        <p class="body">
+          Any SwipeAWB that already exists is <b>skipped</b>, not updated. Fixes to an address,
+          koli or weight will not be applied, and the AWB keeps its original link.
+        </p>
+        <p class="body">
+          If <i>every</i> AWB in the file already exists, the upload is now <b>refused outright</b>
+          with a message saying so. It used to report success and hand back a file containing only a
+          header row &mdash; which looked fine and shipped nothing.
+        </p>
+        <p class="body"><b>For now:</b> use a different SwipeAWB, or ask for the record to be corrected directly.</p>
+      </div>
+
+      <div class="card">
+        <h3>Links printed before late July are dead</h3>
+        <p class="body">
+          The app moved to a new address. Older links point at the retired one and will fail to open.
+        </p>
+        <p class="body">
+          <b>Fix:</b> the link still works — insert <span class="id mono">.ninjavan</span> after
+          <span class="id mono">swiperx-operator</span> in the address bar, or just look the AWB up
+          under <b>Courier links</b> and copy the current link.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>The delivery instruction is at its character limit</h3>
+        <p class="body">
+          Column R is capped at 500 characters and the link is counted twice inside it. The
+          compliance wording currently fits exactly, with nothing to spare. If you see a warning
+          that the instruction was trimmed, <b>do not use that row</b> — raise it, because the
+          legal wording will be incomplete.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Nothing you upload can be deleted</h3>
+        <p class="body">
+          Committed orders and their AWBs cannot be removed from this tool by anyone. Users are
+          deactivated rather than deleted. The only delete is for a driver retaking a photo, and
+          for rows made in <b>Manual link</b>.
+        </p>
+        <p class="body">This is deliberate: it means no action here can quietly destroy a day's work.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap stack">
+    <p>SwipeRx Operator — Ninja Van Indonesia. Internal operations tool, not for public use.</p>
+    <p>Alpha build. Dummy data only on this environment; do not enter real patient information.</p>
+  </div>
+</footer>

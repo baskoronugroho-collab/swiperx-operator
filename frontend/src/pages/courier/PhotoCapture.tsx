@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { api } from "../../lib/api";
 import type { CourierCapture, DocType } from "../../lib/api";
@@ -18,6 +19,9 @@ export default function PhotoCapture({
   docType,
   poNumber,
   existing,
+  all,
+  multiple = false,
+  guide,
   onChange,
   label,
   hint,
@@ -26,6 +30,14 @@ export default function PhotoCapture({
   docType: DocType;
   poNumber?: string;
   existing?: CourierCapture;
+  /** Every photo taken for this slot. Only read when `multiple` is set. */
+  all?: CourierCapture[];
+  /** Keep the capture buttons visible after the first shot and list them all.
+   *  Used where one photo genuinely can't cover the evidence — a partial return may send
+   *  back parcels from several POs, each with its own AWB label. */
+  multiple?: boolean;
+  /** Illustration of what a good photo looks like, shown before the courier shoots. */
+  guide?: ReactNode;
   onChange: () => void;
   label: string;
   hint?: string;
@@ -34,6 +46,8 @@ export default function PhotoCapture({
   const galleryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const shots = multiple ? (all ?? []) : existing ? [existing] : [];
 
   async function upload(file: File | undefined, source: "camera" | "exif") {
     if (!file) return;
@@ -58,11 +72,10 @@ export default function PhotoCapture({
     }
   }
 
-  async function remove() {
-    if (!existing) return;
+  async function remove(id: number) {
     setBusy(true);
     try {
-      await api.courier.deleteCapture(token, existing.id);
+      await api.courier.deleteCapture(token, id);
       onChange();
     } finally {
       setBusy(false);
@@ -76,36 +89,57 @@ export default function PhotoCapture({
           <p className="text-sm font-bold">{label}</p>
           {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
         </div>
-        {existing && (
+        {shots.length > 0 && (
           <span className="shrink-0 rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-semibold text-ok">
-            ✓ Ada
+            ✓ {multiple ? `${shots.length} foto` : "Ada"}
           </span>
         )}
       </div>
 
-      {existing ? (
-        <div className="mt-3">
-          <img
-            src={existing.photo_url}
-            alt={label}
-            className="h-44 w-full rounded-xl border border-line object-cover"
-          />
+      {guide && (
+        <div className="mt-2">
           <button
-            onClick={remove}
-            disabled={busy}
-            className="mt-2 text-xs font-semibold text-nv-red hover:underline disabled:opacity-50"
+            onClick={() => setShowGuide((v) => !v)}
+            aria-expanded={showGuide}
+            className="text-xs font-semibold text-nv-red hover:underline"
           >
-            Ambil ulang
+            {showGuide ? "Sembunyikan contoh" : "Lihat contoh foto"}
           </button>
+          {showGuide && <div className="mt-2">{guide}</div>}
         </div>
-      ) : (
+      )}
+
+      {shots.length > 0 && (
+        <div className={`mt-3 ${multiple ? "grid grid-cols-2 gap-2" : ""}`}>
+          {shots.map((c) => (
+            <div key={c.id}>
+              <img
+                src={c.photo_url}
+                alt={label}
+                className={`w-full rounded-xl border border-line object-cover ${multiple ? "h-28" : "h-44"}`}
+              />
+              <button
+                onClick={() => remove(c.id)}
+                disabled={busy}
+                className="mt-1.5 text-xs font-semibold text-nv-red hover:underline disabled:opacity-50"
+              >
+                {multiple ? "Hapus" : "Ambil ulang"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* A single-shot slot hides the buttons once filled (retake replaces it); a multi
+          slot keeps them, because "add another" is the whole point. */}
+      {(shots.length === 0 || multiple) && (
         <div className="mt-3 space-y-2">
           <button
             onClick={() => cameraRef.current?.click()}
             disabled={busy}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-nv-red px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Mengunggah…" : "📷 Ambil foto"}
+            {busy ? "Mengunggah…" : shots.length > 0 ? "📷 Tambah foto lagi" : "📷 Ambil foto"}
           </button>
           <button
             onClick={() => galleryRef.current?.click()}

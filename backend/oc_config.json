@@ -1,5 +1,5 @@
 {
-  "_comment": "OC engine fixed config. SYNCED FROM ../oc-engine/config.json (the validated local-trial harness). Keep the two in step. Values extracted from real templates 07 Jul 2026; see oc-engine/EXTRACTION_NOTES.md. Note: the backend uses config.PUBLIC_BASE_URL (with scheme) for the link host, not public_base_url below.",
+  "_comment": "OC engine fixed config. Authoritative — the ../oc-engine Node harness it was once synced with was deleted 18 Aug 2026, so there is no longer a second copy to keep in step. Provenance for the extracted values: '../OC Template/OC_ENGINE_EXTRACTION_NOTES.md'. Note: the backend uses config.PUBLIC_BASE_URL (with scheme) for the link host, not public_base_url below.",
   "public_base_url": "swiperx-operator.apps.substrait.build",
   "master_shipper_id": "11398423",
   "services": {
@@ -37,36 +37,37 @@
     }
   },
   "source_layouts": {
+    "_forward_layout_comment": "LOCKED 29 Jul 2026 to 'TMP Batch Ninja Depok (Order) 28-07-26.xlsx'; re-applied here 18 Aug 2026 after the repo reorg dropped the earlier fix. SwipeRx removed the leading index column and the per-PO Weight/Volume columns, shifting every field left: ONE header row (data starts row 2), nothing past col M. Both forward services share this layout. Continuation PO rows carry only E..M (A/B/C blank). Older batches (4 header rows, koli in N or W) will NOT parse against this.",
     "forward_regular": {
-      "data_start_row": 5,
-      "group_key_col": "C",
+      "data_start_row": 2,
+      "group_key_col": "B",
       "koli_mode": "count",
       "cols": {
-        "name": "B",
-        "swipe_awb": "C",
-        "weight": "D",
-        "po": "F",
-        "address": "J",
-        "zip": "K",
-        "city": "L",
-        "phone": "M",
-        "koli": "N"
+        "name": "A",
+        "swipe_awb": "B",
+        "weight": "C",
+        "po": "E",
+        "address": "I",
+        "zip": "J",
+        "city": "K",
+        "phone": "L",
+        "koli": "M"
       }
     },
     "forward_sameday": {
-      "data_start_row": 5,
-      "group_key_col": "C",
+      "data_start_row": 2,
+      "group_key_col": "B",
       "koli_mode": "count",
       "cols": {
-        "name": "B",
-        "swipe_awb": "C",
-        "weight": "D",
-        "po": "F",
-        "address": "M",
-        "zip": "N",
-        "city": "O",
-        "phone": "P",
-        "koli": "W"
+        "name": "A",
+        "swipe_awb": "B",
+        "weight": "C",
+        "po": "E",
+        "address": "I",
+        "zip": "J",
+        "city": "K",
+        "phone": "L",
+        "koli": "M"
       }
     },
     "return": {

@@ -11,6 +11,7 @@ import CourierLinks from "./pages/CourierLinks";
 import Users from "./pages/Users";
 import IntakeDetailPage from "./pages/IntakeDetail";
 import RejectReturns from "./pages/RejectReturns";
+import ManualLink from "./pages/ManualLink";
 import CourierApp from "./pages/courier/CourierApp";
 
 function Protected({ roles, children }: { roles: Role[]; children: React.ReactNode }) {
@@ -94,6 +95,15 @@ function Router() {
           element={
             <Protected roles={OPS}>
               <RejectReturns />
+            </Protected>
+          }
+        />
+        {/* Phase-1 field test. Intake roles can run it; it never touches a real intake. */}
+        <Route
+          path="/manual"
+          element={
+            <Protected roles={INTAKE}>
+              <ManualLink />
             </Protected>
           }
         />

@@ -1,13 +1,14 @@
 # M1 — OC intake & courier links (backend)
 
-Ports the validated `oc-engine/` transform into FastAPI. Reads a SwipeRx TMP `.xlsx`,
+Implements the TMP -> Ninja Van transform in FastAPI. (Originally ported from the `oc-engine/` Node
+prototype, which was deleted 18 Aug 2026 once it went stale — this backend is now the only engine.) Reads a SwipeRx TMP `.xlsx`,
 creates AWBs + PO lines with per-AWB courier tokens, stores the generated Ninja Van
 upload `.xlsx` + `links.csv`, and resolves the courier link. No local Python on the
 build machine — **verify at Substrait deploy time** (checklist below).
 
 ## Files
-- `oc_engine.py` — pure transform (openpyxl read/write). Mirrors `oc-engine/oc-engine.mjs`.
-- `oc_config.json` — **synced copy** of `oc-engine/config.json` (keep in step).
+- `oc_engine.py` — pure transform (openpyxl read/write). **The authoritative engine.**
+- `oc_config.json` — fixed config (no longer a synced copy; the Node original is gone).
 - `oc.py` — routers: `/api/oc/*` (intake, staff) + `/api/c/*` (courier, public).
 - `resources/db/migration/V4__oc.sql` — additive schema (order_intake summary + refs; awb OC fields; po_line.sp_type → nullable).
 

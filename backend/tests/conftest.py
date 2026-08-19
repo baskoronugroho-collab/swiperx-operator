@@ -9,7 +9,7 @@ Two dialect gaps are bridged in `_translate`: MySQL's `%s` placeholders become `
 a migration, not in runtime SQL — so if a future query stops working here, that's a
 signal it drifted, not that the harness is wrong.
 
-The schema below mirrors resources/db/migration/V1–V5 for the tables the API touches.
+The schema below mirrors resources/db/migration/V1–V8 for the tables the API touches.
 It is intentionally hand-written rather than parsed from the .sql files: the migrations
 carry MySQL-only DDL (ENGINE, CHARSET, UPDATE…JOIN) that SQLite cannot read.
 """
@@ -92,6 +92,7 @@ CREATE TABLE return_parcel (
   hub_code TEXT, service_id TEXT, return_type TEXT NOT NULL DEFAULT 'sebagian',
   acknowledged_at TIMESTAMP, acknowledged_by INTEGER, return_tids TEXT,
   tids_sent_at TIMESTAMP, tids_sent_by INTEGER,
+  rts_requested_at TIMESTAMP, rts_requested_by INTEGER,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP
 );
 CREATE TABLE audit_log (

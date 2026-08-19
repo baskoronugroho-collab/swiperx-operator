@@ -106,7 +106,12 @@ export default function OrderCreation() {
             </select>
           </Field>
 
-          <Field label="Delivery date" hint="A single day — not a range.">
+          {/* "Pickup date" since 10 Aug 2026 — the day Ninja collects from the SwipeRx
+              warehouse, which is what the DE actually schedules. It writes to col S
+              (delivery_start_date) and that is correct, not a compromise: the forward
+              upload template has no pickup_date column at all, so col S is the only date
+              field on it. Returns carry both, set to the same day, matching the template. */}
+          <Field label="Pickup date" hint="A single day — not a range.">
             <input
               type="date"
               className={inputClass}
@@ -387,7 +392,10 @@ function describe(err: unknown): string {
     empty_file: "That file is empty.",
     unknown_service: "Unknown service — reload the page and pick again.",
     no_valid_awbs: "No valid AWBs were found in this file.",
-    bad_delivery_date: "The delivery date isn’t valid.",
+    bad_delivery_date: "The pickup date isn’t valid.",
+    all_awbs_already_exist:
+      "Every AWB in this file already exists, so nothing was created. Note that re-uploading "
+      + "a corrected file does NOT update an existing AWB — it is skipped.",
   };
   if (map[err.detail]) return map[err.detail];
   if (err.status === 422)

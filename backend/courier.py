@@ -30,7 +30,12 @@ DOC_TYPES = {
     "rejected_goods", "awb_sticker", "return_form",
 }
 # Documents that may appear more than once per AWB.
-REPEATABLE = {"sp_manual", "delivery_note", "rejected_goods"}
+#
+# `awb_sticker` joined this on 10 Aug 2026: a partial return can send back parcels from
+# several POs, each with its own label, and one shot cannot cover them. `rejected_goods`
+# was already repeatable server-side but the wizard only ever rendered one slot, so in
+# practice both were single — the UI now lists every photo taken.
+REPEATABLE = {"sp_manual", "delivery_note", "rejected_goods", "awb_sticker"}
 
 # PRD §7.2.1 — LOCKED 09 Jul. Order matters: it is the order the courier app renders.
 FAIL_REASONS = [

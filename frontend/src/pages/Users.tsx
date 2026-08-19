@@ -5,15 +5,54 @@ import type { ManagedUser, Role } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Badge, Button, Card, ErrorNote, Field, Spinner, inputClass } from "../components/ui";
 
-const ROLE_LABELS: Record<Role, string> = {
-  superadmin: "Superadmin",
-  program_manager: "Program Manager",
-  de: "DE",
-  implant: "Implant",
-  station_ic: "Station IC",
-  validator: "Validator",
-  swiperx: "SwipeRx",
+/** What each role actually grants, read off the route guards in App.tsx/Shell.tsx and the
+ *  `require_roles(...)` dependencies in the backend — not aspirational. `grants: []` means
+ *  the role currently opens nothing beyond being able to sign in; those lanes aren't built
+ *  in the v3 cut (SCOPE_V3_MVP.md §4). Superadmin is a wildcard in BOTH layers
+ *  (security.require_roles and auth.has), so it passes every check. */
+const ROLE_INFO: Record<Role, { label: string; blurb: string; grants: string[] }> = {
+  superadmin: {
+    label: "Superadmin",
+    blurb: "Full access to everything, plus the only role that can manage users.",
+    grants: ["Users — register people, assign roles, deactivate", "Every page below"],
+  },
+  // DE = Data Entry. Implant is part of the DE team, placed at the SwipeRx site — same job,
+  // two names, so the two roles are deliberately identical. Either one is fine to assign.
+  de: {
+    label: "DE",
+    blurb: "Data Entry — runs order creation. Same access as Implant.",
+    grants: ["Order creation", "Upload history", "Courier links", "Reject returns", "Manual link"],
+  },
+  implant: {
+    label: "Implant",
+    blurb: "Part of the DE team, placed at the SwipeRx site. Same access as DE.",
+    grants: ["Order creation", "Upload history", "Courier links", "Reject returns", "Manual link"],
+  },
+  station_ic: {
+    label: "Station IC",
+    blurb: "Station in-charge: finds a courier's link and handles rejects at the station.",
+    grants: ["Courier links", "Reject returns"],
+  },
+  program_manager: {
+    label: "Program Manager",
+    blurb: "Oversight of the reject/return loop. No order creation.",
+    grants: ["Reject returns"],
+  },
+  validator: {
+    label: "Validator",
+    blurb: "Reserved for document validation — that lane is not built yet in this cut.",
+    grants: [],
+  },
+  swiperx: {
+    label: "SwipeRx",
+    blurb: "Reserved for SwipeRx's own read-only report — not built yet in this cut.",
+    grants: [],
+  },
 };
+
+const ROLE_LABELS: Record<Role, string> = Object.fromEntries(
+  (Object.keys(ROLE_INFO) as Role[]).map((r) => [r, ROLE_INFO[r].label]),
+) as Record<Role, string>;
 
 /** Superadmin-only: register colleagues by Google email and manage their roles —
  *  including granting superadmin to someone else. Role changes take effect on the
@@ -88,7 +127,52 @@ export default function Users() {
           </div>
         </Card>
       )}
+
+      <RoleReference />
     </div>
+  );
+}
+
+/** The assign UI is only usable if you know what you're granting, so the matrix lives
+ *  next to it rather than in a document nobody opens. */
+function RoleReference() {
+  return (
+    <Card>
+      <h2 className="font-bold">What each role can do</h2>
+      <p className="mt-1 text-sm text-ink-muted">
+        A person can hold several roles at once — access is the union of them. Changes apply on
+        that person&rsquo;s next sign-in.
+      </p>
+      <div className="mt-4 space-y-3">
+        {ALL_ROLES.map((r) => {
+          const info = ROLE_INFO[r];
+          return (
+            <div key={r} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={r === "superadmin" ? "danger" : "neutral"}>{info.label}</Badge>
+                <span className="text-sm text-ink-muted">{info.blurb}</span>
+              </div>
+              {info.grants.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {info.grants.map((g) => (
+                    <span
+                      key={g}
+                      className="rounded-full border border-line bg-canvas-soft px-2.5 py-0.5 text-xs text-ink-muted"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-ink-muted">
+                  Opens no pages yet — assigning it lets the person sign in and nothing more.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -168,6 +252,9 @@ function RolePicker({ value, onChange }: { value: Role[]; onChange: (r: Role[]) 
             <button
               key={r}
               type="button"
+              title={`${ROLE_INFO[r].blurb}${
+                ROLE_INFO[r].grants.length ? `\n\nOpens: ${ROLE_INFO[r].grants.join(", ")}` : "\n\nOpens nothing yet."
+              }`}
               onClick={() => onChange(on ? value.filter((x) => x !== r) : [...value, r])}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                 on ? "border-nv-red bg-nv-red-soft text-nv-red" : "border-line bg-surface text-ink-muted"

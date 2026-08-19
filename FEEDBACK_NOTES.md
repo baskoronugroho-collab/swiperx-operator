@@ -140,3 +140,59 @@
 ## Order creation
 - **Two OC menus**: (1) Normal OC from SwipeRx input, (2) Reject-item OC (return). ✅ done (split into two left-nav entries)
   - ⚠ needs PRD decision: confirm the reject OC is a distinct template engine + upload path from the normal OC.
+
+
+---
+
+# Round 2 — "Checking SwipeRX Operator" deck (10 Aug 2026)
+
+> Walkthrough of the live build. Nine slides, eight substantive comments. Status below is
+> what I verified in the code on 10 Aug, not what the deck assumed.
+
+| # | Comment (deck) | Verdict |
+|---|---|---|
+| 1 | *"…upload the TMP Batch file" — mungkin maksudnya Pick Up date?* | ⚠ **wording, needs your call.** The field is the **delivery** date (FR-OC1, single day, lands in col S). For a **return/pickup** service it is genuinely the pickup date — `_upload_row` writes the same value to `parcel_job.pickup_date`. The label should switch with the service direction rather than always saying delivery. Cheap fix once you confirm the wording. |
+| 2 | *Upload TMP tapi ada error. As it is MPS, koli weight should total 1.77 per AWB* | ✅ **weight is already the AWB total.** The engine reads TMP col C (`Total Weight per AWB`) and writes it once per AWB row — verified 79/79 on the 30-Jun batch. The **"ada error" is the real issue and I can't reproduce it without the message**; please send the screenshot text or the failing TMP. Strong suspicion: it is the child-TID defect fixed today (see below), which made every row's pieces unattachable. |
+| 3 | *Di POV kurir, perlu keluarin nomor PO ga? — cek SSM & QC dulu* | ℹ **already shown, and it must stay.** The courier sees PO + koli per PO behind the link (`OrderContext`), and SP-Manual capture is **per PO** — remove the PO and that step loses its subject. Note PO numbers are deliberately **not** in the tracking IDs (that was the bug). Parked pending SSM/QC. |
+| 4 | *Tidak ada opsi "retur parsial" untuk POD return? POD return masuk ke Pengantaran Normal?* | ⚠ **correct observation, product decision.** A return job (`is_return`) offers only "tidak ada barang retur" vs "ada barang retur ditarik" — there is no partial branch on the return leg, by design. Whether POD Return should leave the normal delivery workflow is a QC call; I'd keep one workflow and branch the copy, since the capture set is nearly identical. |
+| 5 | *Retur Semua Paket — bisa di-set tanpa instruksi upload SP Manual?* | ✅ **already the behaviour.** `CourierApp.tsx:236` routes a full reject straight to `reject_capture`, skipping the `sp_manual` phase entirely. If it appeared, the courier was on the **partial** branch. |
+| 6 | *Masuk Retur Semua Paket tapi keterangan di bawah "retur sebagian"* | ✅ **real bug — fixed 10 Aug.** Both reject paths share the `reject_capture` screen, whose copy was written for partial returns only. Headline, DN label and goods label now follow `fullReject`. |
+| 7 | *Kalau Retur Semua Paket, harus bikin TRID retur baru? Forward TRID tinggal trigger RTS* | ✅ **BUILT 19 Aug 2026.** A `semua` row now closes by recording an **RTS trigger on the original forward TID** — no second tracking number is created. `sebagian` still takes replacement TIDs. The two paths are mutually exclusive and the API refuses the wrong one (409 `full_reject_uses_rts` / `partial_reject_uses_tids`). Migration V8; own tab in the worklist; both stamped into the CSV export. Original note: **you are right.** A full reject is an RTS on the existing forward TRID; minting a fresh return TRID duplicates the parcel in Ninja and splits its history. Today `returns.py` treats `semua` and `sebagian` the same. Recommend: `semua` → trigger RTS on the forward TRID, no new AWB; `sebagian` → new return TRID as now. Needs a schema/flow change — **not done**, flagged for the next cut. |
+| 8 | *Belum bisa di-klik >> harus di-acknowledge dulu* | ✅ self-resolved in the deck. Ack-then-act is intended (`test_tids_cannot_be_recorded_before_acknowledging`). Worth a disabled-state tooltip so the gate explains itself. |
+
+**Not in the deck but found while checking it:** the per-TRID linking defect — every child piece was
+prefixed with its PO number while col A held the SwipeAWB, so **no child could attach to its parent**
+(210/210 broken on a real batch). Fixed in the engine and in converter **v5**; see
+`OC Template/OC_TEMPLATE_AND_ENGINE_GUIDE.md` §2.3.
+
+**Open, needs you:** items 1 (date label wording), 4 (POD-return workflow split), 7 (RTS instead of a
+new return TRID).
+
+---
+
+## Built 19 Aug 2026
+
+- **Slide 7 — RTS instead of a new return TID.** See the row above. `return_parcel` gained
+  `rts_requested_at` / `rts_requested_by` (V8). Stage flow is now
+  `pending_ack → acknowledged → tids_sent` for a partial, and
+  `pending_ack → acknowledged → rts_requested` for a full refusal.
+- **Prekursor / non-prekursor removed** from the courier wizard. The only signal is the DN's
+  **Tipe Dokumen** column, which carries the footnote *"Tipe dokumen manual wajib menyertakan
+  Surat Pesanan Asli"*. Couriers cannot identify prekursor and it never changed what they do.
+- **Real reference photos** on the Delivery Note, SP Manual and DN return close-up steps,
+  hidden behind *"Lihat contoh foto"*. Steps with no reference photo show no link at all.
+- **Multiple photos** for AWB label and rejected goods.
+- **All-duplicate re-upload now 409s** (`all_awbs_already_exist`) instead of closing as
+  success with a header-only upload.xlsx.
+
+## Still open
+
+1. **No way to correct a committed AWB.** Re-upload skips existing AWBs, never updates them,
+   and nothing can be deleted. Options were scoped (void + re-create / update-in-place /
+   editable until `driver_submitted_at`); awaiting a decision. Note an edit only fixes what
+   the COURIER sees — Ninja's order record is untouched once the OC file is uploaded.
+2. **Wrong-service header validation** (`OC_AWB_PARENT_CHECK.md` §7b) is still unimplemented.
+   The guarding test passes on a weak OR condition, so it would not catch a regression.
+3. **Kode Alasan Return (A–L)** is printed on the DN but never captured as data — ops reads it
+   off a photo. Worth capturing at the door if it is used for reporting.
+4. **Validator and SwipeRx roles open nothing.** Assigning them lets someone sign in and no more.

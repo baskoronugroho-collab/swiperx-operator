@@ -247,7 +247,12 @@ export interface RejectReturn {
   return_tids: string | null;
   tids_sent_at: string | null;
   tids_sent_by_email: string | null;
-  stage: "pending_ack" | "acknowledged" | "tids_sent";
+  stage: "pending_ack" | "acknowledged" | "tids_sent" | "rts_requested";
+  /** How this row closes. A full reject ("semua") is an RTS on the EXISTING forward
+   *  tracking number — no second TID is created. A partial still needs its own. */
+  closes_by: "rts" | "tids";
+  rts_requested_at: string | null;
+  rts_requested_by_email: string | null;
   proof_photos: { doc_type: DocType; photo_url: string }[];
 }
 
@@ -264,6 +269,52 @@ export interface ManagedUser {
 export const ALL_ROLES: Role[] = [
   "superadmin", "program_manager", "de", "implant", "station_ic", "validator", "swiperx",
 ];
+
+/** One hand-typed test link (manual.py). `children_mode: "blank"` leaves col AC empty so
+ *  a single trial upload can settle whether NV really auto-creates the child pieces. */
+export interface ManualLinkInput {
+  service: string;
+  awb_id: string;
+  pharmacy_name?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  phone?: string;
+  weight?: string;
+  po_lines?: { po_number: string; koli: number }[];
+  collies?: number | null;
+  is_return?: boolean;
+  invoice?: string;
+  item_detail?: string;
+  children_mode?: "auto" | "blank";
+  delivery_date?: string;
+}
+
+export interface ManualLinkResult {
+  awb_id: string;
+  token: string;
+  url: string;
+  delivery_instructions: string;
+  instr_length: number;
+  instr_limit: number;
+  instr_truncated: boolean;
+  upload_columns: Record<string, string>;
+  children: string[];
+  children_mode: "auto" | "blank";
+  download_url: string;
+}
+
+export interface ManualLinkRow {
+  awb_id: string;
+  pharmacy_name: string;
+  city: string | null;
+  koli: number;
+  status: string;
+  is_return: boolean;
+  service_id: string;
+  created_at: string;
+  courier_url: string;
+}
 
 export const api = {
   version: () => get<VersionInfo>("/api/version"),
@@ -316,6 +367,17 @@ export const api = {
     linksUrl: (id: number) => `/api/oc/intakes/${id}/links.csv`,
   },
 
+  /** Phase-1 field test: build one link by hand, paste it into Ninja's order instruction
+   *  manually, and watch what the driver actually gets. Not a production path. */
+  manual: {
+    create: (input: ManualLinkInput) => postJson<ManualLinkResult>("/api/manual/links", input),
+    list: () => get<{ links: ManualLinkRow[]; count: number }>("/api/manual/links"),
+    remove: (awbId: string) =>
+      request<void>(`/api/manual/links/${encodeURIComponent(awbId)}`, { method: "DELETE" }),
+    uploadUrl: (awbId: string) =>
+      `/api/manual/links/${encodeURIComponent(awbId)}/upload.xlsx`,
+  },
+
   courier: {
     order: (token: string) => get<CourierOrder>(`/api/c/${token}/order`),
     upload: (token: string, docType: DocType, blob: Blob, opts: {
@@ -355,6 +417,8 @@ export const api = {
       postJson<RejectReturn>(`/api/returns/${id}/acknowledge`, { acknowledged }),
     sendTids: (id: number, returnTids: string) =>
       postJson<RejectReturn>(`/api/returns/${id}/tids`, { return_tids: returnTids }),
+    /** Close a full reject by triggering RTS on the original forward tracking number. */
+    requestRts: (id: number) => postJson<RejectReturn>(`/api/returns/${id}/rts`, {}),
     exportUrl: () => "/api/returns/export.csv",
   },
 };

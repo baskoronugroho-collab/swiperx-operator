@@ -10,7 +10,10 @@ from pathlib import Path
 import pytest
 
 TEMPLATES = Path(__file__).resolve().parents[2] / "OC Template"
-REG_TMP = TEMPLATES / "[Template Swipe Fwd Reg] TMP Batch Order Ninja Express Intercity (FULL) 10-06-26.xlsx"
+# The LOCKED TMP structure (1 header row, data from row 2, koli in col M). The older
+# 10-06-26 sample is a different, pre-lock layout and no longer parses - see
+# source_layouts._forward_layout_comment in oc_config.json.
+REG_TMP = TEMPLATES / "[Template Swipe Fwd LOCKED] TMP Batch Ninja Depok (Order) 28-07-26.xlsx"
 
 pytestmark = pytest.mark.skipif(not REG_TMP.exists(), reason="OC Template samples not present")
 
@@ -134,13 +137,17 @@ def test_bad_delivery_date_is_rejected(de_client):
 
 
 def test_reupload_skips_awbs_that_already_exist(de_client):
+    """Existing AWBs are skipped, never updated — and when NOTHING is new, say so.
+
+    Until 19 Aug this closed as 201 with awb_count 0 and produced an upload.xlsx holding
+    only a header row, which reads like success while shipping nothing.
+    """
     first = de_client.post("/api/oc/create", data={"service": "S1"}, files=tmp_upload()).json()
     assert first["awb_count"] > 0
 
-    second = de_client.post("/api/oc/create", data={"service": "S1"}, files=tmp_upload()).json()
-    assert second["awb_count"] == 0
-    assert second["error_count"] == first["awb_count"]
-    assert "already exists" in second["errors"][0]["error"]
+    again = de_client.post("/api/oc/create", data={"service": "S1"}, files=tmp_upload())
+    assert again.status_code == 409
+    assert again.json()["detail"] == "all_awbs_already_exist"
 
 
 def test_printed_link_redirects_into_the_courier_wizard(de_client):

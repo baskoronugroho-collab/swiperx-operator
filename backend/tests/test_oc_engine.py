@@ -25,8 +25,21 @@ def _awb(**kw):
 
 
 def test_children_are_po_prefixed_and_numbered_continuously():
-    """The guide's worked example, verbatim: numbering runs across the AWB, not per PO."""
+    """The guide's worked example, verbatim: numbering runs across the AWB, not per PO.
+
+    PO-prefixed is intended — NV allows custom piece ids and the children still attach to
+    their parent via the manual template (confirmed 10 and 18 Aug 2026). A change to
+    parent-prefixed children was made and reverted on 10 Aug; this test is what should stop
+    it happening a third time.
+    """
     assert e.piece_trids(_awb()) == ["PO1-01", "PO1-02", "PO2-03", "PO3-04"]
+
+
+def test_numbering_runs_across_the_awb_not_per_po():
+    """A multi-koli PO shifts every ordinal after it — the counter belongs to the AWB."""
+    awb = _awb(collies=5, po_lines=[{"po_number": "PO1", "koli": 3},
+                                    {"po_number": "PO2", "koli": 2}])
+    assert e.piece_trids(awb) == ["PO1-01", "PO1-02", "PO1-03", "PO2-04", "PO2-05"]
 
 
 def test_children_are_zero_padded_past_nine():
@@ -78,6 +91,8 @@ def test_bundle_quantity_and_pieces_agree():
     pieces = r["bundle_information.requested_piece_tracking_numbers"].split(", ")
     assert pieces == ["PO1-01", "PO1-02", "PO2-03", "PO3-04"]
     assert len(pieces) == int(r["bundle_information.total_quantity"])
+    # Col A stays the SwipeAWB even though the children carry PO prefixes.
+    assert r["requested_tracking_number"] == "AWB02U24V"
 
 
 def test_weight_is_the_awb_total_not_a_hardcoded_one():

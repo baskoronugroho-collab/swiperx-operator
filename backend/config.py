@@ -14,6 +14,22 @@ APP_ENV = os.getenv("APP_ENV", "alpha")
 APP_VERSION = os.getenv("APP_VERSION", "Alpha 0.1")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
+# Host used ONLY to build courier links (/c/<token>). Defaults to PUBLIC_BASE_URL, so
+# leaving it unset changes nothing.
+#
+# It exists because the two hosts cannot be the same one. Google SSO only works on the
+# app's platform hostname — Substrait states this outright on the Domains screen — so
+# PUBLIC_BASE_URL must stay on that hostname or staff sign-in breaks: it is also the OIDC
+# `redirect_uri` (auth.py) and the session-cookie Secure flag.
+#
+# Courier links have the opposite constraint. They are unauthenticated (the token is the
+# credential), so they don't care about SSO, and they are counted TWICE inside the 500-char
+# col-R budget (href + visible anchor text). On the org-scoped hostname that budget lands at
+# exactly 500/500 with zero spare, so any growth silently drops the call-to-action and then
+# ellipsises mandated compliance wording. A short custom domain is the only way to buy that
+# margin back — e.g. https://swrx.ninjavan.co returns ~60 characters.
+COURIER_BASE_URL = os.getenv("COURIER_BASE_URL", "").rstrip("/") or PUBLIC_BASE_URL
+
 # Platform-injected (never in .env.example).
 DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
