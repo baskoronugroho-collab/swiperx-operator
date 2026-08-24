@@ -35,9 +35,9 @@ async def _seed() -> None:
     )
     await fake.execute(
         "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
-        "koli, link_token, status, is_return) VALUES "
+        "koli, link_token, status, is_return, origin) VALUES "
         "('AWBDEMO001','AWB02U24V','S1','Apotek Sehat Sentosa','Jl. Melati Raya No. 12, Cakung',"
-        "'Jakarta Timur',3,'demo-token-forward','created',0)", ()
+        "'Jakarta Timur',3,'demo-token-forward','created',0,'TMP_DEPOK')", ()
     )
     for po, koli in (("260630054137433DSXWMpd", 2), ("26070102001839ezpAD07IG", 1)):
         await fake.execute(
@@ -45,17 +45,24 @@ async def _seed() -> None:
         )
     await fake.execute(
         "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
-        "koli, link_token, status, return_type, is_return) VALUES "
+        "koli, link_token, status, return_type, is_return, origin, driver_id, hub_name) VALUES "
         "('AWBDEMO002','AWB02U51N','S1','Apotek Prima Husada','Jl. Kenanga No. 21','Jakarta Timur',"
-        "2,'demo-token-rejected','delivered','sebagian',0)", ()
+        "2,'demo-token-rejected','delivered','sebagian',0,'TMP_DEPOK','123456','MAC-KD5')", ()
     )
     await fake.execute(
         "INSERT INTO po_line (awb_id, po_number, koli) VALUES ('AWBDEMO002','26070103390201VtagsQI7',2)", ()
     )
     await fake.execute(
-        "INSERT INTO return_parcel (original_awb_id, return_type, service_id) "
-        "VALUES ('AWBDEMO002','sebagian','S1')", ()
+        "INSERT INTO return_parcel (original_awb_id, return_type, service_id, reject_pcs, origin) "
+        "VALUES ('AWBDEMO002','sebagian','S1',3,'TMP_DEPOK')", ()
     )
+    # Hub master — the REAL hub->TMP mapping from 'Mapping Dest Hub to TMP.xlsx' (24 Aug).
+    # origin None = not yet mapped; those rows read as origin-unknown, same as production.
+    for _h, _o in [('BDO-BDO', None), ('BDO-BJR', None), ('BDO-CBB', None), ('BDO-CBT', 'TMP_DEPOK'), ('BDO-CJR', 'TMP_DEPOK'), ('BDO-CMS', 'TMP_DEPOK'), ('BDO-DYT', None), ('BDO-JCK', None), ('BDO-KJG', 'TMP_DEPOK'), ('BDO-KJT', 'TMP_DEPOK'), ('BDO-LKG', 'TMP_DEPOK'), ('BDO-MGU', None), ('BDO-MJA', None), ('BDO-NSB-SDB', None), ('BDO-PMN', None), ('BDO-PWA', None), ('BDO-SKI', None), ('BDO-SMD', None), ('BDO-SNR', None), ('BDO-TSK-PU', None), ('CBN-BMY', None), ('CBN-CBN', None), ('CBN-GDM', 'TMP_DEPOK'), ('CBN-IDM', None), ('CBN-JTB', None), ('CBN-KDH', None), ('CBN-KNG', None), ('CBN-MJL', None), ('CBN-PWO', 'TMP_SURABAYA'), ('CBN-PWR', None), ('CBN-SUM', 'TMP_DEPOK'), ('CBN-TGL', 'TMP_SURABAYA'), ('MAC-CB5', 'TMP_DEPOK'), ('MAC-CBD', None), ('MAC-CBI-PU', None), ('MAC-CLG', None), ('MAC-CP5', 'TMP_DEPOK'), ('MAC-CST', 'TMP_DEPOK'), ('MAC-JPK', None), ('MAC-KD5', 'TMP_DEPOK'), ('MAC-KJ5', 'TMP_DEPOK'), ('MAC-KLD-SDS', None), ('MAC-KLR', 'TMP_DEPOK'), ('MAC-KM5', 'TMP_DEPOK'), ('MAC-KOI-PU', None), ('MAC-KRL', None), ('MAC-MA5', 'TMP_DEPOK'), ('MAC-MAC', None), ('MAC-MAC-SB', None), ('MAC-PNB', None), ('MAC-RGS', None), ('MAC-SKT', None), ('MAC-SRN', None), ('MAC-TJR', None), ('MAC-UT5', 'TMP_DEPOK'), ('SOC-BJN', 'TMP_SURABAYA'), ('SOC-BLT-BSC', None), ('SOC-KGD', 'TMP_SURABAYA'), ('SOC-KLN', 'TMP_SURABAYA'), ('SOC-MAD', None), ('SOC-NGW', None), ('SOC-NJK', None), ('SOC-PNG', 'TMP_SURABAYA'), ('SOC-SGN', 'TMP_SURABAYA'), ('SOC-SOC', None), ('SOC-TLG', 'TMP_SURABAYA'), ('SOC-WNG', 'TMP_SURABAYA'), ('SRG-DMK', None), ('SRG-KDL', None), ('SRG-KUD', None), ('SRG-PKO', 'TMP_SURABAYA'), ('SRG-PWD', None), ('SRG-SKS', 'TMP_SURABAYA'), ('SRG-SLT', None), ('SRG-SRG', None), ('SRG-TMG', None), ('SUB-BTU', None), ('SUB-BWI', None), ('SUB-DAN', None), ('SUB-DPS-PU', None), ('SUB-GSK', None), ('SUB-JBB-PU', None), ('SUB-JBR', 'TMP_SURABAYA'), ('SUB-JOM', 'TMP_SURABAYA'), ('SUB-KDR', 'TMP_SURABAYA'), ('SUB-KDR-PU', None), ('SUB-LMG', 'TMP_SURABAYA'), ('SUB-MJK', None), ('SUB-MLG', 'TMP_SURABAYA'), ('SUB-MLG-PU', None), ('SUB-MTI', None), ('SUB-NWE', 'TMP_SURABAYA'), ('SUB-PBL', None), ('SUB-PSN', 'TMP_SURABAYA'), ('SUB-PWH', 'TMP_SURABAYA'), ('SUB-SUB', None), ('SUB-TBN', None)]:
+        await fake.execute(
+            "INSERT INTO hub (hub_name, origin, active) VALUES (%s, %s, 1)", (_h, _o),
+        )
+
 
 
 if __name__ == "__main__":

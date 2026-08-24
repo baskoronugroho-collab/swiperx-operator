@@ -1,8 +1,8 @@
 /** "What a good photo looks like" references for the capture steps.
  *
  * These are the REAL documents, not drawings: the actual TMP Delivery Note (AWB002STL), a
- * true crop of its Berita Acara Return table, and two genuine Surat Pesanan forms supplied
- * by ops. A courier recognises the real thing instantly; a schematic makes them translate.
+ * true crop of its Berita Acara Return table,. SP Manual capture was removed from the wizard on
+ * 19 Aug 2026, so its references went with it. A courier recognises the real thing instantly; a schematic makes them translate.
  *
  * Loaded through Vite so each file is hashed and emitted as its own asset rather than
  * inlined into the JS bundle, and every <img> is `loading="lazy"` — the guides sit behind a
@@ -16,8 +16,6 @@ import type { ReactNode } from "react";
 
 import dnFull from "../../assets/guides/dn-full.jpg";
 import dnReturnCloseUp from "../../assets/guides/dn-return-closeup.jpg";
-import spHandwritten from "../../assets/guides/sp-handwritten.jpg";
-import spTyped from "../../assets/guides/sp-typed.jpg";
 
 function Shot({ src, alt, caption }: { src: string; alt: string; caption: string }) {
   return (
@@ -67,32 +65,6 @@ export function DeliveryNoteGuide() {
         src={dnFull}
         alt="Contoh Delivery Note TMP satu halaman penuh"
         caption="Contoh Delivery Note asli. Seluruh halaman masuk — dari judul sampai QR code di bawah."
-      />
-    </Guide>
-  );
-}
-
-/** SP Manual — both forms ops supplied. The point of showing two is that they look nothing
- *  alike and are both simply "SP Manual"; the courier is never asked to classify them. */
-export function SpManualGuide() {
-  return (
-    <Guide
-      items={[
-        "Satu foto per PO yang Tipe Dokumen-nya Manual",
-        "Nomor SP dan nama apotek di kop surat harus terbaca",
-        "Daftar barang, stempel dan tanda tangan apoteker ikut masuk",
-        "Bentuk SP beda-beda — tulis tangan atau ketik, dua-duanya sah",
-      ]}
-    >
-      <Shot
-        src={spHandwritten}
-        alt="Contoh Surat Pesanan tulis tangan"
-        caption="Contoh 1 — SP tulis tangan. Nomor SP, daftar barang, stempel dan tanda tangan terbaca."
-      />
-      <Shot
-        src={spTyped}
-        alt="Contoh Surat Pesanan bentuk ketik"
-        caption="Contoh 2 — SP bentuk ketik. Bentuknya beda, tapi ini tetap SP Manual. Tidak perlu dibeda-bedakan."
       />
     </Guide>
   );

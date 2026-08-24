@@ -120,5 +120,44 @@
   },
   "link_char_limit": 500,
   "master_shipper_name": "PT Teknologi Medika Pratama (B2BR)",
-  "_shipper_names_comment": "Added 26 Jul 2026 for FR-OC1: picking a service shows read-only shipper id/name/branch. Source: the DE team's converter Config sheet."
+  "_shipper_names_comment": "Added 26 Jul 2026 for FR-OC1: picking a service shows read-only shipper id/name/branch. Source: the DE team's converter Config sheet.",
+  "_origins_comment": "The two SwipeRx warehouses a delivery can ship out of. The origin is chosen at Order creation and STORED on every AWB in the batch, so a return can be addressed back to where it actually came from instead of being looked up by hand. On a return OC row this block fills the `to.*` columns (J-Q) — get it wrong and the parcel goes to the wrong city. `warehouse` above is the legacy single-origin block and still drives forward rows; it is identical to TMP_DEPOK.",
+  "origins": {
+    "TMP_DEPOK": {
+      "label": "TMP Depok",
+      "name": "PT Teknologi Medika Pratama (SwipeRx) (B2BR)",
+      "phone": "087733785699",
+      "address1": "KUBIK LOGISTICS - Kompleks Pergudangan, Jl. Tugu Raya, Tugu, Kec. Cimanggis, Kota Depok, Jawa Barat 16451",
+      "country": "ID",
+      "kecamatan": "Cimanggis",
+      "city": "Depok",
+      "province": "Jawa barat",
+      "postcode": "16451",
+      "phone_confirmed": true
+    },
+    "TMP_SURABAYA": {
+      "label": "TMP Surabaya",
+      "name": "PT Teknologi Medika Pratama - Surabaya",
+      "phone": "087733785699",
+      "address1": "Jl. Rungkut Industri III No.12, Kutisari, Kec. Tenggilis Mejoyo, Kota Surabaya, Jawa Timur 60291",
+      "country": "ID",
+      "kecamatan": "Tenggilis Mejoyo",
+      "city": "Surabaya",
+      "province": "Jawa Timur",
+      "postcode": "60291",
+      "phone_confirmed": false
+    }
+  },
+  "_return_oc_comment": "Constants for the POD-Return OC row, read off the real '[Template DE POD Return] Swipe RX R01.xlsx'. Structure is OPTION 1 (single TRID): one row per reject, AB=1, one child. Direction is reversed — `from` is the pharmacy, `to` is the origin warehouse above. Col R is the bare word 'Retur' (no link, no RDO wording) and col AA is EMPTY, unlike a forward row.",
+  "return_oc": {
+    "suffix": "-R01",
+    "service_level": "STANDARD",
+    "branch_id": "2",
+    "delivery_instructions": "Retur",
+    "documents_required": "",
+    "is_pickup_required": "False",
+    "weight": "1",
+    "total_quantity": "1",
+    "is_dangerous_good": "False"
+  }
 }

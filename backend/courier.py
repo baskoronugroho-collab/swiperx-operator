@@ -60,7 +60,8 @@ TERMINAL_STATUSES = {"delivered", "arrived", "handed_over", "delivery_failed"}
 async def _load(token: str) -> dict:
     awb = await db.fetch_one(
         "SELECT awb_id, merchant_order_number, pharmacy_name, address, city, service_id, status, "
-        "is_return, invoice, item_detail, return_type, created_at FROM awb WHERE link_token = %s",
+        "is_return, invoice, item_detail, return_type, driver_id, hub_name, origin, created_at "
+        "FROM awb WHERE link_token = %s",
         (token,),
     )
     if not awb:
@@ -105,15 +106,16 @@ async def _captures(awb_id: str, token: str) -> list[dict]:
 def _requirements(awb: dict, outcome: str, captures: list[dict]) -> list[str]:
     """Missing requirements for `outcome`. Empty list = the completeness gate passes.
 
-    Forward normal delivery (§7.1): pharmacy POD, receiver POD, DN whole document with a
-    signed+stamped attestation on the forward section. SP-Manual is rider-driven — the
-    rider decides which POs need one at the door — so it is never *required* here.
+    Reworked 19 Aug 2026: the link is now opened ONLY when a return needs reporting at
+    the point of delivery. Forward-delivery proof (pharmacy/receiver POD, SP-Manual) is
+    the Ninja driver app's job and is not captured here anymore — the historic doc_types
+    stay accepted so old captures keep resolving, they are just never *required*.
 
-    Reject (§7.2): additionally the DN return section (close-up + full page = 2 DN shots),
-    one overall photo of the rejected goods, and the forward AWB sticker.
+    So: "tidak ada retur" needs nothing at all — one confirm and the courier is gone.
+    A reject needs the DN twice (full page + return-section close-up), the signed+stamped
+    attestation, the rejected goods, and the AWB label.
 
-    Return service (§7.4): no DN; the courier prepares the BA and captures it. A success
-    with nothing to collect still needs the blank-but-signed return form.
+    Return service (§7.4): unchanged — the BA form, plus the goods when collecting.
     """
     have = {}
     for c in captures:
@@ -130,18 +132,14 @@ def _requirements(awb: dict, outcome: str, captures: list[dict]) -> list[str]:
             need("rejected_goods", "Foto barang retur")
         return missing
 
-    need("pharmacy_pod", "Foto apotek")
-    need("receiver_pod", "Foto penerima")
-    need("delivery_note", "Foto Delivery Note")
+    if outcome != "reject":
+        return []
 
-    dn = have.get("delivery_note", [])
-    if not any(c["signed_stamped"] for c in dn):
+    need("delivery_note", "Dua foto Delivery Note (halaman penuh + close-up bagian retur)", 2)
+    if not any(c["signed_stamped"] for c in have.get("delivery_note", [])):
         missing.append("Centang Delivery Note sudah ditandatangani & distempel")
-
-    if outcome == "reject":
-        need("delivery_note", "Dua foto Delivery Note (close-up bagian retur + halaman penuh)", 2)
-        need("rejected_goods", "Foto barang yang ditolak")
-        need("awb_sticker", "Foto label AWB")
+    need("rejected_goods", "Foto barang yang diretur")
+    need("awb_sticker", "Foto label AWB")
 
     return missing
 
@@ -168,10 +166,59 @@ async def order(token: str):
         "item_detail": awb["item_detail"],
         "po_lines": po_lines,
         "captures": captures,
+        # Who is doing this delivery. Asked once, up front, and then remembered so a
+        # resumed link does not interrogate the driver twice.
+        "driver_id": awb["driver_id"],
+        "hub_name": awb["hub_name"],
+        "hubs": [h["hub_name"] for h in await db.fetch_all(
+            "SELECT hub_name FROM hub WHERE active = 1 ORDER BY hub_name")],
         "expired": _expired(awb),
         "terminal": awb["status"] in TERMINAL_STATUSES,
         "fail_reasons": [{"code": c, "id": i, "en": e} for c, i, e in FAIL_REASONS],
     }
+
+
+@router.post("/{token}/identity")
+async def set_identity(
+    token: str,
+    driver_id: str = Body(..., embed=True),
+    hub_name: str = Body(..., embed=True),
+    hub_not_listed: bool = Body(default=False),
+):
+    """Record who is running this delivery, before any capture.
+
+    Driver ID is free text but numeric-only — that is the format Ninja issues, and rejecting
+    letters at the door catches a typo while the driver can still fix it.
+
+    Hub is picked from the `hub` table, never typed, because Station IC filters their reject
+    worklist by it: a free-text hub would silently drop rows out of the filter that someone
+    is waiting on.
+    """
+    awb = await _guard_open(token)
+    driver_id = (driver_id or "").strip()
+    hub_name = (hub_name or "").strip()
+    if not driver_id.isdigit():
+        raise HTTPException(status_code=400, detail="driver_id_must_be_numeric")
+    if len(driver_id) > 32:
+        raise HTTPException(status_code=400, detail="driver_id_too_long")
+    if len(hub_name) < 2 or len(hub_name) > 32:
+        raise HTTPException(status_code=400, detail="bad_hub_name")
+    if hub_not_listed:
+        # Fallback: the driver ticked "hub saya tidak ada di daftar" and typed it. Stored
+        # uppercased so IC's filter still groups consistently; it simply won't be in the
+        # fixed list, which is the honest state — someone maintains the hub master later.
+        hub_name = hub_name.upper()
+    else:
+        known = await db.fetch_one(
+            "SELECT hub_name FROM hub WHERE hub_name = %s AND active = 1", (hub_name,)
+        )
+        if not known:
+            raise HTTPException(status_code=400, detail="unknown_hub")
+    await db.execute(
+        "UPDATE awb SET driver_id = %s, hub_name = %s WHERE awb_id = %s",
+        (driver_id, hub_name, awb["awb_id"]),
+    )
+    return {"driver_id": driver_id, "hub_name": hub_name}
 
 
 @router.get("/{token}/media/{ref}")
@@ -317,6 +364,7 @@ async def submit(
     request: Request,
     outcome: str = Body(...),
     return_type: str | None = Body(default=None),
+    reject_pcs: int | None = Body(default=None),
 ):
     """Confirm the delivery. `outcome` is `delivered` or `reject`.
 
@@ -349,10 +397,15 @@ async def submit(
             "SELECT id FROM return_parcel WHERE original_awb_id = %s", (awb["awb_id"],)
         )
         if not existing:
+            # `origin` is inherited from the FORWARD order, captured when it was created.
+            # That is the whole point of storing it: a partial return addresses itself back
+            # to the warehouse it shipped from, with nobody looking the TRID up by hand.
+            # NULL here is legitimate for orders created before origin existed — the
+            # worklist surfaces those as "origin unknown" and DE sets them in bulk.
             await db.execute(
-                "INSERT INTO return_parcel (original_awb_id, return_type, service_id) "
-                "VALUES (%s, %s, %s)",
-                (awb["awb_id"], rtype, awb["service_id"]),
+                "INSERT INTO return_parcel (original_awb_id, return_type, service_id, "
+                "reject_pcs, origin) VALUES (%s, %s, %s, %s, %s)",
+                (awb["awb_id"], rtype, awb["service_id"], reject_pcs, awb.get("origin")),
             )
         return_awbs = [awb["awb_id"]]
 

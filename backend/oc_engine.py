@@ -72,6 +72,88 @@ def services() -> list[dict]:
     return out
 
 
+def origins() -> list[dict]:
+    """The warehouses a batch can ship out of, for the Order-creation picker."""
+    return [{"code": k, "label": v["label"], "city": v["city"]}
+            for k, v in CFG.get("origins", {}).items()]
+
+
+def return_trid(awb_id: str) -> str:
+    """The return tracking number for a partial reject: `<SwipeAWB>-R01`.
+
+    Always -R01, never -R02: a second return on the same AWB is not a thing the process
+    produces (confirmed 19 Aug 2026). The parent is the SwipeAWB, so the return hangs off
+    that rather than off a PO — matching col A of the forward row.
+    """
+    return f'{awb_id}{CFG["return_oc"]["suffix"]}'
+
+
+def build_return_rows(rows: list[dict], today: str | None = None) -> bytes:
+    """The POD-Return OC workbook DE uploads to Ninja for PARTIAL rejects.
+
+    Shape is OPTION 1 — a single TRID per reject: `AB` = 1 and one child, because Station IC
+    repacks the returned goods into ONE parcel before sending it back, so per-koli children
+    would track pieces that no longer exist separately.
+
+    The direction is reversed against a forward row: `from` is the pharmacy, `to` is the
+    ORIGIN warehouse the delivery shipped out of. That is why origin is stamped on every AWB
+    at creation — get it wrong and the parcel goes to the wrong city.
+
+    A whole-consignment refusal never comes through here: it is an RTS on the existing
+    forward tracking number and needs no new order at all.
+
+    Each row dict needs: awb_id, pharmacy_name, phone, address, origin, reject_pcs.
+    """
+    today = today or date.today().isoformat()
+    r = CFG["return_oc"]
+    fx = CFG["fixed"]
+    ts = fx["timeslot"]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(FWD_COLS)
+    for a in rows:
+        o = CFG["origins"][a["origin"]]
+        trid = return_trid(a["awb_id"])
+        row = {
+            "requested_tracking_number": trid,
+            "global_shipper_id": CFG["master_shipper_id"],
+            "service_type": fx["service_type"],
+            "reference.merchant_order_number": a["awb_id"],
+            "service_level": r["service_level"],
+            # from = the pharmacy sending goods back
+            "from.name": a.get("pharmacy_name", ""),
+            "from.phone_number": a.get("phone", ""),
+            "from.address.address1": a.get("address", ""),
+            "from.address.country": "ID",
+            # to = the origin warehouse
+            "to.name": o["name"], "to.phone_number": o["phone"],
+            "to.address.address1": o["address1"], "to.address.country": o["country"],
+            "to.address.kecamatan": o["kecamatan"], "to.address.city": o["city"],
+            "to.address.province": o["province"], "to.address.postcode": o["postcode"],
+            "parcel_job.delivery_instructions": r["delivery_instructions"],
+            "parcel_job.delivery_start_date": today,
+            "parcel_job.delivery_timeslot.start_time": ts["start_time"],
+            "parcel_job.delivery_timeslot.end_time": ts["end_time"],
+            "parcel_job.delivery_timeslot.timezone": ts["timezone"],
+            "parcel_job.dimensions.weight": r["weight"],
+            "parcel_job.is_pickup_required": r["is_pickup_required"],
+            # The count the driver entered at the door — no item names, there is no way to
+            # collect them. Reconciled against the goods photo and the BA Retur on receipt.
+            "parcel_job.items.0.item_description": str(a.get("reject_pcs") or ""),
+            "parcel_job.items.0.is_dangerous_good": r["is_dangerous_good"],
+            "b2b.documents_required": r["documents_required"],
+            "bundle_information.total_quantity": r["total_quantity"],
+            "bundle_information.requested_piece_tracking_numbers": trid,
+            "parcel_job.insured_value": fx["insured_value"],
+            "corporate.branch_id": r["branch_id"],
+        }
+        ws.append([str(row.get(c, "")) for c in FWD_COLS])
+    bio = io.BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
 def _norm(v) -> str:
     """Normalize an openpyxl cell value to a clean string (ints without .0, no sci-notation)."""
     if v is None:

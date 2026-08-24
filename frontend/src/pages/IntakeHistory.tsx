@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "../lib/api";
+import { ApiError, api } from "../lib/api";
 import type { Intake, Service } from "../lib/api";
 import { Badge, Card, EmptyState, ErrorNote, Spinner } from "../components/ui";
 
@@ -11,6 +11,31 @@ export default function IntakeHistory() {
   const [intakes, setIntakes] = useState<Intake[] | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  async function remove(i: Intake) {
+    if (
+      !window.confirm(
+        `Delete this upload (${i.awb_count} AWBs) and free its SwipeAWBs for re-upload?\n` +
+          "This is refused automatically if a courier has already filed anything on the batch.",
+      )
+    )
+      return;
+    setBusyId(i.id);
+    setError(null);
+    try {
+      await api.oc.deleteIntake(i.id);
+      setIntakes((rows) => (rows ? rows.filter((r) => r.id !== i.id) : rows));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.detail === "intake_has_courier_activity"
+          ? "Can't delete: a courier has already filed photos or a result on this batch."
+          : "Couldn't delete the upload.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   useEffect(() => {
     Promise.all([api.oc.intakes(), api.oc.services()])
@@ -75,6 +100,13 @@ export default function IntakeHistory() {
                         <a href={api.oc.linksUrl(i.id)} className="text-xs font-semibold text-nv-red hover:underline">
                           Links
                         </a>
+                        <button
+                          onClick={() => remove(i)}
+                          disabled={busyId === i.id}
+                          className="text-xs font-semibold text-ink-muted hover:text-danger disabled:opacity-50"
+                        >
+                          {busyId === i.id ? "Deleting…" : "Delete"}
+                        </button>
                       </div>
                     </td>
                   </tr>

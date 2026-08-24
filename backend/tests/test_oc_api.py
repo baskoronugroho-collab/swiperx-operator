@@ -46,7 +46,7 @@ def test_services_expose_the_read_only_shipper_identity(de_client):
 
 
 def test_preview_parses_without_writing(de_client):
-    r = de_client.post("/api/oc/preview", data={"service": "S1"}, files=tmp_upload())
+    r = de_client.post("/api/oc/preview", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["awb_count"] > 0
@@ -56,11 +56,11 @@ def test_preview_parses_without_writing(de_client):
 
 
 def test_unknown_service_and_empty_file_are_rejected(de_client):
-    bad_service = de_client.post("/api/oc/preview", data={"service": "S9"}, files=tmp_upload())
+    bad_service = de_client.post("/api/oc/preview", data={"service": "S9", "origin": "TMP_DEPOK"}, files=tmp_upload())
     assert bad_service.status_code == 400
 
     empty = de_client.post(
-        "/api/oc/preview", data={"service": "S1"},
+        "/api/oc/preview", data={"service": "S1", "origin": "TMP_DEPOK"},
         files={"file": ("empty.xlsx", b"", "application/octet-stream")},
     )
     assert empty.status_code == 400
@@ -70,7 +70,7 @@ def test_disabled_s3_is_rejected_outright(de_client):
     """S3 was the one layout where a wrong-service upload produced garbage AWBs with zero
     validation errors (the silent-commit gap found 26 Jul). Disabling S3 (27 Jul) closes
     that path: intake must refuse it as an unknown service, before parsing anything."""
-    r = de_client.post("/api/oc/create", data={"service": "S3"}, files=tmp_upload())
+    r = de_client.post("/api/oc/create", data={"service": "S3", "origin": "TMP_DEPOK"}, files=tmp_upload())
     assert r.status_code == 400
     assert r.json()["detail"] == "unknown_service"
 
@@ -78,7 +78,7 @@ def test_disabled_s3_is_rejected_outright(de_client):
 def test_wrong_forward_service_does_not_silently_commit(de_client):
     """A Regular TMP parsed with the Sameday layout reads koli from a different column,
     so every row must error rather than commit garbage (FR-OC5 all-or-nothing)."""
-    r = de_client.post("/api/oc/create", data={"service": "S2"}, files=tmp_upload())
+    r = de_client.post("/api/oc/create", data={"service": "S2", "origin": "TMP_DEPOK"}, files=tmp_upload())
     body = r.json() if r.status_code in (201, 422) else {}
     committed = body.get("awb_count", 0)
     errors = body.get("error_count", 0)
@@ -88,7 +88,7 @@ def test_wrong_forward_service_does_not_silently_commit(de_client):
 
 def test_create_persists_awbs_po_lines_and_courier_links(de_client):
     r = de_client.post(
-        "/api/oc/create", data={"service": "S1", "delivery_date": "2026-08-01"}, files=tmp_upload()
+        "/api/oc/create", data={"service": "S1", "delivery_date": "2026-08-01", "origin": "TMP_DEPOK"}, files=tmp_upload()
     )
     assert r.status_code == 201, r.text
     body = r.json()
@@ -116,7 +116,7 @@ def test_create_persists_awbs_po_lines_and_courier_links(de_client):
 
 def test_both_output_files_are_downloadable(de_client):
     intake_id = de_client.post(
-        "/api/oc/create", data={"service": "S1"}, files=tmp_upload()
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()
     ).json()["intake_id"]
 
     xlsx = de_client.get(f"/api/oc/intakes/{intake_id}/upload.xlsx")
@@ -130,7 +130,7 @@ def test_both_output_files_are_downloadable(de_client):
 
 def test_bad_delivery_date_is_rejected(de_client):
     r = de_client.post(
-        "/api/oc/create", data={"service": "S1", "delivery_date": "01-08-2026"}, files=tmp_upload()
+        "/api/oc/create", data={"service": "S1", "delivery_date": "01-08-2026", "origin": "TMP_DEPOK"}, files=tmp_upload()
     )
     assert r.status_code == 400
     assert r.json()["detail"] == "bad_delivery_date"
@@ -142,17 +142,17 @@ def test_reupload_skips_awbs_that_already_exist(de_client):
     Until 19 Aug this closed as 201 with awb_count 0 and produced an upload.xlsx holding
     only a header row, which reads like success while shipping nothing.
     """
-    first = de_client.post("/api/oc/create", data={"service": "S1"}, files=tmp_upload()).json()
+    first = de_client.post("/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()).json()
     assert first["awb_count"] > 0
 
-    again = de_client.post("/api/oc/create", data={"service": "S1"}, files=tmp_upload())
+    again = de_client.post("/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload())
     assert again.status_code == 409
     assert again.json()["detail"] == "all_awbs_already_exist"
 
 
 def test_printed_link_redirects_into_the_courier_wizard(de_client):
     intake_id = de_client.post(
-        "/api/oc/create", data={"service": "S1"}, files=tmp_upload()
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()
     ).json()["intake_id"]
     detail = de_client.get(f"/api/oc/intakes/{intake_id}").json()
     token = detail["awbs"][0]["courier_url"].rsplit("/", 1)[-1]
@@ -160,3 +160,38 @@ def test_printed_link_redirects_into_the_courier_wizard(de_client):
     r = de_client.get(f"/api/c/{token}", follow_redirects=False)
     assert r.status_code == 307
     assert r.headers["location"] == f"/c/{token}"
+
+
+def test_delete_intake_frees_the_awbs_for_reupload(de_client):
+    """The correction path: delete the bad batch, upload the fixed file."""
+    first = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()
+    ).json()
+    iid = first["intake_id"]
+    assert first["awb_count"] > 0
+
+    assert de_client.delete(f"/api/oc/intakes/{iid}").status_code == 204
+    assert de_client.get(f"/api/oc/intakes/{iid}").status_code == 404
+
+    again = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()
+    )
+    assert again.status_code == 201
+    assert again.json()["awb_count"] == first["awb_count"]
+
+
+def test_delete_intake_refuses_once_a_courier_has_filed_anything(de_client):
+    from conftest import photo
+
+    created = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK"}, files=tmp_upload()
+    ).json()
+    iid = created["intake_id"]
+    token = created["links"][0]["url"].rsplit("/c/", 1)[1]
+    de_client.post(f"/api/c/{token}/capture", data={"doc_type": "delivery_note"}, files=photo())
+
+    r = de_client.delete(f"/api/oc/intakes/{iid}")
+    assert r.status_code == 409
+    assert r.json()["detail"] == "intake_has_courier_activity"
+    # And nothing was deleted.
+    assert de_client.get(f"/api/oc/intakes/{iid}").status_code == 200

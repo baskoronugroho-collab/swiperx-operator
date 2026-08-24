@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError, api } from "../lib/api";
-import type { OcCreateResult, OcPreview, Service } from "../lib/api";
+import type { OcCreateResult, OcPreview, Origin, Service } from "../lib/api";
 import { Badge, Button, Card, ErrorNote, Field, Spinner, inputClass } from "../components/ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -13,6 +13,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 export default function OrderCreation() {
   const [services, setServices] = useState<Service[]>([]);
   const [service, setService] = useState("");
+  const [origins, setOrigins] = useState<Origin[]>([]);
+  const [origin, setOrigin] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(today());
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<OcPreview | null>(null);
@@ -27,6 +29,8 @@ export default function OrderCreation() {
       .then((r) => {
         setServices(r.services);
         setService((s) => s || r.services[0]?.code || "");
+        setOrigins(r.origins ?? []);
+        setOrigin((o) => o || r.origins?.[0]?.code || "");
       })
       .catch(() => setError("Couldn’t load the service list."));
   }, []);
@@ -63,7 +67,7 @@ export default function OrderCreation() {
     setBusy("create");
     setError(null);
     try {
-      setResult(await api.oc.create(service, file, deliveryDate));
+      setResult(await api.oc.create(service, file, deliveryDate, origin));
     } catch (err) {
       setError(describe(err));
     } finally {
@@ -111,6 +115,26 @@ export default function OrderCreation() {
               (delivery_start_date) and that is correct, not a compromise: the forward
               upload template has no pickup_date column at all, so col S is the only date
               field on it. Returns carry both, set to the same day, matching the template. */}
+          {/* Recorded on every AWB in the batch. A partial return months later reads it
+              straight off its forward order to address itself home, which is the manual
+              lookup this replaces — so it is required, never guessed. */}
+          <Field label="Origin" hint="Which warehouse this batch ships out of.">
+            <select
+              className={inputClass}
+              value={origin}
+              onChange={(e) => {
+                setOrigin(e.target.value);
+                reset();
+              }}
+            >
+              {origins.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Pickup date" hint="A single day — not a range.">
             <input
               type="date"
@@ -142,7 +166,7 @@ export default function OrderCreation() {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <Button onClick={runPreview} disabled={!file || busy !== null}>
+          <Button onClick={runPreview} disabled={!file || !origin || busy !== null}>
             {busy === "preview" ? "Checking…" : "Check file"}
           </Button>
           {busy === "preview" && <Spinner />}
@@ -393,6 +417,7 @@ function describe(err: unknown): string {
     unknown_service: "Unknown service — reload the page and pick again.",
     no_valid_awbs: "No valid AWBs were found in this file.",
     bad_delivery_date: "The pickup date isn’t valid.",
+    bad_origin: "Pick which warehouse this batch ships out of.",
     all_awbs_already_exist:
       "Every AWB in this file already exists, so nothing was created. Note that re-uploading "
       + "a corrected file does NOT update an existing AWB — it is skipped.",

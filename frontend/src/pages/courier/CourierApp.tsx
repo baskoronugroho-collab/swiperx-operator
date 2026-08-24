@@ -2,45 +2,48 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { ApiError, api } from "../../lib/api";
-import type { CourierOrder, DocType, FailReason, Outcome } from "../../lib/api";
+import type { CourierOrder, DocType, Outcome } from "../../lib/api";
 import PhotoCapture from "./PhotoCapture";
-import {
-  DeliveryNoteGuide,
-  DnReturnCloseUpGuide,
-  SpManualGuide,
-} from "./PhotoGuides";
+import { DeliveryNoteGuide, DnReturnCloseUpGuide } from "./PhotoGuides";
 
 type Phase =
+  | "identity"
   | "start"
-  | "pharmacy_pod"
-  | "receiver_pod"
   | "delivery_note"
-  | "sp_manual"
-  | "reject_question"
   | "reject_capture"
   | "confirm"
-  | "fail_reason"
-  | "fail_photo"
   | "done_delivered"
   | "done_reject"
-  | "done_failed";
+  | "done_failed"; // legacy rows only — the fail flow was removed 19 Aug 2026
 
 /** The courier app. Opened from the tokenized link with no login — the token is the
  *  credential. Phased, one decision per screen, and it never scrolls the whole page
- *  (PRD FR-D1): the header and footer are fixed, only the middle scrolls. */
+ *  (PRD FR-D1): the header and footer are fixed, only the middle scrolls.
+ *
+ *  Reworked 19 Aug 2026: the instruction to couriers is to open this link ONLY when some
+ *  form of return happens at the point of delivery. Forward-delivery proof (pharmacy /
+ *  receiver POD) and the fail flow are the Ninja driver app's job and were removed — the
+ *  three choices are: tidak ada retur, retur sebagian, retur semua. */
 export default function CourierApp() {
   const { token = "" } = useParams();
   const [order, setOrder] = useState<CourierOrder | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("start");
   const [outcome, setOutcome] = useState<Outcome>("delivered");
-  /** True when "Retur semua paket" was chosen up front (QC feedback, 27 Jul): a full
-   *  reject skips the SP-Manual step (nothing is accepted, so no SP can be requested)
-   *  and submits return_type "semua", not "sebagian". */
+  /** True when "Retur semua paket" was chosen up front (QC feedback, 27 Jul): it skips
+   *  the reject question — the answer is already known — and submits return_type "semua"
+   *  rather than "sebagian", which is what routes it to RTS instead of a new return AWB. */
   const [fullReject, setFullReject] = useState(false);
-  const [spPos, setSpPos] = useState<string[]>([]);
-  const [failReason, setFailReason] = useState<FailReason | null>(null);
-  const [failNote, setFailNote] = useState("");
+  /** How many pieces came back. A count only: there is no way to collect item names at the
+   *  door, and asking for them would cost the driver time the process cannot spare. It
+   *  becomes the return OC's item_description and is what the pre-handover check reconciles
+   *  against, alongside the goods photo and the notes on the BA Retur. */
+  const [rejectPcs, setRejectPcs] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [hubName, setHubName] = useState("");
+  /** Fallback: the fixed hub list is maintained by ops and can lag reality. Ticking this
+   *  switches the picker to free text so a driver at a brand-new hub is never stuck. */
+  const [hubNotListed, setHubNotListed] = useState(false);
   const [gateMissing, setGateMissing] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,9 @@ export default function CourierApp() {
       const o = await api.courier.order(token);
       setOrder(o);
       if (o.terminal) setPhase(o.status === "delivery_failed" ? "done_failed" : "done_delivered");
+      // Nobody captures anything before saying who they are. Once driver_id is set this
+      // stops firing, so a resumed link does not ask twice.
+      else if (!o.driver_id) setPhase("identity");
     } catch (err) {
       setLoadError(
         err instanceof ApiError && err.status === 404
@@ -90,28 +96,14 @@ export default function CourierApp() {
         setBusy(false);
         return;
       }
-      await api.courier.submit(token, { outcome: target, return_type: returnType });
+      await api.courier.submit(token, {
+        outcome: target,
+        return_type: returnType,
+        reject_pcs: target === "reject" && rejectPcs ? Number(rejectPcs) : undefined,
+      });
       setPhase(target === "reject" ? "done_reject" : "done_delivered");
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Gagal mengirim. Coba lagi.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doFail() {
-    if (!failReason) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await api.courier.fail(token, { fail_reason: failReason, reason_note: failNote || undefined });
-      setPhase("done_failed");
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 422
-          ? "Foto bukti belum ada."
-          : "Gagal mengirim. Coba lagi.",
-      );
     } finally {
       setBusy(false);
     }
@@ -134,72 +126,137 @@ export default function CourierApp() {
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
 
+  if (phase === "identity") {
+    const idOk = /^\d+$/.test(driverId.trim());
+    const hubOk = hubNotListed
+      ? hubName.trim().length >= 2
+      : order.hubs.includes(hubName.trim());
+    body = (
+      <div className="space-y-4">
+        <div>
+          <p className="text-lg font-bold">Sebelum mulai</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Isi identitas dulu. Ini dipakai untuk insentif dan supaya Station IC bisa
+            menemukan pengantaran ini.
+          </p>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold">Driver ID</span>
+          <input
+            className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base outline-none focus:border-nv-red"
+            value={driverId}
+            onChange={(e) => setDriverId(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="contoh: 123456"
+          />
+          <span className="mt-1 block text-xs text-ink-muted">Angka saja.</span>
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold">Hub</span>
+          <input
+            className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base outline-none focus:border-nv-red"
+            value={hubName}
+            onChange={(e) => setHubName(e.target.value.toUpperCase())}
+            list={hubNotListed ? undefined : "hub-options"}
+            autoComplete="off"
+            placeholder="ketik untuk mencari — contoh: MAC-KD5"
+          />
+          {!hubNotListed && (
+            <datalist id="hub-options">
+              {order.hubs.map((h) => (
+                <option key={h} value={h} />
+              ))}
+            </datalist>
+          )}
+          <span className="mt-1 block text-xs text-ink-muted">
+            {hubNotListed
+              ? "Tulis nama hub kamu apa adanya."
+              : hubName && !hubOk
+                ? "Hub tidak ada di daftar. Pilih dari daftar, atau centang di bawah."
+                : `Pilih dari ${order.hubs.length} hub yang terdaftar.`}
+          </span>
+          <label className="mt-2 flex items-center gap-2 text-xs text-ink-muted">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-nv-red"
+              checked={hubNotListed}
+              onChange={(e) => setHubNotListed(e.target.checked)}
+            />
+            Hub saya tidak ada di daftar
+          </label>
+        </label>
+
+        {error && <p className="text-sm font-semibold text-danger">{error}</p>}
+      </div>
+    );
+    footer = (
+      <Next
+        disabled={busy || !idOk || !hubOk}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            await api.courier.identity(token, driverId.trim(), hubName.trim(), hubNotListed);
+            await reload();
+            setPhase("start");
+          } catch (err) {
+            setError(err instanceof ApiError ? err.detail : "Gagal menyimpan. Coba lagi.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    );
+  }
+
   if (phase === "start") {
     body = (
       <div className="space-y-4">
         <OrderContext order={order} totalKoli={totalKoli} />
-        <p className="text-sm font-bold">Apa yang terjadi di lokasi?</p>
+        <div>
+          <p className="text-sm font-bold">Ada barang yang diretur di titik pengantaran?</p>
+          <p className="mt-1 text-xs text-ink-muted">
+            Link ini khusus untuk lapor retur. Foto serah terima dan gagal kirim tetap lewat
+            aplikasi driver Ninja seperti biasa.
+          </p>
+        </div>
         <div className="space-y-2">
           <BigChoice
-            label={isReturn ? "Tidak ada barang retur (sukses)" : "Pengantaran normal"}
-            sub={isReturn ? "Tetap minta form retur ditandatangani meski kosong" : "Semua paket diterima"}
+            label={isReturn ? "Tidak ada barang retur (sukses)" : "Tidak ada retur"}
+            sub={isReturn ? "Tetap minta form retur ditandatangani meski kosong" : "Konfirmasi saja — tidak perlu foto"}
             onClick={() => {
               setOutcome("delivered");
               setFullReject(false);
-              setPhase(isReturn ? "delivery_note" : "pharmacy_pod");
+              setPhase(isReturn ? "delivery_note" : "confirm");
             }}
           />
           <BigChoice
-            label={isReturn ? "Ada barang retur ditarik" : "Retur semua paket"}
-            sub={isReturn ? "Bawa kembali barang + BA retur" : "Apotek menolak seluruh kiriman"}
+            label={isReturn ? "Ada barang retur ditarik" : "Retur sebagian"}
+            sub={isReturn ? "Bawa kembali barang + BA retur" : "Sebagian paket dikembalikan apotek"}
+            tone={isReturn ? undefined : "danger"}
             onClick={() => {
               setOutcome("reject");
-              setFullReject(!isReturn);
-              setPhase(isReturn ? "delivery_note" : "pharmacy_pod");
+              setFullReject(false);
+              setPhase("delivery_note");
             }}
           />
-          <BigChoice
-            label="Gagal kirim"
-            sub="Tidak ada serah terima sama sekali"
-            tone="danger"
-            onClick={() => setPhase("fail_reason")}
-          />
+          {!isReturn && (
+            <BigChoice
+              label="Retur semua paket"
+              sub="Apotek menolak seluruh kiriman"
+              tone="danger"
+              onClick={() => {
+                setOutcome("reject");
+                setFullReject(true);
+                setPhase("delivery_note");
+              }}
+            />
+          )}
         </div>
       </div>
-    );
-  }
-
-  if (phase === "pharmacy_pod") {
-    body = (
-      <PhotoCapture
-        token={token}
-        docType="pharmacy_pod"
-        existing={first("pharmacy_pod")}
-        onChange={reload}
-        label="Foto apotek"
-        hint="Tampak depan apotek / lokasi penerima."
-      />
-    );
-    footer = <Next disabled={!first("pharmacy_pod")} onClick={() => setPhase("receiver_pod")} />;
-  }
-
-  if (phase === "receiver_pod") {
-    body = (
-      <PhotoCapture
-        token={token}
-        docType="receiver_pod"
-        existing={first("receiver_pod")}
-        onChange={reload}
-        label="Foto penerima"
-        hint="Orang yang menerima paket. Wajib Apoteker (APJ) atau TTK — bukan security."
-      />
-    );
-    footer = (
-      <Next
-        disabled={!first("receiver_pod")}
-        onClick={() => setPhase("delivery_note")}
-        onBack={() => setPhase("pharmacy_pod")}
-      />
     );
   }
 
@@ -236,119 +293,10 @@ export default function CourierApp() {
     footer = (
       <Next
         disabled={!dn || !dn.signed_stamped}
-        onClick={() =>
-          // Full reject skips SP-Manual entirely — no package is accepted, so there is
-          // no SP to request from the pharmacy (QC feedback slide 5).
-          setPhase(isReturn ? "confirm" : fullReject ? "reject_capture" : "sp_manual")
-        }
-        onBack={() => setPhase(isReturn ? "start" : "receiver_pod")}
+        onClick={() => setPhase(isReturn ? "confirm" : "reject_capture")}
+        onBack={() => setPhase("start")}
       />
     );
-  }
-
-  if (phase === "sp_manual") {
-    body = (
-      <div className="space-y-4">
-        {/* Prekursor / non-prekursor was removed 10 Aug 2026: the courier cannot tell them
-            apart at the door, and it does not change what they have to do. The only signal
-            that matters is the Tipe Dokumen column on the DN — "Manual" carries the footnote
-            "Tipe dokumen manual wajib menyertakan Surat Pesanan Asli". */}
-        <div className="rounded-2xl bg-warn-soft p-4 text-sm text-warn">
-          <p className="font-bold">Cek kolom Tipe Dokumen di Delivery Note</p>
-          <p className="mt-1">
-            Kalau tertulis <b>Manual</b> → minta Surat Pesanan asli ke apotek, lalu foto. Kalau
-            tertulis <b>Elektronik</b> → tidak perlu minta SP.
-          </p>
-        </div>
-        <p className="text-sm font-bold">Tandai PO yang butuh SP Manual</p>
-        <div className="space-y-2">
-          {order.po_lines.map((po) => {
-            const flagged = spPos.includes(po.po_number);
-            const shot = capturesBy.get("sp_manual")?.find((c) => c.po_number === po.po_number);
-            return (
-              <div key={po.po_number} className="rounded-2xl border border-line bg-surface p-3">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 accent-nv-red"
-                    checked={flagged}
-                    onChange={(e) =>
-                      setSpPos((prev) =>
-                        e.target.checked
-                          ? [...prev, po.po_number]
-                          : prev.filter((p) => p !== po.po_number),
-                      )
-                    }
-                  />
-                  <span className="flex-1">
-                    <span className="block font-mono text-xs">{po.po_number}</span>
-                    <span className="block text-xs text-ink-muted">{po.koli} koli</span>
-                  </span>
-                  {shot && <span className="text-xs font-semibold text-ok">✓ SP</span>}
-                </label>
-                {flagged && (
-                  <div className="mt-3">
-                    <PhotoCapture
-                      token={token}
-                      docType="sp_manual"
-                      poNumber={po.po_number}
-                      existing={shot}
-                      onChange={reload}
-                      guide={<SpManualGuide />}
-                      label="Foto SP Manual"
-                      hint="Surat Pesanan asli dari apotek. Nomor SP harus terbaca."
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-    const pending = spPos.filter(
-      (p) => !capturesBy.get("sp_manual")?.some((c) => c.po_number === p),
-    );
-    footer = (
-      <Next
-        disabled={pending.length > 0}
-        hint={pending.length > 0 ? `${pending.length} SP Manual belum difoto` : undefined}
-        onClick={() => setPhase(outcome === "reject" ? "reject_capture" : "reject_question")}
-        onBack={() => setPhase("delivery_note")}
-      />
-    );
-  }
-
-  if (phase === "reject_question") {
-    body = (
-      <div className="space-y-4">
-        <p className="text-lg font-bold">Ada barang yang ditolak / diretur?</p>
-        <p className="text-sm text-ink-muted">
-          Kalau ada sebagian barang yang tidak diterima apotek, pilih “Ya”.
-        </p>
-        <div className="space-y-2">
-          <BigChoice
-            label="Tidak ada"
-            sub="Semua paket diterima"
-            onClick={() => {
-              setOutcome("delivered");
-              setPhase("confirm");
-            }}
-          />
-          <BigChoice
-            label="Ya, ada retur sebagian"
-            sub="Isi BA retur dan foto barangnya"
-            tone="danger"
-            onClick={() => {
-              setOutcome("reject");
-              setFullReject(false);
-              setPhase("reject_capture");
-            }}
-          />
-        </div>
-      </div>
-    );
-    footer = <Next hideNext onBack={() => setPhase("sp_manual")} />;
   }
 
   if (phase === "reject_capture") {
@@ -403,15 +351,32 @@ export default function CourierApp() {
           label="Foto label AWB"
           hint="Foto tiap label kalau ada beberapa paket retur."
         />
+        <label className="block rounded-2xl border border-line bg-surface p-4">
+          <span className="block text-sm font-bold">Berapa pcs barang yang diretur?</span>
+          <span className="mt-1 block text-xs text-ink-muted">
+            Jumlah saja, tidak perlu nama barang. Dicocokkan nanti dengan barang yang diterima.
+          </span>
+          <input
+            className="mt-2 w-full rounded-xl border border-line bg-canvas px-4 py-3 text-base outline-none focus:border-nv-red"
+            value={rejectPcs}
+            onChange={(e) => setRejectPcs(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="contoh: 3"
+          />
+        </label>
       </div>
     );
     footer = (
       <Next
-        disabled={dnShots.length < 2 || !first("rejected_goods") || !first("awb_sticker")}
-        onClick={() => setPhase("confirm")}
-        onBack={() =>
-          setPhase(isReturn || fullReject ? "delivery_note" : "reject_question")
+        disabled={
+          dnShots.length < 2 ||
+          !first("rejected_goods") ||
+          !first("awb_sticker") ||
+          !rejectPcs
         }
+        onClick={() => setPhase("confirm")}
+        onBack={() => setPhase("delivery_note")}
       />
     );
   }
@@ -421,6 +386,12 @@ export default function CourierApp() {
       <div className="space-y-4">
         <p className="text-lg font-bold">Cek sebelum kirim</p>
         <OrderContext order={order} totalKoli={totalKoli} />
+        {outcome === "delivered" && !isReturn && (
+          <div className="rounded-2xl bg-ok-soft p-4 text-sm text-ok">
+            <b>Tidak ada barang retur.</b> Tidak perlu foto — cukup konfirmasi, lalu selesaikan
+            pengantaran di aplikasi driver Ninja.
+          </div>
+        )}
         <div className="rounded-2xl border border-line bg-surface p-4">
           <p className="text-sm font-bold">
             {order.captures.length} foto terkumpul
@@ -465,76 +436,9 @@ export default function CourierApp() {
           {busy ? "Mengirim…" : "Konfirmasi pengantaran"}
         </button>
         <button
-          onClick={() => setPhase(outcome === "reject" ? "reject_capture" : "reject_question")}
+          onClick={() => setPhase(outcome === "reject" ? "reject_capture" : "start")}
           className="w-full py-2 text-sm font-semibold text-ink-muted"
         >
-          Kembali
-        </button>
-      </div>
-    );
-  }
-
-  if (phase === "fail_reason") {
-    body = (
-      <div className="space-y-4">
-        <p className="text-lg font-bold">Kenapa gagal kirim?</p>
-        <div className="space-y-2">
-          {order.fail_reasons.map((r) => (
-            <button
-              key={r.code}
-              onClick={() => setFailReason(r.code)}
-              className={`w-full rounded-2xl border p-3 text-left text-sm ${
-                failReason === r.code
-                  ? "border-nv-red bg-nv-red-soft font-semibold"
-                  : "border-line bg-surface"
-              }`}
-            >
-              {r.id}
-              <span className="block text-xs text-ink-muted">{r.en}</span>
-            </button>
-          ))}
-        </div>
-        <textarea
-          className="w-full rounded-xl border border-line px-3 py-2 text-sm"
-          rows={2}
-          placeholder="Catatan tambahan (opsional)"
-          value={failNote}
-          onChange={(e) => setFailNote(e.target.value)}
-        />
-      </div>
-    );
-    footer = (
-      <Next disabled={!failReason} onClick={() => setPhase("fail_photo")} onBack={() => setPhase("start")} />
-    );
-  }
-
-  if (phase === "fail_photo") {
-    body = (
-      <div className="space-y-4">
-        <PhotoCapture
-          token={token}
-          docType="awb_sticker"
-          existing={first("awb_sticker")}
-          onChange={reload}
-          label="Foto bukti"
-          hint="Foto lokasi / kondisi yang membuktikan alasan gagal kirim."
-        />
-        <p className="text-xs text-ink-muted">
-          Foto diambil langsung dan waktunya dicatat untuk keperluan pemeriksaan.
-        </p>
-        {error && <p className="text-sm font-semibold text-danger">{error}</p>}
-      </div>
-    );
-    footer = (
-      <div className="space-y-2">
-        <button
-          disabled={!first("awb_sticker") || busy}
-          onClick={doFail}
-          className="w-full rounded-xl bg-danger px-4 py-3.5 text-base font-bold text-white disabled:opacity-50"
-        >
-          {busy ? "Mengirim…" : "Kirim laporan gagal"}
-        </button>
-        <button onClick={() => setPhase("fail_reason")} className="w-full py-2 text-sm font-semibold text-ink-muted">
           Kembali
         </button>
       </div>
@@ -554,17 +458,13 @@ export default function CourierApp() {
     );
   }
 
-  /* The segmented progress rail: one segment per remaining phase of the CURRENT route
-     through the wizard (routes differ — full reject skips SP-Manual, returns skip PODs).
+  /* The segmented progress rail: one segment per remaining phase of the CURRENT route.
      It answers the courier's only real question at the door: how much is left? */
-  const rail: Phase[] = phase === "fail_reason" || phase === "fail_photo"
-    ? ["fail_reason", "fail_photo"]
-    : isReturn
-      ? ["start", "delivery_note", "confirm"]
-      : fullReject
-        ? ["start", "pharmacy_pod", "receiver_pod", "delivery_note", "reject_capture", "confirm"]
-        : ["start", "pharmacy_pod", "receiver_pod", "delivery_note", "sp_manual", "reject_question",
-           ...(outcome === "reject" ? (["reject_capture"] as Phase[]) : []), "confirm"];
+  const rail: Phase[] = isReturn
+    ? ["start", "delivery_note", "confirm"]
+    : outcome === "reject"
+      ? ["start", "delivery_note", "reject_capture", "confirm"]
+      : ["start", "confirm"];
   const railAt = Math.max(0, rail.indexOf(phase));
 
   return (

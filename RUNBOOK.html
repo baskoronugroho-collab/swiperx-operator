@@ -259,23 +259,28 @@
       <span class="sec-num">Process flow</span>
       <h2>One AWB, end to end</h2>
       <p class="sec-note">
-        Six stages. Each one has an owner, and the handover between them is where things
-        usually go wrong — so the "where" line names the exact screen.
+        Eight stages. Each has an owner, and the handover between them is where things go wrong &mdash;
+        so the &ldquo;where&rdquo; line names the exact screen. A delivery with nothing rejected
+        stops at stage&nbsp;4.
       </p>
     </div>
 
     <div class="pipe" aria-hidden="true">
       <div class="node"><span class="n mono">01</span><span class="t">Batch file</span></div>
-      <span class="arrow">→</span>
+      <span class="arrow">&rarr;</span>
       <div class="node"><span class="n mono">02</span><span class="t">Order creation</span></div>
-      <span class="arrow">→</span>
+      <span class="arrow">&rarr;</span>
       <div class="node"><span class="n mono">03</span><span class="t">Upload to Ninja</span></div>
-      <span class="arrow">→</span>
+      <span class="arrow">&rarr;</span>
       <div class="node"><span class="n mono">04</span><span class="t">Driver captures</span></div>
-      <span class="arrow">→</span>
-      <div class="node"><span class="n mono">05</span><span class="t">Reject returns</span></div>
-      <span class="arrow">→</span>
-      <div class="node"><span class="n mono">06</span><span class="t">Closed</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><span class="n mono">05</span><span class="t">Validator checks</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><span class="n mono">06</span><span class="t">DE uploads</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><span class="n mono">07</span><span class="t">IC prints &amp; repacks</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><span class="n mono">08</span><span class="t">Final check</span></div>
     </div>
 
     <ol class="tl">
@@ -285,81 +290,105 @@
         <p class="body">
           An <span class="id mono">.xlsx</span> listing every pharmacy order for the day. One
           <b>SwipeAWB</b> per pharmacy delivery, with its PO lines and koli underneath it.
-          Continuation rows carry only the PO columns — that blank SwipeAWB is what groups them.
+          Continuation rows carry only the PO columns &mdash; that blank SwipeAWB is what groups them.
         </p>
-        <p class="where"><b>Where:</b> arrives by email or shared drive, outside this tool.</p>
+        <p class="where"><b>Where:</b> arrives by email, outside this tool.</p>
       </li>
 
       <li>
         <span class="bead mono">02</span>
         <div class="row"><h3>Create the orders</h3><span class="chip">DE / Implant</span></div>
         <p class="body">
-          Upload the TMP, pick the service and pickup date, and check the preview. Every row
-          error shows before anything is committed. On create, the tool writes one Ninja Van
-          upload row per SwipeAWB and mints an unguessable courier link for each — the link is
-          injected straight into the delivery instructions the driver will see.
+          Upload the TMP, pick the service, the pickup date and the <b>origin</b> &mdash; TMP Depok or
+          TMP Surabaya. The origin is recorded on every AWB in the batch, which is what lets a
+          return later find its own way home without anyone looking it up. Check the preview:
+          every row error shows before anything is committed.
         </p>
-        <p class="where"><b>Where:</b> Order creation → download <span class="id mono">upload.xlsx</span> + <span class="id mono">links.csv</span></p>
+        <p class="where"><b>Where:</b> Order creation &rarr; download <span class="id mono">upload.xlsx</span> + <span class="id mono">links.csv</span></p>
       </li>
 
       <li>
         <span class="bead mono">03</span>
         <div class="row"><h3>Upload that file into Ninja Van</h3><span class="chip">DE / Implant</span></div>
         <p class="body">
-          The generated <span class="id mono">upload.xlsx</span> goes into Ninja's own order
-          creation. This tool does not talk to Ninja directly — this step is a person moving a
-          file. Nothing you change here afterwards will change the order on Ninja's side.
+          The generated <span class="id mono">upload.xlsx</span> goes into Ninja&rsquo;s own order
+          creation. This tool does not talk to Ninja directly &mdash; this step is a person moving a file.
+          Nothing changed here afterwards changes the order on Ninja&rsquo;s side.
         </p>
-        <p class="where"><b>Where:</b> Ninja Van's order-creation system.</p>
+        <p class="where"><b>Where:</b> Ninja Van&rsquo;s order-creation system.</p>
       </li>
 
       <li class="is-driver">
         <span class="bead mono">04</span>
-        <div class="row"><h3>Driver opens the link and files proof</h3><span class="chip red">Driver — no login</span></div>
+        <div class="row"><h3>Driver opens the link and files proof</h3><span class="chip red">Driver &mdash; no login</span></div>
         <p class="body">
-          At the pharmacy the driver taps the link printed in the delivery instructions. It opens
-          a guided wizard: pharmacy POD, receiver POD, the Delivery Note, an SP-Manual photo for
-          any PO that needs one, then the question that drives everything downstream — was
-          anything rejected?
+          The link is opened <b>only when some form of return happens</b> at the point of
+          delivery &mdash; normal proof-of-delivery and failed deliveries stay in the Ninja driver
+          app, untouched. The driver enters their <b>Driver ID</b> and <b>Hub Name</b> (with a
+          &ldquo;my hub isn&rsquo;t listed&rdquo; fallback), then picks one of three:
+          <b>tidak ada retur</b> (one confirm, no photos), <b>retur sebagian</b> or <b>retur
+          semua</b>. A reject captures the Delivery Note twice (full page + return close-up),
+          the goods, the AWB label, and <b>how many pieces</b> came back. The final screen says
+          to screenshot it and inform the Station IC.
         </p>
-        <p class="where"><b>Where:</b> the <span class="id mono">/c/…</span> link. Works on any phone, no account needed.</p>
+        <p class="where"><b>Where:</b> the <span class="id mono">/c/&hellip;</span> link. Any phone, no account. <b>Tidak ada retur &rarr; finished here.</b></p>
       </li>
 
       <li>
         <span class="bead mono">05</span>
-        <div class="row"><h3>Ops acknowledges the reject and closes it</h3><span class="chip">Station IC</span><span class="chip">DE / Implant</span><span class="chip">PM</span></div>
+        <div class="row"><h3>Validator checks the photos</h3><span class="chip">Validator</span></div>
         <p class="body">
-          Any rejected goods land on the reject worklist with the driver's photos attached.
-          Acknowledge the row first &mdash; nothing can be closed before that, which is deliberate.
-          <b>How it closes then depends on how much came back</b>, and the app only ever offers the
-          correct one of the two.
+          Every reject &mdash; partial or whole &mdash; is reviewed before it moves. The Validator confirms the
+          Delivery Note, the return section and the goods photos actually show what the driver
+          claimed. Bad evidence is caught here rather than discovered three steps later.
         </p>
-        <div class="grid two" style="margin-top:.35rem">
-          <div class="call">
-            <span class="lbl">Part of the order came back</span>
-            <p>A genuine return: only some of the consignment travels back, so it needs its own
-            return tracking number. Record the <b>replacement TIDs</b> DE minted on the RTS account.</p>
-          </div>
-          <div class="call">
-            <span class="lbl">The whole delivery was refused</span>
-            <p><b>No new tracking number is created.</b> The parcel already has one, so Ninja simply
-            triggers <b>RTS</b> on the original forward AWB. Do that in Ninja, then press
-            <b>Mark RTS triggered</b>. Minting a second TID would duplicate the parcel and split
-            its history across two identifiers.</p>
-          </div>
-        </div>
-        <p class="where"><b>Where:</b> Reject returns → <b>Not yet acknowledged</b> → <b>Awaiting action</b> → <b>Closed &mdash; TIDs sent</b> <i>or</i> <b>Closed &mdash; RTS triggered</b></p>
+        <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending Validator</b></p>
       </li>
 
       <li>
         <span class="bead mono">06</span>
-        <div class="row"><h3>Closed out</h3><span class="chip ok">Done</span></div>
+        <div class="row"><h3>DE uploads to Ninja</h3><span class="chip">DE / Implant</span></div>
         <p class="body">
-          The AWB carries its final state — delivered, or delivery failed with a reason and proof
-          photo. Everything the driver captured stays attached to it, and the reject row shows who
-          acknowledged it and when.
+          What DE does depends on how much came back, and the app only offers the correct one.
         </p>
-        <p class="where"><b>Where:</b> Upload history, Courier links, Reject returns (CSV export available).</p>
+        <div class="grid two" style="margin-top:.35rem">
+          <div class="call">
+            <span class="lbl">Retur sebagian &mdash; part came back</span>
+            <p>The forward AWB is already completed, so a <b>new return AWB is required</b>. DE
+            exports the return OC &mdash; origin pre-filled from the original order &mdash; uploads it to
+            Ninja, and the row moves to Pending Print.</p>
+          </div>
+          <div class="call">
+            <span class="lbl">Retur semua &mdash; the whole delivery refused</span>
+            <p><b>No new AWB.</b> The parcel already has one, so Ninja triggers <b>RTS</b> on the
+            original forward tracking number. Validated rows are marked in bulk and exported for
+            upload. <b>This branch never reaches Pending Print</b> &mdash; it travels on its original label.</p>
+          </div>
+        </div>
+        <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending DE upload</b>. Monitored to a <b>22:00 cutoff</b>.</p>
+      </li>
+
+      <li>
+        <span class="bead mono">07</span>
+        <div class="row"><h3>Station IC prints, labels and repacks</h3><span class="chip">Station IC</span></div>
+        <p class="body">
+          Partial returns only. IC filters the worklist by <b>Hub Name</b>, opens each row, finds the
+          tracking number in <b>OPV2</b>, prints the label, labels and repacks the parcel, then sends
+          it back. The tracking number is handed to them &mdash; no hunting through a chat group for it.
+        </p>
+        <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending Print</b> &rarr; <b>Printed &amp; Labelled</b></p>
+      </li>
+
+      <li>
+        <span class="bead mono">08</span>
+        <div class="row"><h3>Final check before handover</h3><span class="chip">DE / Implant</span><span class="chip ok">Closed</span></div>
+        <p class="body">
+          The returned goods arrive back and are checked once more <b>immediately before handover to
+          SwipeRx</b>. The piece count the driver entered at the door is what this is checked
+          against, alongside the goods photo and the notes on the BA Retur &mdash; three independent
+          records of the same thing.
+        </p>
+        <p class="where"><b>Where:</b> Reject returns &rarr; closed, with the full trail exportable to CSV.</p>
       </li>
     </ol>
   </div>
@@ -452,9 +481,9 @@
             <td>Reject returns</td>
           </tr>
           <tr>
-            <td><span class="chip warn">Validator</span></td>
-            <td>Document validation</td>
-            <td><b>Nothing yet</b> — the lane isn't built in this cut. Assigning it lets someone sign in and no more.</td>
+            <td><span class="chip">Validator</span></td>
+            <td>Checks the driver&rsquo;s reject photos before anything moves</td>
+            <td>Reject returns &mdash; the <b>Pending Validator</b> queue, partial and whole rejects alike</td>
           </tr>
           <tr>
             <td><span class="chip warn">SwipeRx</span></td>
@@ -508,16 +537,21 @@
       </div>
 
       <div class="card">
-        <h3>Work the reject queue <span class="chip">Station IC</span><span class="chip">PM</span></h3>
+        <h3>Work the reject queue <span class="chip">Validator</span><span class="chip">DE / Implant</span><span class="chip">Station IC</span></h3>
         <ol class="steps">
+          <li><b>Validator</b> &mdash; open <b>Pending Validator</b> and check the driver&rsquo;s photos: the DN return section, the goods, the AWB label. Confirm they show what was claimed.</li>
           <li>Open <b>Reject returns</b>. By default it shows only rows still needing attention.</li>
-          <li>Open a row and check the driver's photos — the DN return section, the goods, the AWB label.</li>
           <li>Press <b>Acknowledge</b>. This records who you are and when.</li>
-          <li><b>Partial return</b> &mdash; once the replacement parcels are sent, record the
-            <b>return TIDs</b> on the row.</li>
+          <li><b>Partial return</b> &mdash; <b>DE</b> exports the return OC (origin pre-filled from the
+            original order), uploads it to Ninja, then the row moves to <b>Pending Print</b> for
+            Station IC to print, label and repack.</li>
           <li><b>Whole delivery refused</b> &mdash; trigger <b>RTS</b> on the original forward AWB in
-            Ninja, then press <b>Mark RTS triggered</b>. There is no TID to paste; the app won't
-            ask for one.</li>
+            Ninja, then press <b>Mark RTS triggered</b>. No new AWB, no label, no print step.</li>
+          <li>Rows whose origin could not be matched sit under the <b>Origin unknown</b> filter
+            &mdash; set them in bulk there before exporting, or the return ships to the wrong
+            warehouse.</li>
+          <li>Narrow the list any way you need: the stage tabs, plus <b>per-column filters</b>
+            (type, origin, hub) and free-text search &mdash; they stack.</li>
           <li>Export to CSV if finance or SwipeRx need the audit trail &mdash; it carries both
             closing paths with who and when.</li>
         </ol>
@@ -557,53 +591,53 @@
 
     <div class="grid two">
       <div class="card">
-        <h3>Normal delivery</h3>
+        <h3>Tidak ada retur</h3>
         <ul class="plain">
-          <li>Pharmacy POD photo</li>
-          <li>Receiver POD photo</li>
-          <li>Delivery Note, full page</li>
-          <li>SP-Manual photo for each PO whose <b>Tipe Dokumen</b> on the DN reads <b>Manual</b></li>
-          <li>"Was anything rejected?" → <b>No</b></li>
-          <li>Review and submit</li>
+          <li><b>Driver ID</b> and <b>Hub Name</b> first &mdash; a &ldquo;hub saya tidak ada di
+            daftar&rdquo; tick opens free text if the list is missing theirs</li>
+          <li>One confirm &mdash; <b>no photos at all</b></li>
+          <li>Reminder: complete the delivery in the Ninja driver app as usual</li>
         </ul>
       </div>
       <div class="card">
-        <h3>Partial reject</h3>
+        <h3>Retur sebagian</h3>
         <ul class="plain">
-          <li>Same as above, but answer <b>Yes</b></li>
-          <li>Close-up of the DN return section</li>
-          <li>Photo of the rejected goods</li>
-          <li>Photo of the AWB label</li>
-          <li>Review and submit</li>
+          <li>Delivery Note, full page &mdash; signed &amp; stamped, with the attestation tick</li>
+          <li>Close-up of the Berita Acara Return table</li>
+          <li><b>How many pieces came back</b> &mdash; a count, no item names</li>
+          <li>Photos of the rejected goods and each AWB label (multiple allowed)</li>
+          <li>Review, submit, screenshot the final page for the Station IC</li>
         </ul>
       </div>
       <div class="card">
-        <h3>Whole delivery refused</h3>
+        <h3>Retur semua paket</h3>
         <ul class="plain">
-          <li>Chosen up front at the first screen</li>
-          <li>PODs and Delivery Note as usual</li>
-          <li><b>SP-Manual is skipped</b> — nothing was accepted</li>
-          <li>Reject photos, then submit</li>
+          <li>Chosen up front &mdash; the whole consignment is refused</li>
+          <li>Same captures as a partial return</li>
+          <li>Downstream it closes by <b>RTS on the original AWB</b> &mdash; no new label</li>
         </ul>
       </div>
       <div class="card">
-        <h3>Delivery failed</h3>
+        <h3>What moved OUT of this link</h3>
         <ul class="plain">
-          <li>Pick one of the standard failure reasons</li>
-          <li>Take one proof photo</li>
-          <li>Submit — no PODs required</li>
+          <li>Pharmacy and receiver POD photos &mdash; Ninja driver app</li>
+          <li>Failed-delivery reporting &mdash; Ninja driver app</li>
+          <li>SP Manual collection &mdash; the physical document still travels with the RDO</li>
         </ul>
       </div>
     </div>
 
     <div class="call">
       <span class="lbl">Example photos</span>
-      <p>The Delivery Note, SP Manual and DN return close-up each carry a <b>&ldquo;Lihat contoh foto&rdquo;</b> link showing the real document, so a driver unsure what to shoot can check. It is <b>hidden by default</b> and nothing downloads until it is tapped &mdash; steps with no example photo simply don&rsquo;t show the link.</p>
+      <p>The Delivery Note and the DN return close-up each carry a <b>&ldquo;Lihat contoh foto&rdquo;</b> link showing the real document, so a driver unsure what to shoot can check. It is <b>hidden by default</b> and nothing downloads until it is tapped &mdash; steps with no example photo simply don&rsquo;t show the link.</p>
     </div>
 
     <div class="call">
-      <span class="lbl">When is an SP photo needed?</span>
-      <p>Read the <b>Tipe Dokumen</b> column on the Delivery Note. <b>Manual</b> means the driver must ask the pharmacy for the original Surat Pesanan and photograph it — the DN itself says so in its footnote. <b>Elektronik</b> means no SP is needed. Drivers are never asked to judge prekursor versus non-prekursor; they cannot tell from the document, and it doesn't change what they do.</p>
+      <span class="lbl">Surat Pesanan is no longer photographed here</span>
+      <p>Collecting SP Manual was removed from the driver link so a reject takes as little of the
+      driver&rsquo;s time as possible. The instruction still appears in the delivery instructions on
+      the label, and the physical document still travels back with the RDO &mdash; it simply is not
+      captured in the app.</p>
     </div>
 
     <div class="call">
@@ -649,7 +683,7 @@
       </div>
       <div class="call">
         <span class="lbl">Why PO-prefixed</span>
-        <p>Ninja allows custom piece IDs, and the pieces still attach to their parent when the order is created from the <b>manual template</b>. Keeping the PO in the piece ID is what lets the per-PO RDO and SP-Manual check work at the door.</p>
+        <p>Ninja allows custom piece IDs, and the pieces still attach to their parent when the order is created from the <b>manual template</b>. Keeping the PO in the piece ID is what ties each returned piece back to the PO it belongs to.</p>
       </div>
     </div>
   </div>
@@ -702,13 +736,16 @@
       </div>
 
       <div class="card">
-        <h3>Nothing you upload can be deleted</h3>
+        <h3>Deleting an upload &mdash; allowed, until a driver touches it</h3>
         <p class="body">
-          Committed orders and their AWBs cannot be removed from this tool by anyone. Users are
-          deactivated rather than deleted. The only delete is for a driver retaking a photo, and
-          for rows made in <b>Manual link</b>.
+          An uploaded OC can now be <b>deleted from Upload history</b>, which frees every SwipeAWB
+          in it &mdash; that is the correction path: delete the bad batch, upload the fixed file.
         </p>
-        <p class="body">This is deliberate: it means no action here can quietly destroy a day's work.</p>
+        <p class="body">
+          The moment <b>any</b> courier work exists on <b>any</b> AWB in the batch &mdash; a photo, a
+          submitted result, a reject row &mdash; the delete is refused. Evidence a driver filed is
+          never destroyed. Users are still deactivated rather than deleted.
+        </p>
       </div>
     </div>
   </div>

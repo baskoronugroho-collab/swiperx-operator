@@ -38,6 +38,19 @@ def _parse_delivery_date(value: str | None) -> str | None:
         raise HTTPException(status_code=400, detail="bad_delivery_date") from None
 
 
+def _parse_origin(value: str | None) -> str:
+    """Which SwipeRx warehouse this batch ships out of.
+
+    Stored on the intake AND on every AWB in it, so a return months later can address itself
+    home without anyone looking the forward order up by hand — the manual step this lane
+    exists to remove. Required: guessing it would send returns to the wrong city.
+    """
+    origins = oc_engine.CFG.get("origins", {})
+    if not value or value not in origins:
+        raise HTTPException(status_code=400, detail="bad_origin")
+    return value
+
+
 def _err_line(e: dict) -> str:
     where = e["awb"] or (f"row {e['row']}" if e.get("row") else "row ?")
     return f"{where}: {e['error']}"
@@ -66,7 +79,7 @@ async def _parse_upload(service: str, file: UploadFile) -> tuple[bytes, dict]:
 
 @router.get("/services")
 async def list_services(_: dict = Depends(intake_roles)):
-    return {"services": oc_engine.services()}
+    return {"services": oc_engine.services(), "origins": oc_engine.origins()}
 
 
 @router.post("/preview")
@@ -88,6 +101,7 @@ async def preview(service: str = Form(...), file: UploadFile = File(...),
 @router.post("/create", status_code=201)
 async def create(service: str = Form(...), file: UploadFile = File(...),
                  delivery_date: str | None = Form(default=None),
+                 origin: str = Form(...),
                  user: dict = Depends(intake_roles)):
     """Commit the batch: persist AWBs + tokens and generate the NV upload .xlsx + links.csv.
 
@@ -95,6 +109,7 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
     of the upload. Omitted → today.
     """
     day = _parse_delivery_date(delivery_date)
+    origin = _parse_origin(origin)
     data, result = await _parse_upload(service, file)
     awbs = result["awbs"]
     if not awbs:
@@ -102,9 +117,9 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
 
     src_ref = await store.put(data, XLSX_CT)
     intake_id = await db.execute(
-        "INSERT INTO order_intake (source_file_ref, service_code, uploaded_by, status) "
-        "VALUES (%s, %s, %s, 'processing')",
-        (src_ref, service, user["id"]),
+        "INSERT INTO order_intake (source_file_ref, service_code, uploaded_by, status, origin) "
+        "VALUES (%s, %s, %s, 'processing', %s)",
+        (src_ref, service, user["id"], origin),
     )
 
     committed, errors = [], list(result["errors"])
@@ -123,11 +138,11 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
         await db.execute(
             "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
             "postcode, phone, weight, koli, link_token, status, return_type, is_return, invoice, "
-            "item_detail, delivery_instructions, created_by, intake_id) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'created','none',%s,%s,%s,%s,%s,%s)",
+            "item_detail, delivery_instructions, created_by, intake_id, origin) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'created','none',%s,%s,%s,%s,%s,%s,%s)",
             (a["awb_id"], a["merchant_order_number"], service, a["pharmacy_name"], a["address"], a["city"],
              a["postcode"], a["phone"], a["weight"], a["collies"], token, 1 if a["is_return"] else 0,
-             a["invoice"], a["item_detail"], a["delivery_instructions"], user["id"], intake_id),
+             a["invoice"], a["item_detail"], a["delivery_instructions"], user["id"], intake_id, origin),
         )
         for p in a["po_lines"]:
             await db.execute(
@@ -281,6 +296,49 @@ async def _download(intake_id: int, ref_col: str, filename: str, content_type: s
     data, _ct = found
     return Response(content=data, media_type=content_type,
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.delete("/intakes/{intake_id}", status_code=204)
+async def delete_intake(intake_id: int, user: dict = Depends(intake_roles)):
+    """Delete an uploaded OC — the intake, its AWBs and their PO lines.
+
+    This exists because existing AWBs are skipped on re-upload, never updated: the only
+    way to correct a bad batch is to delete it and upload the fixed file, which re-frees
+    every SwipeAWB in it.
+
+    It refuses (409) the moment ANY courier work exists on ANY AWB in the batch — a photo,
+    a submit, a reject row, or a status past 'created'. Deleting evidence a driver already
+    filed would be destroying the audit trail, so that boundary is absolute; from there on
+    the batch is history, not a draft. The generated files' blobs are left in media storage
+    (orphaned, harmless) so nothing referenced elsewhere can dangle.
+    """
+    intake = await db.fetch_one("SELECT id FROM order_intake WHERE id = %s", (intake_id,))
+    if not intake:
+        raise HTTPException(status_code=404, detail="not_found")
+
+    awbs = await db.fetch_all(
+        "SELECT awb_id, status, driver_submitted_at FROM awb WHERE intake_id = %s", (intake_id,)
+    )
+    for a in awbs:
+        if a["driver_submitted_at"] or a["status"] != "created":
+            raise HTTPException(status_code=409, detail="intake_has_courier_activity")
+        if await db.fetch_one(
+            "SELECT 1 AS x FROM document_capture WHERE awb_id = %s", (a["awb_id"],)
+        ) or await db.fetch_one(
+            "SELECT 1 AS x FROM return_parcel WHERE original_awb_id = %s", (a["awb_id"],)
+        ):
+            raise HTTPException(status_code=409, detail="intake_has_courier_activity")
+
+    for a in awbs:
+        await db.execute("DELETE FROM po_line WHERE awb_id = %s", (a["awb_id"],))
+        await db.execute("DELETE FROM awb WHERE awb_id = %s", (a["awb_id"],))
+    await db.execute("DELETE FROM order_intake WHERE id = %s", (intake_id,))
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'oc_intake_delete', 'order_intake', %s)",
+        (user["email"], str(intake_id)),
+    )
+    return Response(status_code=204)
 
 
 @router.get("/intakes/{intake_id}/upload.xlsx")

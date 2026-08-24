@@ -15,6 +15,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 import db
+import oc_engine
 from security import require_roles
 
 router = APIRouter(prefix="/api/returns", tags=["returns"])
@@ -30,8 +31,9 @@ _SELECT = """
     SELECT rp.id, rp.original_awb_id, rp.return_type, rp.service_id,
            rp.created_at        AS rejected_at,
            rp.acknowledged_at, rp.return_tids, rp.tids_sent_at,
-           rp.rts_requested_at,
-           a.pharmacy_name, a.city,
+           rp.rts_requested_at, rp.reject_pcs,
+           COALESCE(rp.origin, a.origin) AS origin,
+           a.pharmacy_name, a.city, a.hub_name,
            ack.google_email     AS acknowledged_by_email,
            snt.google_email     AS tids_sent_by_email,
            rts.google_email     AS rts_requested_by_email
@@ -62,6 +64,9 @@ def _shape(row: dict) -> dict:
     for k in ("rejected_at", "acknowledged_at", "tids_sent_at", "rts_requested_at"):
         row[k] = str(row[k]) if row[k] else None
     row["stage"] = _stage(row)
+    # A return with no recorded origin cannot be addressed home — DE must set it (in
+    # bulk from the worklist) before the return OC can be exported.
+    row["origin_unknown"] = not row.get("origin")
     # Tells the UI which closing action this row needs, without it re-deriving the rule.
     row["closes_by"] = "rts" if _is_full(row) else "tids"
     return row
@@ -170,6 +175,41 @@ async def send_tids(
     return await _one(return_id)
 
 
+@router.post("/origin")
+async def set_origin_bulk(
+    ids: list[int] = Body(..., embed=True),
+    origin: str = Body(..., embed=True),
+    user: dict = Depends(ops_roles),
+):
+    """Bulk-set the origin on rows whose forward order predates origin tracking.
+
+    Only rows that are still origin-unknown are touched — a stored origin is a fact about
+    what happened and is never overwritten from a list selection.
+    """
+    if origin not in oc_engine.CFG.get("origins", {}):
+        raise HTTPException(status_code=400, detail="bad_origin")
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    updated = 0
+    for rid in ids[:500]:
+        row = await db.fetch_one(
+            "SELECT rp.id, COALESCE(rp.origin, a.origin) AS origin FROM return_parcel rp "
+            "LEFT JOIN awb a ON a.awb_id = rp.original_awb_id WHERE rp.id = %s", (rid,)
+        )
+        if row and not row["origin"]:
+            await db.execute(
+                "UPDATE return_parcel SET origin = %s, updated_at = NOW() WHERE id = %s",
+                (origin, rid),
+            )
+            updated += 1
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_origin_bulk_set', 'return_parcel', %s)",
+        (user["email"], f"{updated} rows -> {origin}"),
+    )
+    return {"updated": updated, "origin": origin}
+
+
 @router.post("/{return_id}/rts")
 async def request_rts(return_id: int, user: dict = Depends(ops_roles)):
     """Record that RTS has been triggered on the ORIGINAL forward tracking number.
@@ -206,7 +246,8 @@ async def export_csv(_: dict = Depends(ops_roles)):
     w = csv.writer(buf)
     w.writerow([
         "return_id", "forward_awb", "pharmacy", "city", "reject_type", "rejected_at",
-        "stage", "closes_by", "acknowledged_at", "acknowledged_by", "return_tids",
+        "stage", "closes_by", "hub", "origin", "reject_pcs",
+        "acknowledged_at", "acknowledged_by", "return_tids",
         "tids_sent_at", "tids_sent_by", "rts_requested_at", "rts_requested_by",
     ])
     for r in rows:
@@ -214,6 +255,7 @@ async def export_csv(_: dict = Depends(ops_roles)):
         w.writerow([
             s["id"], s["original_awb_id"], s["pharmacy_name"] or "", s["city"] or "",
             s["return_type"], s["rejected_at"] or "", s["stage"], s["closes_by"],
+            s["hub_name"] or "", s["origin"] or "", s["reject_pcs"] or "",
             s["acknowledged_at"] or "", s["acknowledged_by_email"] or "", s["return_tids"] or "",
             s["tids_sent_at"] or "", s["tids_sent_by_email"] or "",
             s["rts_requested_at"] or "", s["rts_requested_by_email"] or "",

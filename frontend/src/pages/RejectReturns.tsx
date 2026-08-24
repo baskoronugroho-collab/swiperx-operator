@@ -20,8 +20,14 @@ export default function RejectReturns() {
   const [rows, setRows] = useState<RejectReturn[] | null>(null);
   const [rtsShipper, setRtsShipper] = useState("11398434");
   const [q, setQ] = useState("");
+  /* Per-column filters (19 Aug request): each narrows independently, on top of the tabs
+     and the free-text search. All client-side — the list is capped at 500 rows. */
+  const [fType, setFType] = useState("");
+  const [fOrigin, setFOrigin] = useState("");
+  const [fHub, setFHub] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setRows(null);
@@ -39,17 +45,40 @@ export default function RejectReturns() {
     void load();
   }, [load]);
 
+  const hubs = useMemo(
+    () => Array.from(new Set((rows ?? []).map((r) => r.hub_name).filter(Boolean))).sort() as string[],
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     if (!rows) return null;
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((r) =>
-      [r.original_awb_id, r.pharmacy_name, r.city ?? "", r.return_tids ?? ""]
+    return rows.filter((r) => {
+      if (fType && r.return_type !== fType) return false;
+      if (fOrigin === "unknown" ? !r.origin_unknown : fOrigin && r.origin !== fOrigin) return false;
+      if (fHub && r.hub_name !== fHub) return false;
+      if (!term) return true;
+      return [r.original_awb_id, r.pharmacy_name, r.city ?? "", r.return_tids ?? "", r.hub_name ?? ""]
         .join(" ")
         .toLowerCase()
-        .includes(term),
-    );
-  }, [rows, q]);
+        .includes(term);
+    });
+  }, [rows, q, fType, fOrigin, fHub]);
+
+  /* Bulk origin fix: only offered while the unknown filter is on, and only rows still
+     unknown are touched server-side — a recorded origin is never overwritten from here. */
+  async function bulkSetOrigin(origin: string) {
+    if (!filtered) return;
+    const ids = filtered.filter((r) => r.origin_unknown).map((r) => r.id);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      await api.returns.setOrigin(ids, origin);
+      await load();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -89,11 +118,46 @@ export default function RejectReturns() {
         </div>
         <input
           className={`${inputClass} max-w-xs`}
-          placeholder="Filter AWB, pharmacy, city, TID…"
+          placeholder="Search AWB, pharmacy, city, TID, hub…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        <select className={`${inputClass} w-auto`} value={fType} onChange={(e) => setFType(e.target.value)}>
+          <option value="">Type: all</option>
+          <option value="sebagian">Sebagian</option>
+          <option value="semua">Semua</option>
+        </select>
+        <select className={`${inputClass} w-auto`} value={fOrigin} onChange={(e) => setFOrigin(e.target.value)}>
+          <option value="">Origin: all</option>
+          <option value="TMP_DEPOK">TMP Depok</option>
+          <option value="TMP_SURABAYA">TMP Surabaya</option>
+          <option value="unknown">Origin unknown</option>
+        </select>
+        <select className={`${inputClass} w-auto`} value={fHub} onChange={(e) => setFHub(e.target.value)}>
+          <option value="">Hub: all</option>
+          {hubs.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {fOrigin === "unknown" && filtered && filtered.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-warn-soft px-4 py-3 text-sm">
+          <span className="font-semibold text-warn">
+            {filtered.filter((r) => r.origin_unknown).length} row(s) have no origin — a return
+            cannot be exported until it knows which warehouse to go back to.
+          </span>
+          <span className="text-ink-muted">Set all shown to:</span>
+          <Button variant="ghost" disabled={bulkBusy} onClick={() => bulkSetOrigin("TMP_DEPOK")}>
+            TMP Depok
+          </Button>
+          <Button variant="ghost" disabled={bulkBusy} onClick={() => bulkSetOrigin("TMP_SURABAYA")}>
+            TMP Surabaya
+          </Button>
+        </div>
+      )}
 
       {error && <ErrorNote>{error}</ErrorNote>}
       {!filtered && !error && <Spinner label="Loading…" />}
@@ -113,6 +177,8 @@ export default function RejectReturns() {
                   <th className="px-4 py-3">AWB</th>
                   <th className="px-4 py-3">Pharmacy</th>
                   <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Hub</th>
+                  <th className="px-4 py-3">Origin</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Rejected</th>
                   <th className="px-4 py-3">Stage</th>
@@ -211,6 +277,14 @@ function Row({
         <td className="px-4 py-3"><span className="awb-chip">{row.original_awb_id}</span></td>
         <td className="px-4 py-3">{row.pharmacy_name}</td>
         <td className="px-4 py-3 text-ink-muted">{row.city ?? "—"}</td>
+        <td className="px-4 py-3 font-mono text-xs">{row.hub_name ?? "—"}</td>
+        <td className="px-4 py-3">
+          {row.origin_unknown ? (
+            <Badge tone="warn">unknown</Badge>
+          ) : (
+            <span className="text-xs">{row.origin === "TMP_SURABAYA" ? "TMP Surabaya" : "TMP Depok"}</span>
+          )}
+        </td>
         <td className="px-4 py-3">
           <Badge tone={row.return_type === "semua" ? "danger" : "info"}>
             {row.return_type === "semua" ? "Semua" : "Sebagian"}
@@ -239,7 +313,7 @@ function Row({
 
       {open && (
         <tr className="border-t border-line bg-canvas-soft/40">
-          <td colSpan={8} className="px-4 py-4">
+          <td colSpan={10} className="px-4 py-4">
             <div className="flex flex-wrap items-start gap-6">
               {row.proof_photos.length > 0 && (
                 <div>

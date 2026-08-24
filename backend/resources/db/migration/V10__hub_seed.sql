@@ -1,0 +1,107 @@
+-- V10 — hub master seed (24 Aug 2026)
+--
+-- Hubs come from two real sources: the AWB-hub assignment export (9,055 rows) and the
+-- 'Mapping Dest Hub to TMP' sheet Baskoro filled on 24 Aug. `origin` is the FALLBACK
+-- warehouse a return is addressed to when its forward order predates origin tracking;
+-- NULL means the mapping sheet had no answer yet — those rows surface as origin-unknown
+-- in the worklist and are set in bulk there.
+--
+-- Idempotent: INSERT IGNORE keeps any row ops already edited through the app.
+
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-BDO', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-BJR', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-CBB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-CBT', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-CJR', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-CMS', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-DYT', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-JCK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-KJG', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-KJT', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-LKG', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-MGU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-MJA', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-NSB-SDB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-PMN', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-PWA', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-SKI', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-SMD', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-SNR', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('BDO-TSK-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-BMY', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-CBN', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-GDM', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-IDM', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-JTB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-KDH', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-KNG', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-MJL', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-PWO', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-PWR', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-SUM', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('CBN-TGL', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CB5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CBD', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CBI-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CLG', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CP5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-CST', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-JPK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KD5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KJ5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KLD-SDS', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KLR', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KM5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KOI-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-KRL', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-MA5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-MAC', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-MAC-SB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-PNB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-RGS', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-SKT', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-SRN', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-TJR', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('MAC-UT5', 'TMP_DEPOK', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-BJN', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-BLT-BSC', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-KGD', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-KLN', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-MAD', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-NGW', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-NJK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-PNG', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-SGN', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-SOC', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-TLG', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SOC-WNG', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-DMK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-KDL', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-KUD', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-PKO', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-PWD', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-SKS', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-SLT', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-SRG', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SRG-TMG', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-BTU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-BWI', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-DAN', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-DPS-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-GSK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-JBB-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-JBR', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-JOM', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-KDR', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-KDR-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-LMG', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-MJK', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-MLG', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-MLG-PU', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-MTI', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-NWE', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-PBL', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-PSN', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-PWH', 'TMP_SURABAYA', 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-SUB', NULL, 1);
+INSERT IGNORE INTO hub (hub_name, origin, active) VALUES ('SUB-TBN', NULL, 1);

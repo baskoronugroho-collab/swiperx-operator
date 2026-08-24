@@ -70,6 +70,12 @@ export interface VersionInfo {
   auth: { google: boolean; dev_login: boolean };
 }
 
+export interface Origin {
+  code: string;
+  label: string;
+  city: string;
+}
+
 export interface Service {
   code: string;
   name: string;
@@ -184,6 +190,11 @@ export interface CourierOrder {
   po_lines: PoLine[];
   /* capture state — lets a returning link resume in place (PRD §7.2.2) */
   captures: CourierCapture[];
+  /** Set once the driver identifies themselves; null means the wizard asks first. */
+  driver_id: string | null;
+  hub_name: string | null;
+  /** Active hubs, for the searchable picker. Fixed list — never free text. */
+  hubs: string[];
   expired: boolean;
   terminal: boolean;
   fail_reasons: { code: FailReason; id: string; en: string }[];
@@ -248,6 +259,10 @@ export interface RejectReturn {
   tids_sent_at: string | null;
   tids_sent_by_email: string | null;
   stage: "pending_ack" | "acknowledged" | "tids_sent" | "rts_requested";
+  hub_name: string | null;
+  origin: string | null;
+  origin_unknown: boolean;
+  reject_pcs: number | null;
   /** How this row closes. A full reject ("semua") is an RTS on the EXISTING forward
    *  tracking number — no second TID is created. A partial still needs its own. */
   closes_by: "rts" | "tids";
@@ -343,17 +358,18 @@ export const api = {
   },
 
   oc: {
-    services: () => get<{ services: Service[] }>("/api/oc/services"),
+    services: () => get<{ services: Service[]; origins: Origin[] }>("/api/oc/services"),
     preview: (service: string, file: File) => {
       const fd = new FormData();
       fd.append("service", service);
       fd.append("file", file);
       return postForm<OcPreview>("/api/oc/preview", fd);
     },
-    create: (service: string, file: File, deliveryDate?: string) => {
+    create: (service: string, file: File, deliveryDate: string | undefined, origin: string) => {
       const fd = new FormData();
       fd.append("service", service);
       fd.append("file", file);
+      fd.append("origin", origin);
       if (deliveryDate) fd.append("delivery_date", deliveryDate);
       return postForm<OcCreateResult>("/api/oc/create", fd);
     },
@@ -363,6 +379,8 @@ export const api = {
       ),
     intakes: () => get<{ intakes: Intake[] }>("/api/oc/intakes"),
     intake: (id: number) => get<IntakeDetail>(`/api/oc/intakes/${id}`),
+    /** Delete an uploaded OC — refused (409) once any courier work exists on the batch. */
+    deleteIntake: (id: number) => request<void>(`/api/oc/intakes/${id}`, { method: "DELETE" }),
     uploadUrl: (id: number) => `/api/oc/intakes/${id}/upload.xlsx`,
     linksUrl: (id: number) => `/api/oc/intakes/${id}/links.csv`,
   },
@@ -404,7 +422,16 @@ export const api = {
         body: JSON.stringify({ signed_stamped: signedStamped }),
       }),
     gate: (token: string, outcome: Outcome) => get<Gate>(`/api/c/${token}/gate?outcome=${outcome}`),
-    submit: (token: string, body: { outcome: Outcome; return_type?: "sebagian" | "semua" }) =>
+    identity: (token: string, driverId: string, hubName: string, hubNotListed = false) =>
+      postJson<{ driver_id: string; hub_name: string }>(`/api/c/${token}/identity`, {
+        driver_id: driverId,
+        hub_name: hubName,
+        hub_not_listed: hubNotListed,
+      }),
+    submit: (
+      token: string,
+      body: { outcome: Outcome; return_type?: "sebagian" | "semua"; reject_pcs?: number },
+    ) =>
       postJson<CourierSubmitResult>(`/api/c/${token}/submit`, body),
     fail: (token: string, body: { fail_reason: FailReason; reason_note?: string; gps?: string }) =>
       postJson<CourierSubmitResult>(`/api/c/${token}/fail`, body),
@@ -419,6 +446,9 @@ export const api = {
       postJson<RejectReturn>(`/api/returns/${id}/tids`, { return_tids: returnTids }),
     /** Close a full reject by triggering RTS on the original forward tracking number. */
     requestRts: (id: number) => postJson<RejectReturn>(`/api/returns/${id}/rts`, {}),
+    /** Bulk-set the origin on rows whose forward order predates origin tracking. */
+    setOrigin: (ids: number[], origin: string) =>
+      postJson<{ updated: number }>(`/api/returns/origin`, { ids, origin }),
     exportUrl: () => "/api/returns/export.csv",
   },
 };

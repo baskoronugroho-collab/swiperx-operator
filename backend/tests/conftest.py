@@ -9,7 +9,7 @@ Two dialect gaps are bridged in `_translate`: MySQL's `%s` placeholders become `
 a migration, not in runtime SQL — so if a future query stops working here, that's a
 signal it drifted, not that the harness is wrong.
 
-The schema below mirrors resources/db/migration/V1–V8 for the tables the API touches.
+The schema below mirrors resources/db/migration/V1–V9 for the tables the API touches.
 It is intentionally hand-written rather than parsed from the .sql files: the migrations
 carry MySQL-only DDL (ENGINE, CHARSET, UPDATE…JOIN) that SQLite cannot read.
 """
@@ -56,7 +56,7 @@ CREATE TABLE order_intake (
   id INTEGER PRIMARY KEY AUTOINCREMENT, source_file_ref TEXT, oc_template_ref TEXT,
   links_file_ref TEXT, service_code TEXT, shipper_service_id TEXT, awb_count INTEGER DEFAULT 0,
   piece_count INTEGER DEFAULT 0, row_count INTEGER DEFAULT 0, status TEXT,
-  error_summary TEXT, warning_summary TEXT, uploaded_by INTEGER,
+  error_summary TEXT, warning_summary TEXT, uploaded_by INTEGER, origin TEXT,
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE awb (
@@ -67,6 +67,7 @@ CREATE TABLE awb (
   phone TEXT, postcode TEXT, weight TEXT, is_return INTEGER NOT NULL DEFAULT 0,
   invoice TEXT, item_detail TEXT, delivery_instructions TEXT,
   fail_reason TEXT, submitted_by_ip TEXT,
+  origin TEXT, driver_id TEXT, hub_name TEXT,
   created_by INTEGER, intake_id INTEGER,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   delivered_at TIMESTAMP, driver_submitted_at TIMESTAMP
@@ -93,7 +94,16 @@ CREATE TABLE return_parcel (
   acknowledged_at TIMESTAMP, acknowledged_by INTEGER, return_tids TEXT,
   tids_sent_at TIMESTAMP, tids_sent_by INTEGER,
   rts_requested_at TIMESTAMP, rts_requested_by INTEGER,
+  reject_pcs INTEGER, origin TEXT,
+  validated_at TIMESTAMP, validated_by INTEGER,
+  de_uploaded_at TIMESTAMP, de_uploaded_by INTEGER,
+  printed_at TIMESTAMP, printed_by INTEGER,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP
+);
+CREATE TABLE hub (
+  hub_name TEXT PRIMARY KEY, hub_label TEXT, origin TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, entity TEXT,
