@@ -539,21 +539,21 @@
       <div class="card">
         <h3>Work the reject queue <span class="chip">Validator</span><span class="chip">DE / Implant</span><span class="chip">Station IC</span></h3>
         <ol class="steps">
-          <li><b>Validator</b> &mdash; open <b>Pending Validator</b> and check the driver&rsquo;s photos: the DN return section, the goods, the AWB label. Confirm they show what was claimed.</li>
-          <li>Open <b>Reject returns</b>. By default it shows only rows still needing attention.</li>
-          <li>Press <b>Acknowledge</b>. This records who you are and when.</li>
-          <li><b>Partial return</b> &mdash; <b>DE</b> exports the return OC (origin pre-filled from the
-            original order), uploads it to Ninja, then the row moves to <b>Pending Print</b> for
-            Station IC to print, label and repack.</li>
-          <li><b>Whole delivery refused</b> &mdash; trigger <b>RTS</b> on the original forward AWB in
-            Ninja, then press <b>Mark RTS triggered</b>. No new AWB, no label, no print step.</li>
-          <li>Rows whose origin could not be matched sit under the <b>Origin unknown</b> filter
-            &mdash; set them in bulk there before exporting, or the return ships to the wrong
-            warehouse.</li>
-          <li>Narrow the list any way you need: the stage tabs, plus <b>per-column filters</b>
-            (type, origin, hub) and free-text search &mdash; they stack.</li>
-          <li>Export to CSV if finance or SwipeRx need the audit trail &mdash; it carries both
-            closing paths with who and when.</li>
+          <li><b>Validator</b> &mdash; open <b>Pending Validator</b>, check the photos (DN, return
+            table, goods, labels) against what the driver claimed, select the good rows and press
+            <b>Validate</b>. Nothing moves before this.</li>
+          <li><b>DE, partial returns</b> &mdash; on <b>Pending DE upload</b>, press
+            <b>Export return OC</b> (one <span class="id mono">-R01</span> row per reject, origin
+            pre-filled), upload it to Ninja, then <b>Mark OC uploaded</b>.</li>
+          <li><b>DE / Validator, whole refusals</b> &mdash; same tab: <b>Export RTS list</b> and
+            <b>Mark RTS triggered</b>. No new AWB, no print step.</li>
+          <li><b>Station IC</b> &mdash; on <b>Pending print</b>, find the
+            <span class="id mono">-R01</span> in OPV2 (it is shown on the row), print, label,
+            repack, then <b>Mark printed &amp; labelled</b>.</li>
+          <li>Rows under the <b>Origin unknown</b> filter must be bulk-set first &mdash; they are
+            excluded from the OC export so a return can never ship to the wrong warehouse.</li>
+          <li>Narrow the list any way you need: stage tabs, per-column filters (type / origin /
+            hub), free-text search, and row checkboxes for bulk actions &mdash; they stack.</li>
         </ol>
       </div>
 
@@ -722,6 +722,15 @@
           <b>Fix:</b> the link still works — insert <span class="id mono">.ninjavan</span> after
           <span class="id mono">swiperx-operator</span> in the address bar, or just look the AWB up
           under <b>Courier links</b> and copy the current link.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>A wrong file is refused before it can commit</h3>
+        <p class="body">
+          The TMP&rsquo;s header row is checked before parsing &mdash; upload the wrong file (or a
+          drifted layout) and Order creation refuses it with a message naming the offending cell,
+          instead of silently committing weights as AWBs.
         </p>
       </div>
 

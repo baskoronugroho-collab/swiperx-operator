@@ -1,40 +1,49 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ApiError, api } from "../lib/api";
-import type { RejectReturn } from "../lib/api";
+import type { RejectReturn, ReturnStage } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { Badge, Button, Card, EmptyState, ErrorNote, Spinner, inputClass } from "../components/ui";
 
-const TABS = [
-  { key: "pending_ack", label: "Not yet acknowledged" },
-  { key: "acknowledged", label: "Awaiting action" },
-  { key: "tids_sent", label: "Closed — TIDs sent" },
-  { key: "rts_requested", label: "Closed — RTS triggered" },
-  { key: "", label: "All" },
-] as const;
+/** Lane 3 — the reject-return pipeline (24 Aug rework).
+ *
+ *      pending_validator → pending_de_upload → pending_print → printed     (sebagian)
+ *                        → pending_de_upload → rts_triggered               (semua)
+ *
+ *  One flat, filterable list with checkbox selection: the toolbar offers exactly the bulk
+ *  actions the current tab's stage supports, and the server re-checks stage + role on every
+ *  one, so a mis-click can never move a row somewhere its history doesn't support. */
 
-/** Lane 3 — the reject-return worklist, as a flat filterable LIST (27 Jul): the cards
- *  didn't scale past a handful of rows. Stage tabs + free-text search; each row expands
- *  for proof photos and the TID action. */
+const TABS: { key: string; label: string }[] = [
+  { key: "pending_validator", label: "Pending Validator" },
+  { key: "pending_de_upload", label: "Pending DE upload" },
+  { key: "pending_print", label: "Pending print" },
+  { key: "closed", label: "Closed" },
+  { key: "", label: "All" },
+];
+const CLOSED: ReturnStage[] = ["printed", "rts_triggered", "tids_sent"];
+
 export default function RejectReturns() {
-  const [tab, setTab] = useState<string>("pending_ack");
+  const { has } = useAuth();
+  const [tab, setTab] = useState<string>("pending_validator");
   const [rows, setRows] = useState<RejectReturn[] | null>(null);
-  const [rtsShipper, setRtsShipper] = useState("11398434");
   const [q, setQ] = useState("");
-  /* Per-column filters (19 Aug request): each narrows independently, on top of the tabs
-     and the free-text search. All client-side — the list is capped at 500 rows. */
   const [fType, setFType] = useState("");
   const [fOrigin, setFOrigin] = useState("");
   const [fHub, setFHub] = useState("");
+  const [sel, setSel] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [bulkBusy, setBulkBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setRows(null);
+    setSel(new Set());
     try {
-      const r = await api.returns.list(tab || undefined);
-      setRows(r.returns);
-      if ("rts_shipper_id" in r) setRtsShipper((r as { rts_shipper_id: string }).rts_shipper_id);
+      // Tabs map to derived stages; "closed" is a client-side union of the terminal ones.
+      const r = await api.returns.list(tab && tab !== "closed" ? tab : undefined);
+      setRows(tab === "closed" ? r.returns.filter((x) => CLOSED.includes(x.stage)) : r.returns);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError && err.status === 403 ? "No access." : "Couldn’t load the worklist.");
@@ -58,27 +67,45 @@ export default function RejectReturns() {
       if (fOrigin === "unknown" ? !r.origin_unknown : fOrigin && r.origin !== fOrigin) return false;
       if (fHub && r.hub_name !== fHub) return false;
       if (!term) return true;
-      return [r.original_awb_id, r.pharmacy_name, r.city ?? "", r.return_tids ?? "", r.hub_name ?? ""]
+      return [r.original_awb_id, r.return_awb_id ?? "", r.pharmacy_name, r.city ?? "", r.hub_name ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(term);
     });
   }, [rows, q, fType, fOrigin, fHub]);
 
-  /* Bulk origin fix: only offered while the unknown filter is on, and only rows still
-     unknown are touched server-side — a recorded origin is never overwritten from here. */
-  async function bulkSetOrigin(origin: string) {
-    if (!filtered) return;
-    const ids = filtered.filter((r) => r.origin_unknown).map((r) => r.id);
-    if (ids.length === 0) return;
-    setBulkBusy(true);
+  const shown = filtered ?? [];
+  const selected = shown.filter((r) => sel.has(r.id));
+  const pick = (list: RejectReturn[], pred: (r: RejectReturn) => boolean) =>
+    (selected.length > 0 ? selected : list).filter(pred).map((r) => r.id);
+
+  async function run(label: string, fn: () => Promise<{ updated: number }>) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
     try {
-      await api.returns.setOrigin(ids, origin);
+      const res = await fn();
+      setNotice(`${label}: ${res.updated} row(s).`);
       await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? `Couldn’t save (${err.detail}).` : "Couldn’t save.");
+      setBusy(false);
     } finally {
-      setBulkBusy(false);
+      setBusy(false);
     }
   }
+
+  /* Stage-appropriate bulk actions. Acting on the SELECTION when there is one, otherwise
+     on everything shown — matching how "bulk" was asked for on the whiteboard. */
+  const canValidate = has("validator", "program_manager");
+  const canDe = has("implant", "de");
+  const canPrint = has("station_ic", "implant", "de");
+
+  const validateIds = pick(shown, (r) => r.stage === "pending_validator");
+  const ocIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "return_oc");
+  const rtsIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "rts");
+  const printIds = pick(shown, (r) => r.stage === "pending_print");
+  const unknownIds = pick(shown, (r) => r.origin_unknown && !CLOSED.includes(r.stage));
 
   return (
     <div className="space-y-6">
@@ -86,12 +113,13 @@ export default function RejectReturns() {
         <div>
           <h1 className="text-xl font-bold">Reject returns</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Every reject flagged by a courier. Acknowledge it, then close it. A{" "}
-            <strong className="font-semibold text-ink">partial</strong> return needs replacement
-            TIDs minted on the RTS account{" "}
-            <span className="font-mono">{rtsShipper}</span>; a{" "}
-            <strong className="font-semibold text-ink">whole-delivery refusal</strong> needs no new
-            TID at all — trigger RTS on the original forward tracking number instead.
+            Every reject a courier files, walked through one pipeline: the{" "}
+            <strong className="font-semibold text-ink">Validator</strong> checks the photos, then a{" "}
+            <strong className="font-semibold text-ink">partial</strong> return gets its{" "}
+            <span className="font-mono">-R01</span> return OC exported, uploaded and printed, while a{" "}
+            <strong className="font-semibold text-ink">whole-delivery refusal</strong> is bulk-marked{" "}
+            <strong className="font-semibold text-ink">RTS</strong> on its original AWB — no new
+            tracking number, no print step.
           </p>
         </div>
         <a
@@ -118,7 +146,7 @@ export default function RejectReturns() {
         </div>
         <input
           className={`${inputClass} max-w-xs`}
-          placeholder="Search AWB, pharmacy, city, TID, hub…"
+          placeholder="Search AWB, pharmacy, city, hub…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -143,28 +171,85 @@ export default function RejectReturns() {
         </select>
       </div>
 
-      {fOrigin === "unknown" && filtered && filtered.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-warn-soft px-4 py-3 text-sm">
-          <span className="font-semibold text-warn">
-            {filtered.filter((r) => r.origin_unknown).length} row(s) have no origin — a return
-            cannot be exported until it knows which warehouse to go back to.
+      {/* ---- stage toolbar: only the actions this tab's rows can take ---- */}
+      {(canValidate || canDe || canPrint) && shown.length > 0 && tab !== "closed" && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
+          <span className="text-xs font-semibold uppercase text-ink-muted">
+            {selected.length > 0 ? `${selected.length} selected` : "All shown"}
           </span>
-          <span className="text-ink-muted">Set all shown to:</span>
-          <Button variant="ghost" disabled={bulkBusy} onClick={() => bulkSetOrigin("TMP_DEPOK")}>
-            TMP Depok
-          </Button>
-          <Button variant="ghost" disabled={bulkBusy} onClick={() => bulkSetOrigin("TMP_SURABAYA")}>
-            TMP Surabaya
-          </Button>
+          {canValidate && validateIds.length > 0 && (
+            <Button disabled={busy} onClick={() => run("Validated", () => api.returns.validate(validateIds))}>
+              Validate ({validateIds.length})
+            </Button>
+          )}
+          {canDe && ocIds.length > 0 && (
+            <>
+              <a href={api.returns.exportOcUrl()}>
+                <Button variant="ghost" disabled={busy}>
+                  Export return OC (.xlsx)
+                </Button>
+              </a>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("Marked uploaded", () => api.returns.markUploaded(ocIds))}
+              >
+                Mark OC uploaded ({ocIds.length})
+              </Button>
+            </>
+          )}
+          {canDe && rtsIds.length > 0 && (
+            <>
+              <a href={api.returns.exportRtsUrl()}>
+                <Button variant="ghost" disabled={busy}>
+                  Export RTS list (.csv)
+                </Button>
+              </a>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("RTS marked", () => api.returns.markRts(rtsIds))}
+              >
+                Mark RTS triggered ({rtsIds.length})
+              </Button>
+            </>
+          )}
+          {canPrint && printIds.length > 0 && (
+            <Button disabled={busy} onClick={() => run("Printed", () => api.returns.markPrinted(printIds))}>
+              Mark printed &amp; labelled ({printIds.length})
+            </Button>
+          )}
+          {unknownIds.length > 0 && (
+            <span className="ml-auto flex flex-wrap items-center gap-2">
+              <Badge tone="warn">{unknownIds.length} origin unknown</Badge>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_DEPOK"))}
+              >
+                Set Depok
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_SURABAYA"))}
+              >
+                Set Surabaya
+              </Button>
+            </span>
+          )}
         </div>
       )}
 
+      {notice && (
+        <div className="rounded-xl border border-ok/25 bg-ok-soft px-4 py-3 text-sm text-ok">{notice}</div>
+      )}
       {error && <ErrorNote>{error}</ErrorNote>}
       {!filtered && !error && <Spinner label="Loading…" />}
       {filtered && filtered.length === 0 && (
         <EmptyState
-          title={q ? "No matches" : "Nothing here"}
-          body={!q && tab === "pending_ack" ? "No rejects waiting to be acknowledged." : undefined}
+          title={q || fType || fOrigin || fHub ? "No matches" : "Nothing here"}
+          body={tab === "pending_validator" ? "No rejects waiting for validation." : undefined}
         />
       )}
 
@@ -174,15 +259,24 @@ export default function RejectReturns() {
             <table className="w-full text-sm">
               <thead className="bg-canvas-soft text-left text-xs uppercase text-ink-muted">
                 <tr>
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-nv-red"
+                      checked={selected.length === shown.length && shown.length > 0}
+                      onChange={(e) =>
+                        setSel(e.target.checked ? new Set(shown.map((r) => r.id)) : new Set())
+                      }
+                    />
+                  </th>
                   <th className="px-4 py-3">AWB</th>
                   <th className="px-4 py-3">Pharmacy</th>
-                  <th className="px-4 py-3">City</th>
                   <th className="px-4 py-3">Hub</th>
                   <th className="px-4 py-3">Origin</th>
                   <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3 text-right">Pcs</th>
                   <th className="px-4 py-3">Rejected</th>
                   <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3">Ack</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -191,9 +285,15 @@ export default function RejectReturns() {
                   <Row
                     key={r.id}
                     row={r}
+                    checked={sel.has(r.id)}
+                    onCheck={(v) => {
+                      const next = new Set(sel);
+                      if (v) next.add(r.id);
+                      else next.delete(r.id);
+                      setSel(next);
+                    }}
                     open={openId === r.id}
                     onToggle={() => setOpenId(openId === r.id ? null : r.id)}
-                    onChange={load}
                   />
                 ))}
               </tbody>
@@ -205,78 +305,49 @@ export default function RejectReturns() {
   );
 }
 
-function StageBadge({ stage }: { stage: RejectReturn["stage"] }) {
-  if (stage === "rts_requested") return <Badge tone="ok">RTS triggered</Badge>;
-  if (stage === "tids_sent") return <Badge tone="ok">TIDs sent</Badge>;
-  if (stage === "acknowledged") return <Badge tone="warn">Awaiting action</Badge>;
-  return <Badge tone="danger">Not acknowledged</Badge>;
+function StageBadge({ stage }: { stage: ReturnStage }) {
+  if (stage === "printed") return <Badge tone="ok">Printed &amp; labelled</Badge>;
+  if (stage === "rts_triggered") return <Badge tone="ok">RTS triggered</Badge>;
+  if (stage === "tids_sent") return <Badge tone="ok">Closed (legacy TIDs)</Badge>;
+  if (stage === "pending_print") return <Badge tone="warn">Pending print</Badge>;
+  if (stage === "pending_de_upload") return <Badge tone="warn">Pending DE upload</Badge>;
+  return <Badge tone="danger">Pending Validator</Badge>;
 }
 
 function Row({
   row,
+  checked,
+  onCheck,
   open,
   onToggle,
-  onChange,
 }: {
   row: RejectReturn;
+  checked: boolean;
+  onCheck: (v: boolean) => void;
   open: boolean;
   onToggle: () => void;
-  onChange: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [tids, setTids] = useState("");
-
-  async function toggleAck(v: boolean) {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.returns.acknowledge(row.id, v);
-      onChange();
-    } catch {
-      setError("Couldn’t update.");
-      setBusy(false);
-    }
-  }
-
-  async function requestRts() {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.returns.requestRts(row.id);
-      onChange();
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.detail === "not_acknowledged"
-          ? "Acknowledge first."
-          : "Couldn’t save.",
-      );
-      setBusy(false);
-    }
-  }
-
-  async function sendTids() {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.returns.sendTids(row.id, tids);
-      onChange();
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.detail === "not_acknowledged"
-          ? "Acknowledge first."
-          : "Couldn’t save.",
-      );
-      setBusy(false);
-    }
-  }
-
   return (
     <>
-      <tr className="border-t border-line hover:bg-canvas-soft/50">
-        <td className="px-4 py-3"><span className="awb-chip">{row.original_awb_id}</span></td>
-        <td className="px-4 py-3">{row.pharmacy_name}</td>
-        <td className="px-4 py-3 text-ink-muted">{row.city ?? "—"}</td>
+      <tr className="border-t border-line align-middle hover:bg-canvas-soft/60">
+        <td className="px-4 py-3">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-nv-red"
+            checked={checked}
+            onChange={(e) => onCheck(e.target.checked)}
+          />
+        </td>
+        <td className="px-4 py-3">
+          <span className="awb-chip">{row.original_awb_id}</span>
+          {row.return_awb_id && (
+            <span className="mt-1 block font-mono text-[11px] text-ink-muted">→ {row.return_awb_id}</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {row.pharmacy_name}
+          <span className="block text-xs text-ink-muted">{row.city ?? ""}</span>
+        </td>
         <td className="px-4 py-3 font-mono text-xs">{row.hub_name ?? "—"}</td>
         <td className="px-4 py-3">
           {row.origin_unknown ? (
@@ -286,27 +357,16 @@ function Row({
           )}
         </td>
         <td className="px-4 py-3">
-          <Badge tone={row.return_type === "semua" ? "danger" : "info"}>
-            {row.return_type === "semua" ? "Semua" : "Sebagian"}
-          </Badge>
+          <Badge tone={row.return_type === "semua" ? "danger" : "neutral"}>{row.return_type}</Badge>
         </td>
-        <td className="px-4 py-3 whitespace-nowrap text-xs text-ink-muted">{row.rejected_at}</td>
+        <td className="px-4 py-3 text-right tabular-nums">{row.reject_pcs ?? "—"}</td>
+        <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-muted">{row.rejected_at}</td>
         <td className="px-4 py-3">
           <StageBadge stage={row.stage} />
         </td>
         <td className="px-4 py-3">
-          <input
-            type="checkbox"
-            className="h-5 w-5 accent-nv-red"
-            checked={!!row.acknowledged_at}
-            disabled={busy || row.stage === "tids_sent"}
-            onChange={(e) => toggleAck(e.target.checked)}
-            title="Acknowledge"
-          />
-        </td>
-        <td className="px-4 py-3">
           <button onClick={onToggle} className="text-xs font-semibold text-nv-red hover:underline">
-            {open ? "Close" : row.stage === "tids_sent" ? "Detail" : "Handle"}
+            {open ? "Close" : "Detail"}
           </button>
         </td>
       </tr>
@@ -314,11 +374,13 @@ function Row({
       {open && (
         <tr className="border-t border-line bg-canvas-soft/40">
           <td colSpan={10} className="px-4 py-4">
-            <div className="flex flex-wrap items-start gap-6">
+            <div className="flex flex-wrap gap-6">
               {row.proof_photos.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase text-ink-muted">Proof from the door</p>
-                  <div className="flex gap-2">
+                  <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">
+                    Door evidence — what the Validator judges
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     {row.proof_photos.map((p, i) => (
                       <a key={i} href={p.photo_url} target="_blank" rel="noreferrer">
                         <img
@@ -326,86 +388,35 @@ function Row({
                           alt={p.doc_type}
                           className="h-24 w-24 rounded-lg border border-line object-cover"
                         />
-                        <span className="mt-1 block text-center text-[10px] text-ink-muted">{p.doc_type}</span>
                       </a>
                     ))}
                   </div>
                 </div>
               )}
-
-              <div className="min-w-72 flex-1">
-                {/* A full reject closes by triggering RTS on the ORIGINAL forward tracking
-                    number — no second TID exists to paste, so the TID box would be a trap. */}
-                {row.closes_by === "rts" ? (
-                  row.stage === "rts_requested" ? (
-                    <div className="text-sm">
-                      <p>
-                        <span className="font-semibold">RTS triggered</span> on{" "}
-                        <span className="font-mono">{row.original_awb_id}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-ink-muted">
-                        {row.rts_requested_at} by {row.rts_requested_by_email ?? "—"}
-                        {row.acknowledged_by_email && ` · acknowledged by ${row.acknowledged_by_email}`}
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">
-                        Whole delivery refused
-                      </p>
-                      <p className="mb-2 max-w-md text-sm text-ink-muted">
-                        No new return TID is needed. Trigger <strong className="text-ink">RTS</strong>{" "}
-                        on the forward tracking number{" "}
-                        <span className="font-mono text-ink">{row.original_awb_id}</span> in Ninja,
-                        then record it here.
-                      </p>
-                      <Button onClick={requestRts} disabled={busy || !row.acknowledged_at}>
-                        Mark RTS triggered
-                      </Button>
-                      {!row.acknowledged_at && (
-                        <p className="mt-1.5 text-xs text-ink-muted">
-                          Tick the Ack checkbox first — it records who is handling this reject.
-                        </p>
-                      )}
-                      {error && <p className="mt-1.5 text-sm font-semibold text-danger">{error}</p>}
-                    </div>
-                  )
-                ) : row.stage === "tids_sent" ? (
-                  <div className="text-sm">
-                    <p>
-                      <span className="font-semibold">Replacement TIDs:</span>{" "}
-                      <span className="font-mono">{row.return_tids}</span>
-                    </p>
-                    <p className="mt-1 text-xs text-ink-muted">
-                      {row.tids_sent_at} by {row.tids_sent_by_email ?? "—"}
-                      {row.acknowledged_by_email && ` · acknowledged by ${row.acknowledged_by_email}`}
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">
-                      Replacement return TID(s)
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        className={`${inputClass} max-w-sm`}
-                        placeholder="Paste the TID(s) DE created — comma separated"
-                        value={tids}
-                        onChange={(e) => setTids(e.target.value)}
-                        disabled={!row.acknowledged_at}
-                      />
-                      <Button onClick={sendTids} disabled={busy || !row.acknowledged_at || !tids.trim()}>
-                        Mark TIDs sent
-                      </Button>
-                    </div>
-                    {!row.acknowledged_at && (
-                      <p className="mt-1.5 text-xs text-ink-muted">
-                        Tick the Ack checkbox first — it records who is handling this reject.
-                      </p>
-                    )}
-                    {error && <p className="mt-1.5 text-sm font-semibold text-danger">{error}</p>}
-                  </div>
-                )}
+              <div className="min-w-64 text-sm">
+                <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">Trail</p>
+                <ul className="space-y-1 text-xs text-ink-muted">
+                  <li>Rejected {row.rejected_at} — {row.reject_pcs ?? "?"} pcs reported at the door</li>
+                  {row.validated_at && (
+                    <li>✓ Validated {row.validated_at} by {row.validated_by_email ?? "—"}</li>
+                  )}
+                  {row.de_uploaded_at && (
+                    <li>
+                      ✓ Return OC uploaded {row.de_uploaded_at} by {row.de_uploaded_by_email ?? "—"} —{" "}
+                      <span className="font-mono">{row.return_awb_id}</span>
+                    </li>
+                  )}
+                  {row.printed_at && (
+                    <li>✓ Printed &amp; labelled {row.printed_at} by {row.printed_by_email ?? "—"}</li>
+                  )}
+                  {row.rts_requested_at && (
+                    <li>
+                      ✓ RTS triggered on <span className="font-mono">{row.original_awb_id}</span>{" "}
+                      {row.rts_requested_at} by {row.rts_requested_by_email ?? "—"}
+                    </li>
+                  )}
+                  {row.return_tids && <li>Legacy TIDs: <span className="font-mono">{row.return_tids}</span></li>}
+                </ul>
               </div>
             </div>
           </td>

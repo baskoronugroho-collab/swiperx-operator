@@ -208,6 +208,16 @@ def parse(file_bytes: bytes, service_code: str) -> dict:
         raise OcError(f"unknown service {service_code!r} (expected S1|S2|S3)")
     layout = CFG["source_layouts"][svc["layout"]]
     ws = _load_ws(file_bytes)
+    # Header check BEFORE parsing (OC_AWB_PARENT_CHECK.md 7b): a wrong file used to parse
+    # weights as AWBs with zero row errors, sail past the all-or-nothing gate, and commit
+    # garbage. Cheap, exact, and it fails with a message naming the offending cell.
+    for cell, expected in layout.get("header_checks", {}).items():
+        actual = _norm(ws[cell].value)
+        if actual.strip().casefold() != expected.strip().casefold():
+            raise OcError(
+                f"not a {svc['name']} TMP file: expected {expected!r} in cell {cell}, "
+                f"found {actual!r} — check the file and the chosen service"
+            )
     errors: list[dict] = []
     warnings: list[dict] = []
     awbs = _parse_return(ws, layout, errors) if svc["direction"] == "return" \

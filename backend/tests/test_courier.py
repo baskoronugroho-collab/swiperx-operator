@@ -122,7 +122,7 @@ def test_attestation_alone_blocks_a_reject(client, awb):
     assert g["complete"] is False
     assert any("distempel" in m for m in g["missing"])
 
-    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian"})
+    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian", "reject_pcs": 2})
     assert r.status_code == 422
 
 
@@ -161,7 +161,7 @@ def test_reject_opens_a_row_on_the_ops_worklist(client, de_client, awb):
     for doc in ("delivery_note", "rejected_goods", "awb_sticker"):
         client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
 
-    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian"})
+    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian", "reject_pcs": 2})
     assert r.status_code == 200
     assert r.json()["return_flagged"] is True
     assert r.json()["return_awbs"] == ["AWBTEST01"]
@@ -169,7 +169,7 @@ def test_reject_opens_a_row_on_the_ops_worklist(client, de_client, awb):
     rows = de_client.get("/api/returns").json()["returns"]
     assert len(rows) == 1
     assert rows[0]["original_awb_id"] == "AWBTEST01"
-    assert rows[0]["stage"] == "pending_ack"
+    assert rows[0]["stage"] == "pending_validator"
     assert rows[0]["return_type"] == "sebagian"
 
 

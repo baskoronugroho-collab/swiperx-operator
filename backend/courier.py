@@ -384,6 +384,10 @@ async def submit(
     rtype = "none"
     if outcome == "reject":
         rtype = return_type if return_type in {"sebagian", "semua"} else "sebagian"
+        # The piece count is what the pre-handover check reconciles against — a reject
+        # without it is an unverifiable return, so the UI gate is backed server-side.
+        if not awb["is_return"] and not (reject_pcs and reject_pcs > 0):
+            raise HTTPException(status_code=422, detail="reject_pcs_required")
 
     await db.execute(
         "UPDATE awb SET status = 'delivered', return_type = %s, delivered_at = NOW(), "

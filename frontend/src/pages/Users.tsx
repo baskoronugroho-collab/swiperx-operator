@@ -40,8 +40,8 @@ const ROLE_INFO: Record<Role, { label: string; blurb: string; grants: string[] }
   },
   validator: {
     label: "Validator",
-    blurb: "Reserved for document validation — that lane is not built yet in this cut.",
-    grants: [],
+    blurb: "Reviews every reject's photos before DE or Station IC can act on it.",
+    grants: ["Reject returns — the Pending Validator queue, validate action"],
   },
   swiperx: {
     label: "SwipeRx",

@@ -1,12 +1,21 @@
-"""Lane 3 — the reject-return worklist (SCOPE_V3_MVP.md §3).
+"""Lane 3 — the reject-return worklist (reworked 24 Aug 2026 to the whiteboard flow).
 
-Replaces the WA-group workaround described in the New-RDO deck (slide 16): a courier
-reject appears here immediately, Ops acknowledges it, then records the replacement TIDs
-that DE minted on the RTS account so the row closes with an audit trail.
+A courier reject lands here the moment it is submitted, then walks a fixed pipeline:
 
-Deliberately NOT in scope: generating the return OC. Ops pastes the TIDs that DE created
-in NV's system, exactly as today — the value here is visibility and the trail, not
-generation (PRD FR-R4 / §19 #23 stays deferred).
+    pending_validator ──▶ pending_de_upload ──▶ pending_print ──▶ printed      (sebagian)
+                      └─▶ pending_de_upload ──▶ rts_triggered                  (semua)
+
+* The VALIDATOR reviews the photos first — both reject types, no exceptions. Bad evidence
+  is caught here, not three steps later.
+* A PARTIAL return (`sebagian`) needs a new AWB (`<SwipeAWB>-R01`): DE exports the return
+  OC — origin pre-filled from the forward order — uploads it to Ninja, marks it uploaded,
+  and Station IC prints, labels and repacks (Pending Print → Printed & Labelled).
+* A FULL refusal (`semua`) never gets a new AWB and never reaches print: RTS is triggered
+  on the original forward tracking number, marked in bulk and exported as a list.
+
+Stages are DERIVED from timestamps, never stored, so a row can never claim a stage its
+own history does not support. Legacy rows: `acknowledged_at` (the pre-24-Aug flow) counts
+as validated, and rows closed by pasted TIDs stay visible as `tids_sent`.
 """
 import csv
 import io
@@ -19,30 +28,46 @@ import oc_engine
 from security import require_roles
 
 router = APIRouter(prefix="/api/returns", tags=["returns"])
-ops_roles = require_roles("implant", "de", "station_ic", "program_manager")
+
+# Everyone in the loop can SEE the worklist — IC needs to know what is coming to print
+# long before it is theirs to act on ("Station IC can still see it", 19 Aug).
+viewer_roles = require_roles("implant", "de", "station_ic", "program_manager", "validator")
+validator_roles = require_roles("validator", "program_manager")
+de_roles = require_roles("implant", "de")
+# The RTS list is uploaded by the Validator team per the 19 Aug decision, but DE can too.
+rts_roles = require_roles("validator", "implant", "de")
+printer_roles = require_roles("station_ic", "implant", "de")
 
 # The account the deck mandates for replacement return TIDs.
 RTS_SHIPPER_ID = "11398434"
 
-# A full reject (`semua`) closes by RTS instead of by return TIDs — see V8 migration.
-STAGES = ("pending_ack", "acknowledged", "tids_sent", "rts_requested")
+STAGES = (
+    "pending_validator", "pending_de_upload", "pending_print",
+    "printed", "rts_triggered", "tids_sent",
+)
 
 _SELECT = """
-    SELECT rp.id, rp.original_awb_id, rp.return_type, rp.service_id,
+    SELECT rp.id, rp.original_awb_id, rp.return_type, rp.service_id, rp.return_awb_id,
            rp.created_at        AS rejected_at,
            rp.acknowledged_at, rp.return_tids, rp.tids_sent_at,
            rp.rts_requested_at, rp.reject_pcs,
+           rp.validated_at, rp.de_uploaded_at, rp.printed_at,
            COALESCE(rp.origin, a.origin) AS origin,
-           a.pharmacy_name, a.city, a.hub_name,
-           ack.google_email     AS acknowledged_by_email,
-           snt.google_email     AS tids_sent_by_email,
+           a.pharmacy_name, a.city, a.hub_name, a.phone, a.address,
+           val.google_email     AS validated_by_email,
+           dup.google_email     AS de_uploaded_by_email,
+           prt.google_email     AS printed_by_email,
            rts.google_email     AS rts_requested_by_email
       FROM return_parcel rp
       LEFT JOIN awb   a   ON a.awb_id   = rp.original_awb_id
-      LEFT JOIN users ack ON ack.id     = rp.acknowledged_by
-      LEFT JOIN users snt ON snt.id     = rp.tids_sent_by
+      LEFT JOIN users val ON val.id     = rp.validated_by
+      LEFT JOIN users dup ON dup.id     = rp.de_uploaded_by
+      LEFT JOIN users prt ON prt.id     = rp.printed_by
       LEFT JOIN users rts ON rts.id     = rp.rts_requested_by
 """
+
+_TIMES = ("rejected_at", "acknowledged_at", "tids_sent_at", "rts_requested_at",
+          "validated_at", "de_uploaded_at", "printed_at")
 
 
 def _is_full(row: dict) -> bool:
@@ -50,37 +75,49 @@ def _is_full(row: dict) -> bool:
     return row.get("return_type") == "semua"
 
 
+def _validated(row: dict) -> bool:
+    # acknowledged_at is the pre-24-Aug flow's tick; treating it as validated keeps old
+    # rows moving instead of dumping them back on the Validator.
+    return bool(row.get("validated_at") or row.get("acknowledged_at"))
+
+
 def _stage(row: dict) -> str:
-    if _is_full(row) and row.get("rts_requested_at"):
-        return "rts_requested"
-    if row["tids_sent_at"]:
-        return "tids_sent"
-    if row["acknowledged_at"]:
-        return "acknowledged"
-    return "pending_ack"
+    if row.get("tids_sent_at"):
+        return "tids_sent"  # legacy close (pasted TIDs, pre-24-Aug)
+    if _is_full(row):
+        if row.get("rts_requested_at"):
+            return "rts_triggered"
+    else:
+        if row.get("printed_at"):
+            return "printed"
+        if row.get("de_uploaded_at"):
+            return "pending_print"
+    return "pending_de_upload" if _validated(row) else "pending_validator"
 
 
 def _shape(row: dict) -> dict:
-    for k in ("rejected_at", "acknowledged_at", "tids_sent_at", "rts_requested_at"):
+    for k in _TIMES:
         row[k] = str(row[k]) if row[k] else None
     row["stage"] = _stage(row)
     # A return with no recorded origin cannot be addressed home — DE must set it (in
     # bulk from the worklist) before the return OC can be exported.
     row["origin_unknown"] = not row.get("origin")
-    # Tells the UI which closing action this row needs, without it re-deriving the rule.
-    row["closes_by"] = "rts" if _is_full(row) else "tids"
+    # Which closing pipeline this row is on, so the UI never re-derives the rule.
+    row["closes_by"] = "rts" if _is_full(row) else "return_oc"
     return row
 
 
-async def _one(return_id: int) -> dict:
-    row = await db.fetch_one(f"{_SELECT} WHERE rp.id = %s", (return_id,))
-    if not row:
-        raise HTTPException(status_code=404, detail="not_found")
-    return _shape(row)
+async def _rows(ids: list[int] | None = None) -> list[dict]:
+    rows = await db.fetch_all(f"{_SELECT} ORDER BY rp.created_at DESC, rp.id DESC LIMIT 500")
+    shaped = [_shape(r) for r in rows]
+    if ids is not None:
+        want = set(ids)
+        shaped = [r for r in shaped if r["id"] in want]
+    return shaped
 
 
 async def _proof_photos(awb_id: str) -> list[dict]:
-    """The at-the-door reject evidence, so Ops can see what they're acknowledging."""
+    """The at-the-door reject evidence, so the Validator can judge what they're approving."""
     rows = await db.fetch_all(
         "SELECT doc_type, photo_ref FROM document_capture WHERE awb_id = %s "
         "AND doc_type IN ('rejected_goods', 'delivery_note', 'awb_sticker') ORDER BY id",
@@ -91,95 +128,56 @@ async def _proof_photos(awb_id: str) -> list[dict]:
 
 @router.get("")
 async def list_returns(
-    stage: str | None = Query(default=None, description="pending_ack|acknowledged|tids_sent"),
-    _: dict = Depends(ops_roles),
+    stage: str | None = Query(default=None, description="|".join(STAGES)),
+    _: dict = Depends(viewer_roles),
 ):
-    """Open reject-returns, newest first. Default view in the UI is `pending_ack`."""
+    """The worklist, newest first. Stage filtering is done on the DERIVED stage."""
     if stage and stage not in STAGES:
         raise HTTPException(status_code=400, detail="bad_stage")
-
-    where = {
-        "pending_ack": " WHERE rp.acknowledged_at IS NULL",
-        "acknowledged": (" WHERE rp.acknowledged_at IS NOT NULL AND rp.tids_sent_at IS NULL"
-                         " AND rp.rts_requested_at IS NULL"),
-        "tids_sent": " WHERE rp.tids_sent_at IS NOT NULL",
-        "rts_requested": " WHERE rp.rts_requested_at IS NOT NULL",
-    }.get(stage or "", "")
-
-    rows = await db.fetch_all(f"{_SELECT}{where} ORDER BY rp.created_at DESC, rp.id DESC LIMIT 500")
     out = []
-    for r in rows:
-        shaped = _shape(r)
-        shaped["proof_photos"] = await _proof_photos(shaped["original_awb_id"])
-        out.append(shaped)
+    for r in await _rows():
+        if stage and r["stage"] != stage:
+            continue
+        r["proof_photos"] = await _proof_photos(r["original_awb_id"])
+        out.append(r)
     return {"returns": out, "rts_shipper_id": RTS_SHIPPER_ID}
 
 
-@router.post("/{return_id}/acknowledge")
-async def acknowledge(
-    return_id: int,
-    acknowledged: bool = Body(..., embed=True),
-    user: dict = Depends(ops_roles),
+# ------------------------------------------------------------- validator ----
+@router.post("/validate")
+async def validate_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(validator_roles),
 ):
-    """Tick/untick 'I've seen this reject and I'm handling it'. Records who and when."""
-    row = await _one(return_id)
-    if row["stage"] == "tids_sent" and not acknowledged:
-        raise HTTPException(status_code=409, detail="already_closed")
+    """The Validator confirms the photos show what the driver claimed — both reject types.
 
-    if acknowledged:
-        await db.execute(
-            "UPDATE return_parcel SET acknowledged_at = NOW(), acknowledged_by = %s, "
-            "updated_at = NOW() WHERE id = %s", (user["id"], return_id),
-        )
-    else:
-        await db.execute(
-            "UPDATE return_parcel SET acknowledged_at = NULL, acknowledged_by = NULL, "
-            "updated_at = NOW() WHERE id = %s", (return_id,),
-        )
+    Nothing downstream (OC export, RTS, print) is possible until this happened; catching
+    bad evidence here is the whole reason the stage exists.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    updated = 0
+    for r in await _rows(ids):
+        if r["stage"] == "pending_validator":
+            await db.execute(
+                "UPDATE return_parcel SET validated_at = NOW(), validated_by = %s, "
+                "updated_at = NOW() WHERE id = %s", (user["id"], r["id"]),
+            )
+            updated += 1
     await db.execute(
-        "INSERT INTO audit_log (actor, action, entity, entity_id) VALUES (%s, %s, 'return_parcel', %s)",
-        (user["email"], "return_ack" if acknowledged else "return_unack", str(return_id)),
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_validated', 'return_parcel', %s)",
+        (user["email"], f"{updated} rows"),
     )
-    return await _one(return_id)
+    return {"updated": updated}
 
 
-@router.post("/{return_id}/tids")
-async def send_tids(
-    return_id: int,
-    return_tids: str = Body(..., embed=True),
-    user: dict = Depends(ops_roles),
-):
-    """Record the replacement return TID(s) DE minted on the RTS account, and mark them
-    sent. This closes the row."""
-    row = await _one(return_id)
-    if _is_full(row):
-        # A whole-consignment refusal is an RTS on the existing forward TID; minting a
-        # second one would duplicate the parcel in NV's system (deck slide 7, 10 Aug).
-        raise HTTPException(status_code=409, detail="full_reject_uses_rts")
-    tids = [t.strip() for t in return_tids.replace("\n", ",").split(",") if t.strip()]
-    if not tids:
-        raise HTTPException(status_code=400, detail="no_tids")
-    if not row["acknowledged_at"]:
-        raise HTTPException(status_code=409, detail="not_acknowledged")
-
-    joined = ", ".join(tids)
-    await db.execute(
-        "UPDATE return_parcel SET return_tids = %s, return_awb_id = %s, tids_sent_at = NOW(), "
-        "tids_sent_by = %s, updated_at = NOW() WHERE id = %s",
-        (joined, tids[0][:40], user["id"], return_id),
-    )
-    await db.execute(
-        "INSERT INTO audit_log (actor, action, entity, entity_id) VALUES (%s, 'return_tids_sent', "
-        "'return_parcel', %s)", (user["email"], str(return_id)),
-    )
-    return await _one(return_id)
-
-
+# ---------------------------------------------------------------- origin ----
 @router.post("/origin")
 async def set_origin_bulk(
     ids: list[int] = Body(..., embed=True),
     origin: str = Body(..., embed=True),
-    user: dict = Depends(ops_roles),
+    user: dict = Depends(viewer_roles),
 ):
     """Bulk-set the origin on rows whose forward order predates origin tracking.
 
@@ -191,15 +189,11 @@ async def set_origin_bulk(
     if not ids:
         raise HTTPException(status_code=400, detail="no_ids")
     updated = 0
-    for rid in ids[:500]:
-        row = await db.fetch_one(
-            "SELECT rp.id, COALESCE(rp.origin, a.origin) AS origin FROM return_parcel rp "
-            "LEFT JOIN awb a ON a.awb_id = rp.original_awb_id WHERE rp.id = %s", (rid,)
-        )
-        if row and not row["origin"]:
+    for r in await _rows(ids):
+        if r["origin_unknown"]:
             await db.execute(
                 "UPDATE return_parcel SET origin = %s, updated_at = NOW() WHERE id = %s",
-                (origin, rid),
+                (origin, r["id"]),
             )
             updated += 1
     await db.execute(
@@ -210,57 +204,172 @@ async def set_origin_bulk(
     return {"updated": updated, "origin": origin}
 
 
-@router.post("/{return_id}/rts")
-async def request_rts(return_id: int, user: dict = Depends(ops_roles)):
-    """Record that RTS has been triggered on the ORIGINAL forward tracking number.
+# --------------------------------------------------- sebagian: DE pipeline ----
+def _exportable_oc(rows: list[dict]) -> list[dict]:
+    return [r for r in rows
+            if r["stage"] == "pending_de_upload" and not _is_full(r) and not r["origin_unknown"]]
 
-    This is how a `semua` row closes. No new tracking number is created: the parcel already
-    has one, and RTS turns that same shipment around — which keeps one identifier and one
-    history instead of two. Requires acknowledgement first, same as the TID path, so nobody
-    closes a row they haven't looked at.
+
+@router.get("/export-oc.xlsx")
+async def export_return_oc(_: dict = Depends(de_roles)):
+    """The return OC workbook for every validated partial reject awaiting upload.
+
+    One row per reject, `<SwipeAWB>-R01`, addressed from the pharmacy back to the origin
+    warehouse recorded on the forward order. Rows whose origin is unknown are EXCLUDED —
+    exporting them would ship the parcel to the wrong city; fix them via the origin-unknown
+    filter first.
     """
-    row = await _one(return_id)
-    if not _is_full(row):
-        raise HTTPException(status_code=409, detail="partial_reject_uses_tids")
-    if not row["acknowledged_at"]:
-        raise HTTPException(status_code=409, detail="not_acknowledged")
-    if row["rts_requested_at"]:
-        raise HTTPException(status_code=409, detail="already_requested")
-
-    await db.execute(
-        "UPDATE return_parcel SET rts_requested_at = NOW(), rts_requested_by = %s, "
-        "updated_at = NOW() WHERE id = %s", (user["id"], return_id),
+    rows = _exportable_oc(await _rows())
+    if not rows:
+        raise HTTPException(status_code=404, detail="no_exportable_rows")
+    data = oc_engine.build_return_rows([{
+        "awb_id": r["original_awb_id"],
+        "pharmacy_name": r["pharmacy_name"] or "",
+        "phone": r["phone"] or "",
+        "address": r["address"] or "",
+        "origin": r["origin"],
+        "reject_pcs": r["reject_pcs"],
+    } for r in rows])
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="Return-OC-pending.xlsx"'},
     )
+
+
+@router.post("/mark-uploaded")
+async def mark_uploaded_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(de_roles),
+):
+    """DE confirms the exported return OC went into Ninja — rows move to Pending Print.
+
+    Stamps the generated `-R01` on the row so Station IC has the tracking number to search
+    in OPV2 without deriving anything.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    updated = 0
+    for r in await _rows(ids):
+        if r["stage"] == "pending_de_upload" and not _is_full(r):
+            if r["origin_unknown"]:
+                raise HTTPException(status_code=409, detail="origin_unknown")
+            await db.execute(
+                "UPDATE return_parcel SET de_uploaded_at = NOW(), de_uploaded_by = %s, "
+                "return_awb_id = %s, updated_at = NOW() WHERE id = %s",
+                (user["id"], oc_engine.return_trid(r["original_awb_id"])[:40], r["id"]),
+            )
+            updated += 1
     await db.execute(
-        "INSERT INTO audit_log (actor, action, entity, entity_id) VALUES (%s, 'return_rts_requested', "
-        "'return_parcel', %s)", (user["email"], str(return_id)),
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_oc_uploaded', 'return_parcel', %s)",
+        (user["email"], f"{updated} rows"),
     )
-    return await _one(return_id)
+    return {"updated": updated}
 
 
+@router.post("/mark-printed")
+async def mark_printed_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(printer_roles),
+):
+    """Station IC printed the label and repacked the parcel — the row closes."""
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    updated = 0
+    for r in await _rows(ids):
+        if r["stage"] == "pending_print":
+            await db.execute(
+                "UPDATE return_parcel SET printed_at = NOW(), printed_by = %s, "
+                "updated_at = NOW() WHERE id = %s", (user["id"], r["id"]),
+            )
+            updated += 1
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_printed', 'return_parcel', %s)",
+        (user["email"], f"{updated} rows"),
+    )
+    return {"updated": updated}
+
+
+# ------------------------------------------------------- semua: RTS pipeline --
+@router.post("/rts")
+async def mark_rts_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(rts_roles),
+):
+    """Bulk-mark validated full refusals as RTS-triggered on their forward AWB.
+
+    No new tracking number exists or is created — the parcel travels back on its original
+    label, which is why this branch never reaches Pending Print.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    updated = 0
+    for r in await _rows(ids):
+        if _is_full(r) and r["stage"] == "pending_de_upload":
+            await db.execute(
+                "UPDATE return_parcel SET rts_requested_at = NOW(), rts_requested_by = %s, "
+                "updated_at = NOW() WHERE id = %s", (user["id"], r["id"]),
+            )
+            updated += 1
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_rts_bulk', 'return_parcel', %s)",
+        (user["email"], f"{updated} rows"),
+    )
+    return {"updated": updated}
+
+
+@router.get("/export-rts.csv")
+async def export_rts_csv(_: dict = Depends(rts_roles)):
+    """Every validated full refusal, as the list the Validator team uploads to trigger RTS.
+
+    Includes rows already marked (rts_marked = yes) so the file matches what was just
+    bulk-marked in the UI — the mark and the export are two halves of one action.
+    """
+    rows = [r for r in await _rows()
+            if _is_full(r) and r["stage"] in ("pending_de_upload", "rts_triggered")]
+    if not rows:
+        raise HTTPException(status_code=404, detail="no_exportable_rows")
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["forward_tracking_id", "pharmacy", "hub", "reject_pcs", "rejected_at", "rts_marked"])
+    for r in rows:
+        w.writerow([
+            r["original_awb_id"], r["pharmacy_name"] or "", r["hub_name"] or "",
+            r["reject_pcs"] or "", r["rejected_at"] or "",
+            "yes" if r["stage"] == "rts_triggered" else "no",
+        ])
+    return Response(content="﻿" + buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="RTS-list.csv"'})
+
+
+# ------------------------------------------------------------------ audit ----
 @router.get("/export.csv")
-async def export_csv(_: dict = Depends(ops_roles)):
+async def export_csv(_: dict = Depends(viewer_roles)):
     """Flat export of the worklist with its full audit trail."""
-    rows = await db.fetch_all(f"{_SELECT} ORDER BY rp.created_at DESC, rp.id DESC")
+    rows = await _rows()
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
-        "return_id", "forward_awb", "pharmacy", "city", "reject_type", "rejected_at",
-        "stage", "closes_by", "hub", "origin", "reject_pcs",
-        "acknowledged_at", "acknowledged_by", "return_tids",
-        "tids_sent_at", "tids_sent_by", "rts_requested_at", "rts_requested_by",
+        "return_id", "forward_awb", "return_awb", "pharmacy", "city", "reject_type",
+        "rejected_at", "stage", "closes_by", "hub", "origin", "reject_pcs",
+        "validated_at", "validated_by", "de_uploaded_at", "de_uploaded_by",
+        "printed_at", "printed_by", "rts_requested_at", "rts_requested_by",
+        "legacy_return_tids",
     ])
-    for r in rows:
-        s = _shape(r)
+    for s in rows:
         w.writerow([
-            s["id"], s["original_awb_id"], s["pharmacy_name"] or "", s["city"] or "",
+            s["id"], s["original_awb_id"], s["return_awb_id"] or "",
+            s["pharmacy_name"] or "", s["city"] or "",
             s["return_type"], s["rejected_at"] or "", s["stage"], s["closes_by"],
             s["hub_name"] or "", s["origin"] or "", s["reject_pcs"] or "",
-            s["acknowledged_at"] or "", s["acknowledged_by_email"] or "", s["return_tids"] or "",
-            s["tids_sent_at"] or "", s["tids_sent_by_email"] or "",
+            s["validated_at"] or "", s["validated_by_email"] or "",
+            s["de_uploaded_at"] or "", s["de_uploaded_by_email"] or "",
+            s["printed_at"] or "", s["printed_by_email"] or "",
             s["rts_requested_at"] or "", s["rts_requested_by_email"] or "",
+            s["return_tids"] or "",
         ])
-    return Response(
-        content=buf.getvalue(), media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="reject-returns.csv"'},
-    )
+    return Response(content="﻿" + buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="reject-returns.csv"'})

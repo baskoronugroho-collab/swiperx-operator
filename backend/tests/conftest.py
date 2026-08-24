@@ -121,6 +121,8 @@ SEED = [
     ("INSERT INTO user_roles (user_id, role) VALUES (1,'de')", ()),
     ("INSERT INTO user_roles (user_id, role) VALUES (1,'implant')", ()),
     ("INSERT INTO user_roles (user_id, role) VALUES (2,'station_ic')", ()),
+    ("INSERT INTO users (id, name, google_email, active) VALUES (4,'Vera V.','vera.v@ninjavan.co',1)", ()),
+    ("INSERT INTO user_roles (user_id, role) VALUES (4,'validator')", ()),
 ]
 
 _PLACEHOLDER = re.compile(r"%s")
@@ -202,9 +204,9 @@ def awb(dbs):
     async def make():
         await dbs.execute(
             "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, "
-            "city, koli, link_token, status, is_return) "
-            "VALUES ('AWBTEST01','AWB02U24V','S1','Apotek Uji','Jl. Uji 1','Depok',3,'tok_test',"
-            "'created',0)", (),
+            "city, phone, koli, link_token, status, is_return, origin) "
+            "VALUES ('AWBTEST01','AWB02U24V','S1','Apotek Uji','Jl. Uji 1','Depok','0812',3,'tok_test',"
+            "'created',0,'TMP_DEPOK')", (),
         )
         for po, koli in (("PO-AAA", 2), ("PO-BBB", 1)):
             await dbs.execute(
@@ -224,3 +226,11 @@ PNG_1PX = bytes.fromhex(
 def photo(name: str = "p.png"):
     """A real 1x1 PNG — the capture route validates content type and non-emptiness."""
     return {"file": (name, PNG_1PX, "image/png")}
+
+
+@pytest.fixture()
+def validator_client(client):
+    """Signed in as Vera V. — holds only `validator`."""
+    r = client.post("/api/auth/dev-login", json={"email": "vera.v@ninjavan.co"})
+    assert r.status_code == 200, r.text
+    return client

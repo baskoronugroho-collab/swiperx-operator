@@ -245,29 +245,40 @@ export interface CourierSubmitResult {
 
 /* -------------------------------------------------------------- returns --- */
 
+export type ReturnStage =
+  | "pending_validator"
+  | "pending_de_upload"
+  | "pending_print"
+  | "printed"
+  | "rts_triggered"
+  | "tids_sent"; // legacy rows closed by pasted TIDs, pre-24-Aug
+
 export interface RejectReturn {
   id: number;
   original_awb_id: string;
+  return_awb_id: string | null;
   pharmacy_name: string;
   city: string | null;
   service_id: string;
   return_type: "sebagian" | "semua";
   rejected_at: string;
-  acknowledged_at: string | null;
-  acknowledged_by_email: string | null;
-  return_tids: string | null;
-  tids_sent_at: string | null;
-  tids_sent_by_email: string | null;
-  stage: "pending_ack" | "acknowledged" | "tids_sent" | "rts_requested";
+  stage: ReturnStage;
   hub_name: string | null;
   origin: string | null;
   origin_unknown: boolean;
   reject_pcs: number | null;
-  /** How this row closes. A full reject ("semua") is an RTS on the EXISTING forward
-   *  tracking number — no second TID is created. A partial still needs its own. */
-  closes_by: "rts" | "tids";
+  /** Which closing pipeline this row is on. "rts" = RTS on the existing forward AWB,
+   *  no new tracking number. "return_oc" = DE exports the -R01 return OC. */
+  closes_by: "rts" | "return_oc";
+  validated_at: string | null;
+  validated_by_email: string | null;
+  de_uploaded_at: string | null;
+  de_uploaded_by_email: string | null;
+  printed_at: string | null;
+  printed_by_email: string | null;
   rts_requested_at: string | null;
   rts_requested_by_email: string | null;
+  return_tids: string | null;
   proof_photos: { doc_type: DocType; photo_url: string }[];
 }
 
@@ -440,15 +451,21 @@ export const api = {
   returns: {
     list: (stage?: string) =>
       get<{ returns: RejectReturn[] }>(`/api/returns${stage ? `?stage=${stage}` : ""}`),
-    acknowledge: (id: number, acknowledged: boolean) =>
-      postJson<RejectReturn>(`/api/returns/${id}/acknowledge`, { acknowledged }),
-    sendTids: (id: number, returnTids: string) =>
-      postJson<RejectReturn>(`/api/returns/${id}/tids`, { return_tids: returnTids }),
-    /** Close a full reject by triggering RTS on the original forward tracking number. */
-    requestRts: (id: number) => postJson<RejectReturn>(`/api/returns/${id}/rts`, {}),
+    /** Validator confirms the photos; nothing downstream moves before this. */
+    validate: (ids: number[]) => postJson<{ updated: number }>("/api/returns/validate", { ids }),
+    /** DE confirms the exported return OC went into Ninja — rows move to Pending Print. */
+    markUploaded: (ids: number[]) =>
+      postJson<{ updated: number }>("/api/returns/mark-uploaded", { ids }),
+    /** Station IC printed and labelled — the row closes. */
+    markPrinted: (ids: number[]) =>
+      postJson<{ updated: number }>("/api/returns/mark-printed", { ids }),
+    /** Bulk-mark validated full refusals as RTS-triggered on their forward AWB. */
+    markRts: (ids: number[]) => postJson<{ updated: number }>("/api/returns/rts", { ids }),
     /** Bulk-set the origin on rows whose forward order predates origin tracking. */
     setOrigin: (ids: number[], origin: string) =>
       postJson<{ updated: number }>(`/api/returns/origin`, { ids, origin }),
+    exportOcUrl: () => "/api/returns/export-oc.xlsx",
+    exportRtsUrl: () => "/api/returns/export-rts.csv",
     exportUrl: () => "/api/returns/export.csv",
   },
 };

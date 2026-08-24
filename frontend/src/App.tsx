@@ -93,7 +93,7 @@ function Router() {
         <Route
           path="/returns"
           element={
-            <Protected roles={OPS}>
+            <Protected roles={[...OPS, "validator"]}>
               <RejectReturns />
             </Protected>
           }

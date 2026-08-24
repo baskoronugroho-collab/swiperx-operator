@@ -196,3 +196,24 @@ new return TRID).
 3. **Kode Alasan Return (A–L)** is printed on the DN but never captured as data — ops reads it
    off a photo. Worth capturing at the door if it is used for reporting.
 4. **Validator and SwipeRx roles open nothing.** Assigning them lets someone sign in and no more.
+
+
+---
+
+## Built 24 Aug 2026 — the pipeline is complete
+
+- **Validator review stage**: every reject (sebagian AND semua) sits in *Pending Validator*
+  until a Validator confirms the photos. Validate is a bulk action; the role finally works.
+- **Sebagian pipeline**: Export return OC (`-R01`, origin pre-filled) -> Mark OC uploaded ->
+  *Pending print* -> Mark printed & labelled. The `-R01` is stamped on the row for OPV2.
+- **Semua pipeline**: Export RTS list (.csv) + bulk Mark RTS triggered. Never reaches print.
+- **Wrong-service/wrong-file guard** (OC_AWB_PARENT_CHECK 7b): the TMP header row is
+  validated before parsing; a wrong file 422s with the offending cell named.
+- **reject_pcs enforced server-side** on every forward reject submit.
+- Legacy rows: `acknowledged_at` counts as validated; TID-closed rows show as
+  *Closed (legacy TIDs)*. The paste-TIDs and acknowledge endpoints were removed.
+
+## Still open (awaiting Baskoro)
+
+1. Final hub->TMP mapping (61 hubs unmapped; **CBN-KNG** mapped to both TMPs in the sheet).
+2. TMP Surabaya's real phone number (placeholder = Depok's).

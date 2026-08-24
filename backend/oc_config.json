@@ -52,6 +52,11 @@
         "city": "K",
         "phone": "L",
         "koli": "M"
+      },
+      "header_checks": {
+        "B1": "SwipeAWB",
+        "E1": "PO Number",
+        "M1": "Koli"
       }
     },
     "forward_sameday": {
@@ -68,6 +73,11 @@
         "city": "K",
         "phone": "L",
         "koli": "M"
+      },
+      "header_checks": {
+        "B1": "SwipeAWB",
+        "E1": "PO Number",
+        "M1": "Koli"
       }
     },
     "return": {
@@ -84,7 +94,8 @@
         "city": "M",
         "phone": "O"
       }
-    }
+    },
+    "_header_checks_comment": "header_checks: cells the uploaded file's header row must match (case-insensitive, trimmed) before parsing starts. Catches a non-TMP file — or a layout drift — with a clear 422 instead of committing garbage (OC_AWB_PARENT_CHECK.md 7b). The `return` layout has none defined; S3 is disabled."
   },
   "max_collies_per_awb": 200,
   "warehouse": {
