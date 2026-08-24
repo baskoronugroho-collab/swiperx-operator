@@ -52,6 +52,11 @@ export default function CourierApp() {
     try {
       const o = await api.courier.order(token);
       setOrder(o);
+      // Keep the identity fields mirroring what the server has, so re-opening the
+      // identity screen to FIX a typo starts from the saved values, not blanks.
+      setDriverId(o.driver_id ?? "");
+      setHubName(o.hub_name ?? "");
+      if (o.hub_name && !o.hubs.includes(o.hub_name)) setHubNotListed(true);
       if (o.terminal) setPhase(o.status === "delivery_failed" ? "done_failed" : "done_delivered");
       // Nobody captures anything before saying who they are. Once driver_id is set this
       // stops firing, so a resumed link does not ask twice.
@@ -156,27 +161,47 @@ export default function CourierApp() {
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-bold">Hub</span>
+          {/* NOT a <datalist>: mobile webviews render that as a scroll wheel and ignore
+              typing entirely (found on a real driver phone, 24 Aug). This is a plain text
+              input with a tappable filtered list underneath — identical behaviour on
+              every device. */}
           <input
             className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base outline-none focus:border-nv-red"
             value={hubName}
             onChange={(e) => setHubName(e.target.value.toUpperCase())}
-            list={hubNotListed ? undefined : "hub-options"}
             autoComplete="off"
-            placeholder="ketik untuk mencari — contoh: MAC-KD5"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="ketik untuk mencari — contoh: MAC"
           />
-          {!hubNotListed && (
-            <datalist id="hub-options">
-              {order.hubs.map((h) => (
-                <option key={h} value={h} />
-              ))}
-            </datalist>
+          {!hubNotListed && !hubOk && (
+            <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+              {order.hubs
+                .filter((h) => !hubName.trim() || h.includes(hubName.trim()))
+                .slice(0, 30)
+                .map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setHubName(h)}
+                    className="block w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-left font-mono text-sm active:bg-nv-red-soft"
+                  >
+                    {h}
+                  </button>
+                ))}
+              {order.hubs.filter((h) => !hubName.trim() || h.includes(hubName.trim())).length === 0 && (
+                <p className="px-1 py-2 text-xs text-ink-muted">
+                  Tidak ada hub yang cocok — cek ketikan, atau centang di bawah.
+                </p>
+              )}
+            </div>
           )}
           <span className="mt-1 block text-xs text-ink-muted">
             {hubNotListed
               ? "Tulis nama hub kamu apa adanya."
-              : hubName && !hubOk
-                ? "Hub tidak ada di daftar. Pilih dari daftar, atau centang di bawah."
-                : `Pilih dari ${order.hubs.length} hub yang terdaftar.`}
+              : hubOk
+                ? "Hub dipilih."
+                : `Ketik lalu sentuh hub kamu — ${order.hubs.length} hub terdaftar.`}
           </span>
           <label className="mt-2 flex items-center gap-2 text-xs text-ink-muted">
             <input
@@ -208,6 +233,7 @@ export default function CourierApp() {
             setBusy(false);
           }
         }}
+        onBack={order.driver_id ? () => setPhase("start") : undefined}
       />
     );
   }
@@ -215,6 +241,22 @@ export default function CourierApp() {
   if (phase === "start") {
     body = (
       <div className="space-y-4">
+        {/* Who is filing this — with the way back in, so a typo in the Driver ID is a
+            two-tap fix instead of a dead end (driver feedback, 24 Aug). */}
+        {order.driver_id && (
+          <div className="flex items-center justify-between rounded-2xl border border-line bg-surface px-4 py-3">
+            <div className="text-sm">
+              <span className="font-bold">Driver {order.driver_id}</span>
+              <span className="text-ink-muted"> · {order.hub_name}</span>
+            </div>
+            <button
+              onClick={() => setPhase("identity")}
+              className="text-sm font-semibold text-nv-red"
+            >
+              Ubah
+            </button>
+          </div>
+        )}
         <OrderContext order={order} totalKoli={totalKoli} />
         <div>
           <p className="text-sm font-bold">Ada barang yang diretur di titik pengantaran?</p>
