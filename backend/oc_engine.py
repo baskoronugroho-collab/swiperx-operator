@@ -168,13 +168,15 @@ def _norm(v) -> str:
 
 
 def _fit_instr(free_text: str, suffix: str, url: str, limit: int) -> str:
-    """Wrap fixed/free text + link in <updated_addr>…<a href=URL>URL</a>, trimming free text to fit.
-    No separator is inserted between text and the anchor — rdo_text entries carry their own
-    trailing punctuation/spacing (e.g. "...berikut:" attaches directly, "...Return. " has a
-    trailing space)."""
+    """Wrap the link + fixed/free text in <updated_addr>, trimming free text to fit.
+
+    The anchor comes FIRST, right after <updated_addr> (Baskoro, 24 Aug 2026): the link is
+    the one thing the courier must tap, so it must not be buried behind a paragraph of
+    wording on a phone screen. A single space separates it from the text.
+    """
     def build(t: str) -> str:
         head = "".join([x for x in (t, suffix) if x])
-        return f'<updated_addr>{head}<a href="{url}">{url}</a></updated_addr>'
+        return f'<updated_addr><a href="{url}">{url}</a> {head}</updated_addr>'
 
     if len(build(free_text)) <= limit:
         return build(free_text)
@@ -348,24 +350,22 @@ def piece_trids(awb: dict) -> list[str]:
     return out
 
 
-def _fit_forward(mandated: str, cta: str, url: str, limit: int) -> str:
-    """Build col R with the mandated RDO wording protected.
+def _fit_forward(mandated: str, url: str, limit: int) -> str:
+    """Build col R: the courier link FIRST, then the mandated RDO wording.
 
-    That wording is compliance text (guide §2.4) and must never be silently trimmed —
-    only the call-to-action is discretionary, so it is dropped WHOLE when the budget is
-    tight. This stopped being theoretical on 27 Jul 2026: the platform moved the app to
-    an org-scoped host, the URL grew 9 chars, and since the URL is counted twice the
-    text budget fell from 296 to 278 — less than the 296 the old text+CTA needed.
+    Link-first (Baskoro, 24 Aug 2026) — the tap target sits right at the top of the field
+    instead of after 267 chars of compliance text. The old discretionary call-to-action
+    ("Buka link:") died with this change: it existed to point at a link that FOLLOWED the
+    text, which no longer exists. Retiring it also buys the budget back — the field now
+    lands ~490/500 instead of exactly 500/500.
 
-    If even the bare mandated text cannot fit, the result is ellipsised AND reported by
-    `instr_truncated()`, so it surfaces as an operator warning instead of quietly
-    shipping incomplete legal wording.
+    The mandated wording is compliance text (guide §2.4) and must never be silently
+    trimmed. If it cannot fit, it is ellipsised AND reported by `instr_truncated()`, so it
+    surfaces as an operator warning instead of quietly shipping incomplete legal wording.
     """
     def build(text: str) -> str:
-        return f'<updated_addr>{text}<a href="{url}">{url}</a></updated_addr>'
+        return f'<updated_addr><a href="{url}">{url}</a> {text}</updated_addr>'
 
-    if len(build(mandated + cta)) <= limit:
-        return build(mandated + cta)
     if len(build(mandated)) <= limit:
         return build(mandated)
     t = mandated
@@ -377,9 +377,9 @@ def _fit_forward(mandated: str, cta: str, url: str, limit: int) -> str:
 def instr_truncated(text: str) -> bool:
     """True when _fit_instr had to ellipsis-trim to fit the 500-char cap.
 
-    The forward RDO wording is compliance text (guide §2.4) and currently lands at exactly
-    500/500 with a 32-char token — zero spare. A longer PUBLIC_BASE_URL would silently eat
-    the tail, so callers surface this as an operator-visible warning instead.
+    The forward field lands around 490/500 with a 32-char token on the org-scoped host —
+    the 24 Aug link-first change retired the CTA and bought ~10 chars of spare. A longer
+    host would still eat the tail, so callers surface this as an operator-visible warning.
     """
     return "…" in text
 
@@ -390,8 +390,7 @@ def delivery_instructions(service_code: str, awb: dict, url: str) -> str:
     limit = CFG["link_char_limit"]
     if svc["direction"] == "return":
         return _fit_instr(CFG["rdo_text"]["return_delivery_short"], "", url, limit)
-    return _fit_forward(CFG["rdo_text"]["forward"], CFG["rdo_text"].get("forward_cta", ""),
-                        url, limit)
+    return _fit_forward(CFG["rdo_text"]["forward"], url, limit)
 
 
 def _item_description(awb: dict) -> str:

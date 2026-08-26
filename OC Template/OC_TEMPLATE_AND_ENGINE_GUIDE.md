@@ -167,10 +167,10 @@ Notes:
 
 ### 2.4 Link injection (clickable hyperlink, 500-char budget)
 
-The courier link is appended to column R (delivery_instructions) as a clickable HTML hyperlink. **Correct format — the whole field is wrapped in `<updated_addr>`, and the anchor's visible text is the URL itself** (not a word like "peta"):
+The courier link goes into column R (delivery_instructions) as a clickable HTML hyperlink. **Correct format — the whole field is wrapped in `<updated_addr>`, the anchor comes FIRST (rev. 24 Aug 2026: it is the tap target, so it must not sit behind the wording on a phone), and the anchor's visible text is the URL itself** (not a word like "peta"):
 
 ```
-<updated_addr>{fixed RDO instruction text} <a href="{URL}">{URL}</a></updated_addr>
+<updated_addr><a href="{URL}">{URL}</a> {fixed RDO instruction text}</updated_addr>
 ```
 
 where `{URL}` = `https://{PUBLIC_BASE_URL}/c/{token}` (per AWB).

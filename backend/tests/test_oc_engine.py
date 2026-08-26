@@ -128,34 +128,30 @@ PROD_URL = "https://swiperx-operator.ninjavan.apps.substrait.build/c/" + "x" * 3
 
 def test_forward_rdo_text_fits_the_500_char_column_without_truncation():
     """Col R is compliance text with a hard cap. Against the real production host the
-    mandated wording must survive intact — if this fails, shorten the CTA, never the
-    mandated wording."""
+    mandated wording must survive intact."""
     out = e.delivery_instructions("S1", _awb(), PROD_URL)
     assert len(out) <= e.CFG["link_char_limit"]
     assert not e.instr_truncated(out), "mandated RDO wording was trimmed"
     assert e.CFG["rdo_text"]["forward"] in out, "mandated wording missing or altered"
-    assert out.startswith("<updated_addr>") and out.endswith("</updated_addr>")
-    assert f'<a href="{PROD_URL}">{PROD_URL}</a>' in out  # anchor text == the URL itself
+    assert out.endswith("</updated_addr>")
+    # The LINK comes first, immediately after <updated_addr> (Baskoro, 24 Aug 2026):
+    # it is the tap target, so it must not sit behind 267 chars of wording on a phone.
+    assert out.startswith(f'<updated_addr><a href="{PROD_URL}">{PROD_URL}</a> ')
 
 
-def test_cta_is_dropped_whole_rather_than_trimming_mandated_wording():
-    """A host long enough to squeeze the budget must cost the CTA, not the compliance
-    text — the failure mode the 27 Jul hostname migration exposed.
-
-    The URL is sized to land in the window where the mandated wording still fits but the
-    CTA no longer does, derived from config rather than hardcoded so it tracks any future
-    wording change."""
+def test_an_oversized_url_trims_loudly_never_silently():
+    """If a host ever grows past the budget, the mandated wording is ellipsised AND
+    flagged by instr_truncated(), so it lands as an operator warning — the field must
+    never quietly ship incomplete legal wording. (The old drop-the-CTA middle ground died
+    with the 24 Aug link-first change: the CTA pointed at a trailing link that no longer
+    exists, and retiring it bought ~10 chars of spare.)"""
     limit = e.CFG["link_char_limit"]
-    mandated, cta = e.CFG["rdo_text"]["forward"], e.CFG["rdo_text"]["forward_cta"]
-    tags = len('<updated_addr></updated_addr>') + len('<a href=""></a>')
-    # budget(L) = limit - 2L - tags, so the longest URL that still fits the mandated text
-    # is L = (limit - tags - len(mandated)) // 2 — the top of the drop-the-CTA window.
-    url_len = (limit - tags - len(mandated)) // 2
+    # Size the URL (counted twice) so ~100 chars remain for the wording — enough that the
+    # ellipsised text still fits, too little for the full 267-char mandated block.
+    tags = len('<updated_addr><a href=""></a> </updated_addr>')
+    url_len = (limit - tags - 100) // 2
     url = "https://" + "h" * (url_len - len("https:///c/") - 32) + "/c/" + "x" * 32
-    assert len(url) == url_len
-
     out = e.delivery_instructions("S1", _awb(), url)
     assert len(out) <= limit
-    assert mandated in out, "mandated wording was trimmed instead of the CTA"
-    assert cta not in out, "CTA should have been dropped whole"
-    assert not e.instr_truncated(out)
+    assert e.instr_truncated(out), "an over-budget field must be flagged, not silent"
+    assert out.startswith(f'<updated_addr><a href="{url}">{url}</a> ')

@@ -79,25 +79,29 @@ def test_trailing_slash_is_stripped(monkeypatch):
 
 
 def test_a_short_courier_host_buys_back_col_r_headroom(monkeypatch):
-    """The reason this variable exists: col R is at exactly 500/500 on the platform host."""
+    """The reason this variable exists: the URL is counted twice in the 500-char field.
+
+    Since the 24 Aug link-first change the platform host lands ~490/500 (retiring the CTA
+    bought the spare); a short custom domain still reclaims ~50+ more.
+    """
     import oc_engine as e
 
     mandated = e.CFG["rdo_text"]["forward"]
-    cta = e.CFG["rdo_text"].get("forward_cta", "")
     limit = e.CFG["link_char_limit"]
     token = "x" * 32
 
     def field(host):
         url = f"{host}/c/{token}"
-        return len(f'<updated_addr>{mandated}{cta}<a href="{url}">{url}</a></updated_addr>')
+        return len(f'<updated_addr><a href="{url}">{url}</a> {mandated}</updated_addr>')
 
     platform = field("https://swiperx-operator.ninjavan.apps.substrait.build")
     custom = field("https://swrx.ninjavan.co")
 
-    assert platform == limit, "platform host sits exactly on the cap — zero spare"
+    assert platform <= limit, "platform host must fit the cap"
+    assert limit - platform >= 5, "link-first should leave real spare, not knife-edge"
     assert custom < platform, "a custom domain must reclaim budget"
-    assert limit - custom >= 50, "and enough of it to be worth the DNS change"
+    assert platform - custom >= 50, "and enough of it to be worth the DNS change"
     # Neither may trip the compliance-text trimmer.
     for host in ("https://swiperx-operator.ninjavan.apps.substrait.build", "https://swrx.ninjavan.co"):
-        built = e._fit_forward(mandated, cta, f"{host}/c/{token}", limit)
+        built = e._fit_forward(mandated, f"{host}/c/{token}", limit)
         assert not e.instr_truncated(built)
