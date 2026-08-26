@@ -123,11 +123,11 @@
     }
   },
   "rdo_text": {
-    "forward": "Delivery Note wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima sesuai dengan jumlah PO yang butuh SP Manual. Apabila ada retur, catat di Delivery Note dan update ke IC.",
+    "forward": "Delivery Note wajib ada nama penerima, ditandatangani dan distempel penerima. Jika di label tertera \"SP Manual\", maka dokumen SP Manual harus diminta ke penerima sesuai dengan jumlah PO yg butuh SP Manual.",
     "return_delivery_short": "Pickup Return. Detail barang & nomor invoice WAJIB dibuka di link berikut. Wajib bawa form BA Return. ",
     "return_pickup_instructions": "Pickup Return, wajib bawa form BA Return. Bilang ke Apotek “mau tarik barang”. Jika tidak ada barang, tulis keterangan “tidak ada barang retur” di form BA",
-    "_forward_comment": "Guide §2.4 (New RDO deck). `forward` is MANDATED compliance wording and is never trimmed. `forward_cta` is discretionary and is dropped whole when the 500-char col-R budget is tight — which happened 27 Jul when the host gained a '.ninjavan.' segment, growing the URL 9 chars (counted twice) and cutting CTA room from 29 to 11.",
-    "forward_cta": " Buka link:"
+    "_forward_comment": "FINAL template (Baskoro, 26 Aug 2026): the mandated wording comes first as plain text OUTSIDE the wrapper; only the anchor is wrapped, and the whole retur sentence is the anchor text ending with the visible URL — so the entire call-to-action is one big tap target. Shape: {forward} <updated_addr><a href=URL>{forward_link_label}URL</a></updated_addr>. The URL is still counted twice (href + anchor text). The old forward_cta is gone.",
+    "forward_link_label": "Apabila ada retur, catat di Delivery Note dan buka link berikut: "
   },
   "link_char_limit": 500,
   "master_shipper_name": "PT Teknologi Medika Pratama (B2BR)",

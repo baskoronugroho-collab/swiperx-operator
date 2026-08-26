@@ -87,12 +87,13 @@ def test_a_short_courier_host_buys_back_col_r_headroom(monkeypatch):
     import oc_engine as e
 
     mandated = e.CFG["rdo_text"]["forward"]
+    label = e.CFG["rdo_text"]["forward_link_label"]
     limit = e.CFG["link_char_limit"]
     token = "x" * 32
 
     def field(host):
         url = f"{host}/c/{token}"
-        return len(f'<updated_addr><a href="{url}">{url}</a> {mandated}</updated_addr>')
+        return len(f'{mandated} <updated_addr><a href="{url}">{label}{url}</a></updated_addr>')
 
     platform = field("https://swiperx-operator.ninjavan.apps.substrait.build")
     custom = field("https://swrx.ninjavan.co")
@@ -103,5 +104,5 @@ def test_a_short_courier_host_buys_back_col_r_headroom(monkeypatch):
     assert platform - custom >= 50, "and enough of it to be worth the DNS change"
     # Neither may trip the compliance-text trimmer.
     for host in ("https://swiperx-operator.ninjavan.apps.substrait.build", "https://swrx.ninjavan.co"):
-        built = e._fit_forward(mandated, f"{host}/c/{token}", limit)
+        built = e._fit_forward(mandated, label, f"{host}/c/{token}", limit)
         assert not e.instr_truncated(built)

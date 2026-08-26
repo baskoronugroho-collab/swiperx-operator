@@ -167,10 +167,10 @@ Notes:
 
 ### 2.4 Link injection (clickable hyperlink, 500-char budget)
 
-The courier link goes into column R (delivery_instructions) as a clickable HTML hyperlink. **Correct format — the whole field is wrapped in `<updated_addr>`, the anchor comes FIRST (rev. 24 Aug 2026: it is the tap target, so it must not sit behind the wording on a phone), and the anchor's visible text is the URL itself** (not a word like "peta"):
+The courier link goes into column R (delivery_instructions) as a clickable HTML hyperlink. **FINAL template (Baskoro, 26 Aug 2026): the mandated wording leads as plain text OUTSIDE the wrapper; only the anchor is wrapped, and the WHOLE retur sentence plus the visible URL is the anchor text** — the entire call-to-action is one big tap target, not a bare URL the courier must aim for:
 
 ```
-<updated_addr><a href="{URL}">{URL}</a> {fixed RDO instruction text}</updated_addr>
+{mandated RDO wording} <updated_addr><a href="{URL}">Apabila ada retur, catat di Delivery Note dan buka link berikut: {URL}</a></updated_addr>
 ```
 
 where `{URL}` = `https://{PUBLIC_BASE_URL}/c/{token}` (per AWB).

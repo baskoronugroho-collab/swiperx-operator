@@ -130,13 +130,14 @@ def test_forward_rdo_text_fits_the_500_char_column_without_truncation():
     """Col R is compliance text with a hard cap. Against the real production host the
     mandated wording must survive intact."""
     out = e.delivery_instructions("S1", _awb(), PROD_URL)
+    label = e.CFG["rdo_text"]["forward_link_label"]
     assert len(out) <= e.CFG["link_char_limit"]
     assert not e.instr_truncated(out), "mandated RDO wording was trimmed"
-    assert e.CFG["rdo_text"]["forward"] in out, "mandated wording missing or altered"
-    assert out.endswith("</updated_addr>")
-    # The LINK comes first, immediately after <updated_addr> (Baskoro, 24 Aug 2026):
-    # it is the tap target, so it must not sit behind 267 chars of wording on a phone.
-    assert out.startswith(f'<updated_addr><a href="{PROD_URL}">{PROD_URL}</a> ')
+    # The FINAL template (Baskoro, 26 Aug 2026): mandated wording first as plain text
+    # OUTSIDE the wrapper, then the whole retur sentence + visible URL as ONE anchor —
+    # the entire call-to-action is the tap target, not a bare URL.
+    assert out == (f'{e.CFG["rdo_text"]["forward"]} '
+                   f'<updated_addr><a href="{PROD_URL}">{label}{PROD_URL}</a></updated_addr>')
 
 
 def test_an_oversized_url_trims_loudly_never_silently():
@@ -146,12 +147,14 @@ def test_an_oversized_url_trims_loudly_never_silently():
     with the 24 Aug link-first change: the CTA pointed at a trailing link that no longer
     exists, and retiring it bought ~10 chars of spare.)"""
     limit = e.CFG["link_char_limit"]
-    # Size the URL (counted twice) so ~100 chars remain for the wording — enough that the
-    # ellipsised text still fits, too little for the full 267-char mandated block.
-    tags = len('<updated_addr><a href=""></a> </updated_addr>')
-    url_len = (limit - tags - 100) // 2
+    label = e.CFG["rdo_text"]["forward_link_label"]
+    # Size the URL (counted twice) so ~100 chars remain for the mandated wording — enough
+    # that the ellipsised text still fits, too little for the full block.
+    overhead = len(' <updated_addr><a href=""></a></updated_addr>') + len(label)
+    url_len = (limit - overhead - 100) // 2
     url = "https://" + "h" * (url_len - len("https:///c/") - 32) + "/c/" + "x" * 32
     out = e.delivery_instructions("S1", _awb(), url)
     assert len(out) <= limit
     assert e.instr_truncated(out), "an over-budget field must be flagged, not silent"
-    assert out.startswith(f'<updated_addr><a href="{url}">{url}</a> ')
+    # The link sentence is never the thing trimmed — it is the point of the field.
+    assert out.endswith(f'<a href="{url}">{label}{url}</a></updated_addr>')

@@ -44,7 +44,7 @@ def test_it_reproduces_the_real_column_contract(de_client):
 def test_col_r_carries_the_link_and_stays_inside_the_budget(de_client):
     body = _make(de_client).json()
     assert body["url"] in body["delivery_instructions"]
-    assert body["delivery_instructions"].startswith("<updated_addr>")
+    assert body["delivery_instructions"].endswith("</updated_addr>")
     assert body["instr_length"] <= body["instr_limit"]
     assert body["instr_truncated"] is False
 
