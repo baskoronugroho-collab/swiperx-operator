@@ -158,3 +158,35 @@ def test_an_oversized_url_trims_loudly_never_silently():
     assert e.instr_truncated(out), "an over-budget field must be flagged, not silent"
     # The link sentence is never the thing trimmed — it is the point of the field.
     assert out.endswith(f'<a href="{url}">{label}{url}</a></updated_addr>')
+
+
+def test_both_origins_carry_confirmed_real_contact_details():
+    """The `to.*` block of every return OC comes straight from these values — no
+    normalisation happens anywhere between config and the Ninja upload column.
+
+    History: TMP Surabaya shipped from 19 Aug 2026 with Depok's phone number as a
+    placeholder, flagged `phone_confirmed: false`, because nobody had the real one. It
+    reached col K of every Surabaya return OC. Baskoro supplied both sites' real details on
+    28 Aug 2026 and they are pinned here so a placeholder can never be mistaken for a
+    confirmed value again.
+
+    The two phone FORMATS differ on purpose and are his call, not a typo to tidy: Depok is
+    the local 0-prefixed form, Surabaya the 62 country-code form. If Ninja ever rejects one,
+    fix it here and in oc_config.json together.
+    """
+    depok = e.CFG["origins"]["TMP_DEPOK"]
+    surabaya = e.CFG["origins"]["TMP_SURABAYA"]
+
+    # One shipper account name across both sites; the SITE is identified by the address.
+    account = "PT Teknologi Medika Pratama (SwipeRx) (B2BR)"
+    assert depok["name"] == account
+    assert surabaya["name"] == account
+
+    assert depok["phone"] == "087733785699"
+    assert surabaya["phone"] == "6285143002578"
+    assert depok["address1"].startswith("KUBIK LOGISTICS - ")
+    assert surabaya["address1"].startswith("PT Teknologi Medika Pratama - Surabaya, ")
+
+    # No origin may ship to production carrying a placeholder contact number.
+    for code, o in e.CFG["origins"].items():
+        assert o.get("phone_confirmed") is True, f"{code} still has an unconfirmed phone"

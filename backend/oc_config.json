@@ -148,15 +148,15 @@
     },
     "TMP_SURABAYA": {
       "label": "TMP Surabaya",
-      "name": "PT Teknologi Medika Pratama - Surabaya",
-      "phone": "087733785699",
-      "address1": "Jl. Rungkut Industri III No.12, Kutisari, Kec. Tenggilis Mejoyo, Kota Surabaya, Jawa Timur 60291",
+      "name": "PT Teknologi Medika Pratama (SwipeRx) (B2BR)",
+      "phone": "6285143002578",
+      "address1": "PT Teknologi Medika Pratama - Surabaya, Jl. Rungkut Industri III No.12, Kutisari, Kec. Tenggilis Mejoyo, Kota Surabaya, Jawa Timur 60291",
       "country": "ID",
       "kecamatan": "Tenggilis Mejoyo",
       "city": "Surabaya",
       "province": "Jawa Timur",
       "postcode": "60291",
-      "phone_confirmed": false
+      "phone_confirmed": true
     }
   },
   "_return_oc_comment": "Constants for the POD-Return OC row, read off the real '[Template DE POD Return] Swipe RX R01.xlsx'. Structure is OPTION 1 (single TRID): one row per reject, AB=1, one child. Direction is reversed — `from` is the pharmacy, `to` is the origin warehouse above. Col R is the bare word 'Retur' (no link, no RDO wording) and col AA is EMPTY, unlike a forward row.",

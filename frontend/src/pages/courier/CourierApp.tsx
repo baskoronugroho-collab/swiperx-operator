@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { ApiError, api } from "../../lib/api";
@@ -15,6 +15,45 @@ type Phase =
   | "done_delivered"
   | "done_reject"
   | "done_failed"; // legacy rows only — the fail flow was removed 19 Aug 2026
+
+/** Who this phone belongs to, remembered between links.
+ *
+ *  Identity is stored per AWB server-side — Station IC filters their reject worklist by
+ *  hub, so every row has to carry its own driver and hub. But the DRIVER is the same person
+ *  all day: before 28 Aug 2026 they retyped a six-digit ID and hunted the same hub out of a
+ *  97-row list at every one of ~30 stops. That is the cost that makes a driver stop opening
+ *  the link at all, and it buys nothing — so the phone remembers, and the server contract
+ *  is untouched.
+ *
+ *  Deliberately NOT a silent auto-stamp with no way back: the `start` screen shows
+ *  "Driver 123456 · MAC-KD5" with an "Ubah" link directly above the first question, so a
+ *  shared or borrowed phone is visibly wrong before anything is captured. Every read and
+ *  write is wrapped — Safari private mode throws on access, and a driver who cannot store
+ *  anything must still be able to work. */
+const REMEMBERED = "swiperx.courier.identity.v1";
+
+type Identity = { driverId: string; hubName: string; hubNotListed: boolean };
+
+function readRemembered(): Identity | null {
+  try {
+    const raw = window.localStorage.getItem(REMEMBERED);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<Identity>;
+    if (typeof v?.driverId !== "string" || typeof v?.hubName !== "string") return null;
+    if (!/^\d+$/.test(v.driverId) || v.hubName.length < 2) return null;
+    return { driverId: v.driverId, hubName: v.hubName, hubNotListed: v.hubNotListed === true };
+  } catch {
+    return null;
+  }
+}
+
+function writeRemembered(v: Identity): void {
+  try {
+    window.localStorage.setItem(REMEMBERED, JSON.stringify(v));
+  } catch {
+    /* storage unavailable — the driver just fills it in again next link. */
+  }
+}
 
 /** The courier app. Opened from the tokenized link with no login — the token is the
  *  credential. Phased, one decision per screen, and it never scrolls the whole page
@@ -47,16 +86,49 @@ export default function CourierApp() {
   const [gateMissing, setGateMissing] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Guards the remembered-identity reapply so it runs at most once per opened link —
+   *  `reload()` is called again after every capture, and this must not fight a driver who
+   *  has just tapped "Ubah" to correct the ID. */
+  const autoApplied = useRef(false);
+  /** True when the identity on this link came off the phone rather than being typed here.
+   *  Drives the "diisi otomatis" line — a driver on a borrowed phone has to be able to SEE
+   *  that the ID was not theirs, because the ID is what incentives are paid against. */
+  const [identityRecalled, setIdentityRecalled] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const o = await api.courier.order(token);
+      let o = await api.courier.order(token);
+
+      // Same phone, same driver, new AWB: reapply what they entered last time instead of
+      // making them retype it. Only ever on a link that has NO identity yet, only once per
+      // mount, and only if the remembered hub is still active in the master — a hub can be
+      // retired between links, and the server would reject it anyway.
+      if (!o.driver_id && !autoApplied.current) {
+        autoApplied.current = true;
+        const saved = readRemembered();
+        const hubStillValid =
+          saved && (saved.hubNotListed ? true : o.hubs.includes(saved.hubName));
+        if (saved && hubStillValid) {
+          try {
+            await api.courier.identity(token, saved.driverId, saved.hubName, saved.hubNotListed);
+            o = await api.courier.order(token);
+            setIdentityRecalled(true);
+          } catch {
+            /* Fall through to the identity screen, pre-filled below. */
+          }
+        }
+      }
+
       setOrder(o);
       // Keep the identity fields mirroring what the server has, so re-opening the
-      // identity screen to FIX a typo starts from the saved values, not blanks.
-      setDriverId(o.driver_id ?? "");
-      setHubName(o.hub_name ?? "");
+      // identity screen to FIX a typo starts from the saved values, not blanks. With
+      // nothing saved server-side, fall back to this phone's last identity so even a
+      // failed auto-apply leaves the driver one tap from done rather than at blanks.
+      const fallback = o.driver_id ? null : readRemembered();
+      setDriverId(o.driver_id ?? fallback?.driverId ?? "");
+      setHubName(o.hub_name ?? fallback?.hubName ?? "");
       if (o.hub_name && !o.hubs.includes(o.hub_name)) setHubNotListed(true);
+      else if (!o.hub_name && fallback?.hubNotListed) setHubNotListed(true);
       if (o.terminal) setPhase(o.status === "delivery_failed" ? "done_failed" : "done_delivered");
       // Nobody captures anything before saying who they are. Once driver_id is set this
       // stops firing, so a resumed link does not ask twice.
@@ -225,6 +297,16 @@ export default function CourierApp() {
           setError(null);
           try {
             await api.courier.identity(token, driverId.trim(), hubName.trim(), hubNotListed);
+            // Accepted by the server, so it is worth remembering for the next link. A
+            // correction made through "Ubah" overwrites the old value here, which is what
+            // makes a mistyped ID a one-time problem instead of an all-day one.
+            writeRemembered({
+              driverId: driverId.trim(),
+              hubName: hubName.trim(),
+              hubNotListed,
+            });
+            // Typed and confirmed on this link now, so drop the "diisi otomatis" note.
+            setIdentityRecalled(false);
             await reload();
             setPhase("start");
           } catch (err) {
@@ -248,10 +330,15 @@ export default function CourierApp() {
             <div className="text-sm">
               <span className="font-bold">Driver {order.driver_id}</span>
               <span className="text-ink-muted"> · {order.hub_name}</span>
+              {identityRecalled && (
+                <span className="mt-0.5 block text-xs text-ink-muted">
+                  Diisi otomatis dari HP ini. Bukan kamu? Sentuh Ubah.
+                </span>
+              )}
             </div>
             <button
               onClick={() => setPhase("identity")}
-              className="text-sm font-semibold text-nv-red"
+              className="shrink-0 text-sm font-semibold text-nv-red"
             >
               Ubah
             </button>
