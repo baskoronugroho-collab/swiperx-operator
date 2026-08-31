@@ -161,10 +161,12 @@ sets `build.assetsDir = "c/assets"`, putting the bundle inside the exempt prefix
 (`/c/assets/index.js` → 200 unauthenticated, confirmed live). Drop this once the portal
 allowlists `/assets/`.
 
-**Two independent auth layers.** Platform SSO gets a staff user *to* the app; the app then
-runs its own session auth (`/api/auth/*`). There is no forwarded-identity trust between
-them — that is open item **C33**. So the app still needs either `GOOGLE_CLIENT_ID` /
-`GOOGLE_CLIENT_SECRET` configured on the portal, or `DEV_LOGIN_ENABLED`.
+**One auth layer, since 28 Aug 2026 (C33 CLOSED).** Platform SSO authenticates the staff
+user and injects `x-forwarded-email`; `security.current_user` resolves that to a
+registered user and their roles. The app no longer runs a login of its own, needs no
+OAuth client, and `DEV_LOGIN_ENABLED` has no effect on a gated request. Superseded text:
+*"Two independent auth layers ... the app still needs either `GOOGLE_CLIENT_ID` /
+`GOOGLE_CLIENT_SECRET` configured on the portal, or `DEV_LOGIN_ENABLED`."*
 
 ### ✅ DEPLOYED — run 2001186, live 26 Jul 2026 15:19
 

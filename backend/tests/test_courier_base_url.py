@@ -64,11 +64,9 @@ def test_courier_host_can_differ_without_moving_sso(monkeypatch):
         COURIER_BASE_URL="https://swrx.ninjavan.co",
     )
     assert cfg.COURIER_BASE_URL == "https://swrx.ninjavan.co"
-    # SSO must stay on the platform hostname or sign-in breaks entirely.
+    # SSO must stay on the platform hostname or staff sign-in breaks entirely: the
+    # gateway only fronts that host, and it is the gateway that identifies staff now.
     assert cfg.PUBLIC_BASE_URL == "https://swiperx-operator.ninjavan.apps.substrait.build"
-    assert cfg.PUBLIC_BASE_URL + cfg.OIDC_REDIRECT_PATH == (
-        "https://swiperx-operator.ninjavan.apps.substrait.build/api/auth/google/callback"
-    )
 
 
 def test_trailing_slash_is_stripped(monkeypatch):

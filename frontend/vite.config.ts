@@ -22,7 +22,11 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: "dist",
-      sourcemap: true,
+      // MUST stay false. The bundle is emitted under `c/assets` (see below), which the
+      // SSO gateway serves to anyone with no login at all — a source map there published
+      // the original TSX of every staff screen (Users, OrderCreation, RejectReturns) to
+      // the open internet. Found 28 Aug 2026 at /c/assets/index-*.js.map, 200, 1.5 MB.
+      sourcemap: false,
       // Substrait's platform SSO gateway allowlists exactly two prefixes — `/c/*` and
       // `/api/c/*` — and redirects everything else to Google. Couriers have no Google
       // account, so if the bundle sat at the default `/assets/*` the wizard would load

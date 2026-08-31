@@ -4,14 +4,15 @@ Contract: listen on :8000, serve GET /health (readiness), API under /api.
 OceanBase is MySQL-wire → asyncmy + %s (never asyncpg/$1). All DDL is in Flyway
 migrations under resources/db/migration/, never in code.
 
-M0: health, version, Google-SSO + dev-login, multi-role user management.
+M0: health, version, platform-SSO identity (x-forwarded-email) + multi-role
+user management.
 M1 (this build): OC intake + courier links (oc.py) — upload TMP, generate NV upload
 .xlsx + links, resolve /c/<token>. Following: courier capture (M2),
 returns/handover/validation (M3), PM overview + SwipeRx report (M4).
 """
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import Response
 
 import config
@@ -22,7 +23,7 @@ from manual import router as manual_router
 from oc import public_router as courier_landing_router
 from oc import router as oc_router
 from returns import router as returns_router
-from security import current_user
+from security import current_user, proxy_email
 from storage import store
 from users import router as users_router
 
@@ -55,13 +56,13 @@ def health() -> dict:
 
 
 @app.get("/api/version")
-async def version() -> dict:
-    """Current system name + changelog, plus which sign-in methods actually work.
+async def version(request: Request) -> dict:
+    """Current system name + changelog, plus how this request was identified.
 
-    `auth` lets the sign-in screen offer only what's configured: with GOOGLE_CLIENT_ID
-    unset, the app's own Google button would dead-end on 503 oidc_not_configured. Note
-    this is the app's INNER login — separate from Substrait's platform SSO gateway,
-    which has already gated the request by the time it reaches here.
+    `auth.sso_proxy` is true when the request arrived through Substrait's platform SSO
+    gateway, which is the normal case on a deployed app: staff are already signed in and
+    the sign-in screen has nothing to offer them. It is false only in local development,
+    where the dev-login stopgap takes over if it is switched on.
     """
     notes = []
     if db.available():
@@ -75,8 +76,10 @@ async def version() -> dict:
         "env": config.APP_ENV,
         "changelog": notes,
         "auth": {
-            "google": bool(config.GOOGLE_CLIENT_ID),
-            "dev_login": config.DEV_LOGIN_ENABLED,
+            "sso_proxy": bool(proxy_email(request)),
+            # Never offered on a gated deployment — dev_login refuses any request that
+            # carries the proxy header, whatever the portal variable says.
+            "dev_login": config.DEV_LOGIN_ENABLED and not proxy_email(request),
         },
     }
 

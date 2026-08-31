@@ -6,10 +6,6 @@ def _bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
 
 
-def _list(name: str) -> list[str]:
-    return [x.strip().lower() for x in os.getenv(name, "").split(",") if x.strip()]
-
-
 APP_ENV = os.getenv("APP_ENV", "alpha")
 APP_VERSION = os.getenv("APP_VERSION", "Alpha 0.1")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
@@ -35,12 +31,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-insecure-secret-change-me")
 
-# Auth.
+# Auth. Staff identity arrives from Substrait's SSO gateway as the x-forwarded-email
+# header (see security.py) — the app registers no OAuth client of its own, and who may
+# reach the app at all is set in the portal's Access tab, not here.
+#
+# DEV_LOGIN_ENABLED only has effect where there is no gateway in front of the app, i.e.
+# local development: auth.dev_login refuses outright on any request carrying the proxy
+# header. Leave it off everywhere else.
 DEV_LOGIN_ENABLED = _bool("DEV_LOGIN_ENABLED", False)
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-ALLOWED_GOOGLE_DOMAINS = _list("ALLOWED_GOOGLE_DOMAINS")
-OIDC_REDIRECT_PATH = "/api/auth/google/callback"
 
 # Email (optional; blank host → log-only).
 SMTP_HOST = os.getenv("SMTP_HOST", "")

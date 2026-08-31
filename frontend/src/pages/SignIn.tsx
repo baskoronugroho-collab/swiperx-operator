@@ -5,23 +5,30 @@ import { ApiError, api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button, Card, ErrorNote, Field, Spinner, inputClass } from "../components/ui";
 
+/**
+ * On a deployed environment this page is unreachable: Substrait's SSO gateway has
+ * already signed the user in, so /api/auth/me always resolves and <Protected> never
+ * redirects here. It exists for local development, where there is no gateway in front
+ * of the app and the dev-login stopgap stands in for it.
+ */
 export default function SignIn() {
   const { user, loading, devLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [methods, setMethods] = useState<{ google: boolean; dev_login: boolean } | null>(null);
+  const [methods, setMethods] = useState<{ sso_proxy: boolean; dev_login: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
-    // Ask the deployment what's configured rather than guessing: on this portal
-    // GOOGLE_CLIENT_ID is unset, so offering the Google button would dead-end on a 503.
+    // Ask the deployment how it identifies people rather than guessing.
     api
       .version()
-      .then((v) => setMethods(v.auth ?? { google: true, dev_login: true }))
-      .catch(() => setMethods({ google: true, dev_login: true }));
+      .then((v) => setMethods(v.auth ?? { sso_proxy: true, dev_login: false }))
+      .catch(() => setMethods({ sso_proxy: true, dev_login: false }));
   }, []);
 
-  if (loading) {
+  if (loading || methods === null) {
     return (
       <div className="grid h-dvh place-items-center">
         <Spinner label="Loading…" />
@@ -41,7 +48,7 @@ export default function SignIn() {
         err instanceof ApiError && err.status === 403
           ? "That account isn’t registered or is inactive. Ask the Ninja Van team to add it."
           : err instanceof ApiError && err.status === 404
-            ? "Dev login is disabled on this environment — use Google sign-in."
+            ? "Dev login is switched off on this environment."
             : "Sign-in failed. Try again.",
       );
     } finally {
@@ -63,25 +70,12 @@ export default function SignIn() {
         </div>
 
         <Card>
-          {methods?.google && (
-            <a
-              href={api.auth.googleLoginUrl()}
-              className="flex w-full items-center justify-center rounded-xl bg-nv-red px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-nv-red-dark"
-            >
-              Sign in with Google Workspace
-            </a>
-          )}
-
-          {methods?.dev_login !== false && (
+          {methods.dev_login ? (
             <>
-              {methods?.google && (
-                <div className="my-5 flex items-center gap-3 text-xs text-ink-muted">
-                  <span className="h-px flex-1 bg-line" />
-                  dev login (stopgap)
-                  <span className="h-px flex-1 bg-line" />
-                </div>
-              )}
-
+              <p className="mb-4 text-xs text-ink-muted">
+                Local development. On the deployed app you are signed in by Ninja Van
+                Single Sign-On before you get here.
+              </p>
               <form onSubmit={submit} className="space-y-3">
                 <Field label="Work email">
                   <input
@@ -98,10 +92,17 @@ export default function SignIn() {
                   {busy ? "Signing in…" : "Continue"}
                 </Button>
               </form>
-
               <p className="mt-4 text-xs text-ink-muted">
-                Your Ninja Van address must already be registered. If it isn’t, ask a
-                superadmin to add it under user management.
+                The address must already be registered under user management.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">Sign-in is handled by Ninja Van</p>
+              <p className="mt-2 text-sm text-ink-muted">
+                This app is behind Single Sign-On. Reload the page to be signed in. If you
+                keep landing here, your address isn’t allowed to open the app yet — ask the
+                Ninja Van team to add it.
               </p>
             </>
           )}

@@ -5,6 +5,36 @@
 
 ---
 
+## Latest change — 28 Aug 2026: staff sign-in moved to platform SSO (run 8000454)
+
+Prompted by Substrait's updated **App Access Control** policy ("Substrait has Single
+Sign-On built in ... you don't have to build your own"). **Open item C33 is closed.**
+
+- Staff identity now comes from the gateway header **`x-forwarded-email`**
+  (`backend/security.py`), resolved against `users` per request. Same pattern Ninja PNS
+  uses. The app's own Google OIDC client is **retired** — `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET` and `ALLOWED_GOOGLE_DOMAINS` are gone from the code and can be
+  deleted from the portal. There is no longer a second login in front of a login.
+- **Roles now apply immediately** rather than on next sign-in — they are read per
+  request instead of baked into an 8-hour JWT. This supersedes the FR-AUTH3 caveat.
+- **`dev-login` can no longer be used against the deployed app.** It refuses any request
+  carrying the SSO header, whatever `DEV_LOGIN_ENABLED` says in the portal. Previously
+  anyone who cleared the SSO gate could POST an email and become any registered user,
+  superadmin included. It survives for local dev only.
+- **Source maps are no longer published.** `sourcemap: false` in
+  `frontend/vite.config.ts`. Because the bundle lives under the SSO-exempt `c/assets`
+  prefix, `/c/assets/index-*.js.map` had been serving the original TSX of every staff
+  screen to anyone, unauthenticated (1.5 MB, HTTP 200). Now 404.
+- **Couriers are untouched.** `/c/*` and `/api/c/*` remain portal public paths, the
+  link token remains the sole credential, TTL stays 30 days. Re-verified after rollout.
+
+**Still to do by hand, in the portal:** set `DEV_LOGIN_ENABLED=false` (belt and braces —
+the code now refuses it regardless), and delete the three unused `GOOGLE_*` variables.
+
+Covered by `backend/tests/test_auth_proxy.py` (12 cases); full suite 89 passing.
+
+---
+
 ## 0. Transfer — which folder to send & first steps
 
 **Send the entire `SwipeRx` folder** (currently `C:\Users\NXP\.claudeai\SwipeRx\`, ~6.3 MB) to the device that has the Substrait plugin. It is self-contained — code, docs, real sample files, and deploy creds all live inside it.
