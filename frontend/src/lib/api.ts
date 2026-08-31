@@ -1,6 +1,7 @@
 /** Typed client for the FastAPI backend.
  *
- * Session auth is an httpOnly cookie (`swiperx_session`), so every request goes
+ * Staff identity comes from the platform SSO gateway (x-forwarded-email); the
+ * httpOnly `swiperx_session` cookie is only used by the local dev-login, so requests go
  * same-origin with credentials — dev proxies /api through Vite for the same reason.
  * Courier routes under /api/c/<token> are deliberately unauthenticated: the token IS
  * the credential, so they must never send or require a session.
@@ -66,8 +67,9 @@ export interface VersionInfo {
   name: string;
   env: string;
   changelog: { version: string; notes: string; released_at: string }[];
-  /** Which sign-in methods the deployment actually has configured. */
-  auth: { google: boolean; dev_login: boolean };
+  /** How this request was identified. `sso_proxy` is true on any deployed environment:
+   *  the platform gateway signed the user in before the request reached the app. */
+  auth: { sso_proxy: boolean; dev_login: boolean };
 }
 
 export interface Origin {
@@ -246,7 +248,6 @@ export interface CourierSubmitResult {
 /* -------------------------------------------------------------- returns --- */
 
 export type ReturnStage =
-  | "pending_validator"
   | "pending_de_upload"
   | "pending_print"
   | "printed"
@@ -270,6 +271,8 @@ export interface RejectReturn {
   /** Which closing pipeline this row is on. "rts" = RTS on the existing forward AWB,
    *  no new tracking number. "return_oc" = DE exports the -R01 return OC. */
   closes_by: "rts" | "return_oc";
+  /** Legacy only — the Validator gate was removed 31 Aug 2026. Rows stamped under the old
+   *  flow keep showing it in their trail; nothing waits on it. */
   validated_at: string | null;
   validated_by_email: string | null;
   de_uploaded_at: string | null;
@@ -350,9 +353,9 @@ export const api = {
     /** Stopgap until the Google OAuth client exists; the user must already be seeded
      *  and active, and DEV_LOGIN_ENABLED must be on. Sets the session cookie only —
      *  call `me()` afterwards for the identity. */
+    /** Local development only — refused on any SSO-gated deployment. */
     devLogin: (email: string) =>
       postJson<{ ok: boolean; roles: Role[] }>("/api/auth/dev-login", { email }),
-    googleLoginUrl: () => "/api/auth/google/login",
     logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   },
 
@@ -451,20 +454,18 @@ export const api = {
   returns: {
     list: (stage?: string) =>
       get<{ returns: RejectReturn[] }>(`/api/returns${stage ? `?stage=${stage}` : ""}`),
-    /** Validator confirms the photos; nothing downstream moves before this. */
-    validate: (ids: number[]) => postJson<{ updated: number }>("/api/returns/validate", { ids }),
     /** DE confirms the exported return OC went into Ninja — rows move to Pending Print. */
     markUploaded: (ids: number[]) =>
       postJson<{ updated: number }>("/api/returns/mark-uploaded", { ids }),
     /** Station IC printed and labelled — the row closes. */
     markPrinted: (ids: number[]) =>
       postJson<{ updated: number }>("/api/returns/mark-printed", { ids }),
-    /** Bulk-mark validated full refusals as RTS-triggered on their forward AWB. */
+    /** Bulk-mark full refusals as RTS-triggered on their forward AWB. */
     markRts: (ids: number[]) => postJson<{ updated: number }>("/api/returns/rts", { ids }),
     /** Bulk-set the origin on rows whose forward order predates origin tracking. */
     setOrigin: (ids: number[], origin: string) =>
       postJson<{ updated: number }>(`/api/returns/origin`, { ids, origin }),
-    exportOcUrl: () => "/api/returns/export-oc.xlsx",
+    exportOcUrl: () => "/api/returns/export-oc.csv",
     exportRtsUrl: () => "/api/returns/export-rts.csv",
     exportUrl: () => "/api/returns/export.csv",
   },

@@ -169,7 +169,7 @@ def test_reject_opens_a_row_on_the_ops_worklist(client, de_client, awb):
     rows = de_client.get("/api/returns").json()["returns"]
     assert len(rows) == 1
     assert rows[0]["original_awb_id"] == "AWBTEST01"
-    assert rows[0]["stage"] == "pending_validator"
+    assert rows[0]["stage"] == "pending_de_upload"  # straight to DE, no validator queue
     assert rows[0]["return_type"] == "sebagian"
 
 

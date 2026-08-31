@@ -88,8 +88,12 @@ def return_trid(awb_id: str) -> str:
     return f'{awb_id}{CFG["return_oc"]["suffix"]}'
 
 
-def build_return_rows(rows: list[dict], today: str | None = None) -> bytes:
-    """The POD-Return OC workbook DE uploads to Ninja for PARTIAL rejects.
+def build_return_csv(rows: list[dict], today: str | None = None) -> bytes:
+    """The POD-Return OC file DE uploads to Ninja for PARTIAL rejects.
+
+    CSV since 31 Aug 2026 (was .xlsx): DE downloads it, uploads it to Ninja, and marks the
+    rows uploaded here. Same NV columns in the same order as the forward upload, so it drops
+    into the same Ninja screen — only the container changed.
 
     Shape is OPTION 1 — a single TRID per reject: `AB` = 1 and one child, because Station IC
     repacks the returned goods into ONE parcel before sending it back, so per-koli children
@@ -108,10 +112,9 @@ def build_return_rows(rows: list[dict], today: str | None = None) -> bytes:
     r = CFG["return_oc"]
     fx = CFG["fixed"]
     ts = fx["timeslot"]
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Sheet1"
-    ws.append(FWD_COLS)
+    bio = io.StringIO()
+    w = csv.writer(bio)
+    w.writerow(FWD_COLS)
     for a in rows:
         o = CFG["origins"][a["origin"]]
         trid = return_trid(a["awb_id"])
@@ -148,10 +151,9 @@ def build_return_rows(rows: list[dict], today: str | None = None) -> bytes:
             "parcel_job.insured_value": fx["insured_value"],
             "corporate.branch_id": r["branch_id"],
         }
-        ws.append([str(row.get(c, "")) for c in FWD_COLS])
-    bio = io.BytesIO()
-    wb.save(bio)
-    return bio.getvalue()
+        w.writerow([str(row.get(c, "")) for c in FWD_COLS])
+    # BOM so Excel opens the file in UTF-8 without mangling the pharmacy names.
+    return ("﻿" + bio.getvalue()).encode("utf-8")
 
 
 def _norm(v) -> str:

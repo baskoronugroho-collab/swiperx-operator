@@ -1,21 +1,25 @@
-"""Lane 3 — the reject-return worklist (reworked 24 Aug 2026 to the whiteboard flow).
+"""Lane 3 — the reject-return worklist (validator gate removed 31 Aug 2026).
 
-A courier reject lands here the moment it is submitted, then walks a fixed pipeline:
+A courier reject lands on the DE's desk the moment it is submitted — there is no queue in
+front of it any more:
 
-    pending_validator ──▶ pending_de_upload ──▶ pending_print ──▶ printed      (sebagian)
-                      └─▶ pending_de_upload ──▶ rts_triggered                  (semua)
+    pending_de_upload ──▶ pending_print ──▶ printed      (sebagian)
+    pending_de_upload ──▶ rts_triggered                  (semua)
 
-* The VALIDATOR reviews the photos first — both reject types, no exceptions. Bad evidence
-  is caught here, not three steps later.
-* A PARTIAL return (`sebagian`) needs a new AWB (`<SwipeAWB>-R01`): DE exports the return
-  OC — origin pre-filled from the forward order — uploads it to Ninja, marks it uploaded,
-  and Station IC prints, labels and repacks (Pending Print → Printed & Labelled).
+* A PARTIAL return (`sebagian`) needs a new AWB (`<SwipeAWB>-R01`): DE sets the origin if
+  the forward order never recorded one, exports the return OC CSV, uploads it to Ninja and
+  marks it uploaded; Station IC then prints, labels and repacks.
 * A FULL refusal (`semua`) never gets a new AWB and never reaches print: RTS is triggered
   on the original forward tracking number, marked in bulk and exported as a list.
 
-Stages are DERIVED from timestamps, never stored, so a row can never claim a stage its
-own history does not support. Legacy rows: `acknowledged_at` (the pre-24-Aug flow) counts
-as validated, and rows closed by pasted TIDs stay visible as `tids_sent`.
+The VALIDATOR pre-check is gone (31 Aug 2026). It held every reject — both types — behind a
+second pair of eyes on the door photos, which is a queue the pilot cannot staff; the photos
+are still attached to every row and DE sees them before acting. Rows validated under the old
+flow keep their `validated_at`/`validated_by` stamps: those are facts about what happened,
+so they stay in the trail and the audit export, they just no longer gate anything.
+
+Stages are DERIVED from timestamps, never stored, so a row can never claim a stage its own
+history does not support. Rows closed by pasted TIDs stay visible as `tids_sent`.
 """
 import csv
 import io
@@ -30,20 +34,20 @@ from security import require_roles
 router = APIRouter(prefix="/api/returns", tags=["returns"])
 
 # Everyone in the loop can SEE the worklist — IC needs to know what is coming to print
-# long before it is theirs to act on ("Station IC can still see it", 19 Aug).
-viewer_roles = require_roles("implant", "de", "station_ic", "program_manager", "validator")
-validator_roles = require_roles("validator", "program_manager")
+# long before it is theirs to act on ("Station IC can still see it", 19 Aug). `validator` is
+# deliberately absent: the role no longer has a step on this lane.
+viewer_roles = require_roles("implant", "de", "station_ic", "program_manager")
 de_roles = require_roles("implant", "de")
-# The RTS list is uploaded by the Validator team per the 19 Aug decision, but DE can too.
-rts_roles = require_roles("validator", "implant", "de")
+# RTS moved to DE with the validator gate (31 Aug) — it is the same person who exports the
+# return OC, so both closing paths now start from one desk.
+rts_roles = require_roles("implant", "de")
 printer_roles = require_roles("station_ic", "implant", "de")
 
 # The account the deck mandates for replacement return TIDs.
 RTS_SHIPPER_ID = "11398434"
 
 STAGES = (
-    "pending_validator", "pending_de_upload", "pending_print",
-    "printed", "rts_triggered", "tids_sent",
+    "pending_de_upload", "pending_print", "printed", "rts_triggered", "tids_sent",
 )
 
 _SELECT = """
@@ -75,13 +79,12 @@ def _is_full(row: dict) -> bool:
     return row.get("return_type") == "semua"
 
 
-def _validated(row: dict) -> bool:
-    # acknowledged_at is the pre-24-Aug flow's tick; treating it as validated keeps old
-    # rows moving instead of dumping them back on the Validator.
-    return bool(row.get("validated_at") or row.get("acknowledged_at"))
-
-
 def _stage(row: dict) -> str:
+    """Derived from what the row can prove about itself, newest fact first.
+
+    Submission IS the entry event now, so the fallback is `pending_de_upload`: a reject that
+    has had nothing done to it is waiting on DE, never on a queue in front of DE.
+    """
     if row.get("tids_sent_at"):
         return "tids_sent"  # legacy close (pasted TIDs, pre-24-Aug)
     if _is_full(row):
@@ -92,7 +95,7 @@ def _stage(row: dict) -> str:
             return "printed"
         if row.get("de_uploaded_at"):
             return "pending_print"
-    return "pending_de_upload" if _validated(row) else "pending_validator"
+    return "pending_de_upload"
 
 
 def _shape(row: dict) -> dict:
@@ -117,7 +120,7 @@ async def _rows(ids: list[int] | None = None) -> list[dict]:
 
 
 async def _proof_photos(awb_id: str) -> list[dict]:
-    """The at-the-door reject evidence, so the Validator can judge what they're approving."""
+    """The at-the-door reject evidence, shown on the row so DE sees it before acting."""
     rows = await db.fetch_all(
         "SELECT doc_type, photo_ref FROM document_capture WHERE awb_id = %s "
         "AND doc_type IN ('rejected_goods', 'delivery_note', 'awb_sticker') ORDER BY id",
@@ -141,35 +144,6 @@ async def list_returns(
         r["proof_photos"] = await _proof_photos(r["original_awb_id"])
         out.append(r)
     return {"returns": out, "rts_shipper_id": RTS_SHIPPER_ID}
-
-
-# ------------------------------------------------------------- validator ----
-@router.post("/validate")
-async def validate_bulk(
-    ids: list[int] = Body(..., embed=True),
-    user: dict = Depends(validator_roles),
-):
-    """The Validator confirms the photos show what the driver claimed — both reject types.
-
-    Nothing downstream (OC export, RTS, print) is possible until this happened; catching
-    bad evidence here is the whole reason the stage exists.
-    """
-    if not ids:
-        raise HTTPException(status_code=400, detail="no_ids")
-    updated = 0
-    for r in await _rows(ids):
-        if r["stage"] == "pending_validator":
-            await db.execute(
-                "UPDATE return_parcel SET validated_at = NOW(), validated_by = %s, "
-                "updated_at = NOW() WHERE id = %s", (user["id"], r["id"]),
-            )
-            updated += 1
-    await db.execute(
-        "INSERT INTO audit_log (actor, action, entity, entity_id) "
-        "VALUES (%s, 'return_validated', 'return_parcel', %s)",
-        (user["email"], f"{updated} rows"),
-    )
-    return {"updated": updated}
 
 
 # ---------------------------------------------------------------- origin ----
@@ -210,19 +184,19 @@ def _exportable_oc(rows: list[dict]) -> list[dict]:
             if r["stage"] == "pending_de_upload" and not _is_full(r) and not r["origin_unknown"]]
 
 
-@router.get("/export-oc.xlsx")
+@router.get("/export-oc.csv")
 async def export_return_oc(_: dict = Depends(de_roles)):
-    """The return OC workbook for every validated partial reject awaiting upload.
+    """The return OC CSV for every partial reject awaiting upload.
 
     One row per reject, `<SwipeAWB>-R01`, addressed from the pharmacy back to the origin
     warehouse recorded on the forward order. Rows whose origin is unknown are EXCLUDED —
-    exporting them would ship the parcel to the wrong city; fix them via the origin-unknown
-    filter first.
+    exporting them would ship the parcel to the wrong city; DE fixes those with the
+    origin-unknown filter first, which is why setting the origin comes before the export.
     """
     rows = _exportable_oc(await _rows())
     if not rows:
         raise HTTPException(status_code=404, detail="no_exportable_rows")
-    data = oc_engine.build_return_rows([{
+    data = oc_engine.build_return_csv([{
         "awb_id": r["original_awb_id"],
         "pharmacy_name": r["pharmacy_name"] or "",
         "phone": r["phone"] or "",
@@ -232,8 +206,8 @@ async def export_return_oc(_: dict = Depends(de_roles)):
     } for r in rows])
     return Response(
         content=data,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Return-OC-pending.xlsx"'},
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="Return-OC-pending.csv"'},
     )
 
 
@@ -298,7 +272,7 @@ async def mark_rts_bulk(
     ids: list[int] = Body(..., embed=True),
     user: dict = Depends(rts_roles),
 ):
-    """Bulk-mark validated full refusals as RTS-triggered on their forward AWB.
+    """Bulk-mark full refusals as RTS-triggered on their forward AWB.
 
     No new tracking number exists or is created — the parcel travels back on its original
     label, which is why this branch never reaches Pending Print.
@@ -323,7 +297,7 @@ async def mark_rts_bulk(
 
 @router.get("/export-rts.csv")
 async def export_rts_csv(_: dict = Depends(rts_roles)):
-    """Every validated full refusal, as the list the Validator team uploads to trigger RTS.
+    """Every full refusal, as the list DE uploads to trigger RTS.
 
     Includes rows already marked (rts_marked = yes) so the file matches what was just
     bulk-marked in the UI — the mark and the export are two halves of one action.
@@ -355,7 +329,7 @@ async def export_csv(_: dict = Depends(viewer_roles)):
     w.writerow([
         "return_id", "forward_awb", "return_awb", "pharmacy", "city", "reject_type",
         "rejected_at", "stage", "closes_by", "hub", "origin", "reject_pcs",
-        "validated_at", "validated_by", "de_uploaded_at", "de_uploaded_by",
+        "legacy_validated_at", "legacy_validated_by", "de_uploaded_at", "de_uploaded_by",
         "printed_at", "printed_by", "rts_requested_at", "rts_requested_by",
         "legacy_return_tids",
     ])

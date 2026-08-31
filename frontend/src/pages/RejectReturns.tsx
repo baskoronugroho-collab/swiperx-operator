@@ -5,17 +5,20 @@ import type { RejectReturn, ReturnStage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Badge, Button, Card, EmptyState, ErrorNote, Spinner, inputClass } from "../components/ui";
 
-/** Lane 3 — the reject-return pipeline (24 Aug rework).
+/** Lane 3 — the reject-return pipeline (validator gate removed 31 Aug 2026).
  *
- *      pending_validator → pending_de_upload → pending_print → printed     (sebagian)
- *                        → pending_de_upload → rts_triggered               (semua)
+ *      pending_de_upload → pending_print → printed     (sebagian)
+ *      pending_de_upload → rts_triggered               (semua)
+ *
+ *  A submitted reject lands straight on the DE's desk. Their three moves sit in one toolbar,
+ *  left to right in the order they're done: set the origin on any row the forward order never
+ *  recorded one for, export the return OC CSV, then mark it uploaded once it's in Ninja.
  *
  *  One flat, filterable list with checkbox selection: the toolbar offers exactly the bulk
  *  actions the current tab's stage supports, and the server re-checks stage + role on every
  *  one, so a mis-click can never move a row somewhere its history doesn't support. */
 
 const TABS: { key: string; label: string }[] = [
-  { key: "pending_validator", label: "Pending Validator" },
   { key: "pending_de_upload", label: "Pending DE upload" },
   { key: "pending_print", label: "Pending print" },
   { key: "closed", label: "Closed" },
@@ -25,7 +28,7 @@ const CLOSED: ReturnStage[] = ["printed", "rts_triggered", "tids_sent"];
 
 export default function RejectReturns() {
   const { has } = useAuth();
-  const [tab, setTab] = useState<string>("pending_validator");
+  const [tab, setTab] = useState<string>("pending_de_upload");
   const [rows, setRows] = useState<RejectReturn[] | null>(null);
   const [q, setQ] = useState("");
   const [fType, setFType] = useState("");
@@ -97,11 +100,9 @@ export default function RejectReturns() {
 
   /* Stage-appropriate bulk actions. Acting on the SELECTION when there is one, otherwise
      on everything shown — matching how "bulk" was asked for on the whiteboard. */
-  const canValidate = has("validator", "program_manager");
   const canDe = has("implant", "de");
   const canPrint = has("station_ic", "implant", "de");
 
-  const validateIds = pick(shown, (r) => r.stage === "pending_validator");
   const ocIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "return_oc");
   const rtsIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "rts");
   const printIds = pick(shown, (r) => r.stage === "pending_print");
@@ -113,13 +114,13 @@ export default function RejectReturns() {
         <div>
           <h1 className="text-xl font-bold">Reject returns</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Every reject a courier files, walked through one pipeline: the{" "}
-            <strong className="font-semibold text-ink">Validator</strong> checks the photos, then a{" "}
-            <strong className="font-semibold text-ink">partial</strong> return gets its{" "}
-            <span className="font-mono">-R01</span> return OC exported, uploaded and printed, while a{" "}
-            <strong className="font-semibold text-ink">whole-delivery refusal</strong> is bulk-marked{" "}
-            <strong className="font-semibold text-ink">RTS</strong> on its original AWB — no new
-            tracking number, no print step.
+            Every reject a courier files lands here for <strong className="font-semibold text-ink">DE</strong>{" "}
+            the moment it&rsquo;s submitted. A <strong className="font-semibold text-ink">partial</strong>{" "}
+            return gets its origin set if the forward order never recorded one, then its{" "}
+            <span className="font-mono">-R01</span> return OC exported as CSV, uploaded to Ninja and
+            printed. A <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
+            bulk-marked <strong className="font-semibold text-ink">RTS</strong> on its original AWB —
+            no new tracking number, no print step.
           </p>
         </div>
         <a
@@ -172,21 +173,38 @@ export default function RejectReturns() {
       </div>
 
       {/* ---- stage toolbar: only the actions this tab's rows can take ---- */}
-      {(canValidate || canDe || canPrint) && shown.length > 0 && tab !== "closed" && (
+      {(canDe || canPrint) && shown.length > 0 && tab !== "closed" && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
           <span className="text-xs font-semibold uppercase text-ink-muted">
             {selected.length > 0 ? `${selected.length} selected` : "All shown"}
           </span>
-          {canValidate && validateIds.length > 0 && (
-            <Button disabled={busy} onClick={() => run("Validated", () => api.returns.validate(validateIds))}>
-              Validate ({validateIds.length})
-            </Button>
+          {/* Step 1. Sits first because the export SKIPS origin-unknown rows: clearing this
+              badge is what makes them appear in the file at all. */}
+          {unknownIds.length > 0 && (
+            <span className="flex flex-wrap items-center gap-2 border-r border-line pr-2">
+              <Badge tone="warn">{unknownIds.length} origin unknown</Badge>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_DEPOK"))}
+              >
+                Set Depok
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_SURABAYA"))}
+              >
+                Set Surabaya
+              </Button>
+            </span>
           )}
+          {/* Steps 2 and 3 — export the CSV, then say it went into Ninja. */}
           {canDe && ocIds.length > 0 && (
             <>
               <a href={api.returns.exportOcUrl()}>
                 <Button variant="ghost" disabled={busy}>
-                  Export return OC (.xlsx)
+                  Export return OC (.csv)
                 </Button>
               </a>
               <Button
@@ -219,25 +237,6 @@ export default function RejectReturns() {
               Mark printed &amp; labelled ({printIds.length})
             </Button>
           )}
-          {unknownIds.length > 0 && (
-            <span className="ml-auto flex flex-wrap items-center gap-2">
-              <Badge tone="warn">{unknownIds.length} origin unknown</Badge>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_DEPOK"))}
-              >
-                Set Depok
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => run("Origin set", () => api.returns.setOrigin(unknownIds, "TMP_SURABAYA"))}
-              >
-                Set Surabaya
-              </Button>
-            </span>
-          )}
         </div>
       )}
 
@@ -249,7 +248,7 @@ export default function RejectReturns() {
       {filtered && filtered.length === 0 && (
         <EmptyState
           title={q || fType || fOrigin || fHub ? "No matches" : "Nothing here"}
-          body={tab === "pending_validator" ? "No rejects waiting for validation." : undefined}
+          body={tab === "pending_de_upload" ? "No rejects waiting on DE." : undefined}
         />
       )}
 
@@ -310,8 +309,7 @@ function StageBadge({ stage }: { stage: ReturnStage }) {
   if (stage === "rts_triggered") return <Badge tone="ok">RTS triggered</Badge>;
   if (stage === "tids_sent") return <Badge tone="ok">Closed (legacy TIDs)</Badge>;
   if (stage === "pending_print") return <Badge tone="warn">Pending print</Badge>;
-  if (stage === "pending_de_upload") return <Badge tone="warn">Pending DE upload</Badge>;
-  return <Badge tone="danger">Pending Validator</Badge>;
+  return <Badge tone="danger">Pending DE upload</Badge>;
 }
 
 function Row({
@@ -378,7 +376,7 @@ function Row({
               {row.proof_photos.length > 0 && (
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">
-                    Door evidence — what the Validator judges
+                    Door evidence — check before exporting
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {row.proof_photos.map((p, i) => (
@@ -397,8 +395,10 @@ function Row({
                 <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">Trail</p>
                 <ul className="space-y-1 text-xs text-ink-muted">
                   <li>Rejected {row.rejected_at} — {row.reject_pcs ?? "?"} pcs reported at the door</li>
+                  {/* Legacy rows only — the gate was removed 31 Aug 2026, but a stamp that
+                      was earned stays in the trail. */}
                   {row.validated_at && (
-                    <li>✓ Validated {row.validated_at} by {row.validated_by_email ?? "—"}</li>
+                    <li>✓ Validated {row.validated_at} by {row.validated_by_email ?? "—"} (legacy step)</li>
                   )}
                   {row.de_uploaded_at && (
                     <li>

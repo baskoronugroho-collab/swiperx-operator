@@ -274,13 +274,11 @@
       <span class="arrow">&rarr;</span>
       <div class="node"><span class="n mono">04</span><span class="t">Driver captures</span></div>
       <span class="arrow">&rarr;</span>
-      <div class="node"><span class="n mono">05</span><span class="t">Validator checks</span></div>
+      <div class="node"><span class="n mono">05</span><span class="t">DE uploads</span></div>
       <span class="arrow">&rarr;</span>
-      <div class="node"><span class="n mono">06</span><span class="t">DE uploads</span></div>
+      <div class="node"><span class="n mono">06</span><span class="t">IC prints &amp; repacks</span></div>
       <span class="arrow">&rarr;</span>
-      <div class="node"><span class="n mono">07</span><span class="t">IC prints &amp; repacks</span></div>
-      <span class="arrow">&rarr;</span>
-      <div class="node"><span class="n mono">08</span><span class="t">Final check</span></div>
+      <div class="node"><span class="n mono">07</span><span class="t">Final check</span></div>
     </div>
 
     <ol class="tl">
@@ -336,32 +334,25 @@
 
       <li>
         <span class="bead mono">05</span>
-        <div class="row"><h3>Validator checks the photos</h3><span class="chip">Validator</span></div>
-        <p class="body">
-          Every reject &mdash; partial or whole &mdash; is reviewed before it moves. The Validator confirms the
-          Delivery Note, the return section and the goods photos actually show what the driver
-          claimed. Bad evidence is caught here rather than discovered three steps later.
-        </p>
-        <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending Validator</b></p>
-      </li>
-
-      <li>
-        <span class="bead mono">06</span>
         <div class="row"><h3>DE uploads to Ninja</h3><span class="chip">DE / Implant</span></div>
         <p class="body">
-          What DE does depends on how much came back, and the app only offers the correct one.
+          A submitted reject lands here immediately &mdash; there is no review queue in front of it
+          (the Validator pre-check was removed on 31 Aug 2026). The driver&rsquo;s photos are attached
+          to the row, so DE sees the evidence on the same screen as the action. What DE does depends
+          on how much came back, and the app only offers the correct one.
         </p>
         <div class="grid two" style="margin-top:.35rem">
           <div class="call">
             <span class="lbl">Retur sebagian &mdash; part came back</span>
-            <p>The forward AWB is already completed, so a <b>new return AWB is required</b>. DE
-            exports the return OC &mdash; origin pre-filled from the original order &mdash; uploads it to
-            Ninja, and the row moves to Pending Print.</p>
+            <p>The forward AWB is already completed, so a <b>new return AWB is required</b>. DE sets
+            the <b>origin</b> on any row the original order never recorded one for, exports the return
+            OC as a <b>CSV</b> &mdash; origin pre-filled from the original order &mdash; uploads it to
+            Ninja, then marks it uploaded and the row moves to Pending Print.</p>
           </div>
           <div class="call">
             <span class="lbl">Retur semua &mdash; the whole delivery refused</span>
             <p><b>No new AWB.</b> The parcel already has one, so Ninja triggers <b>RTS</b> on the
-            original forward tracking number. Validated rows are marked in bulk and exported for
+            original forward tracking number. DE marks the rows in bulk and exports the list for
             upload. <b>This branch never reaches Pending Print</b> &mdash; it travels on its original label.</p>
           </div>
         </div>
@@ -369,7 +360,7 @@
       </li>
 
       <li>
-        <span class="bead mono">07</span>
+        <span class="bead mono">06</span>
         <div class="row"><h3>Station IC prints, labels and repacks</h3><span class="chip">Station IC</span></div>
         <p class="body">
           Partial returns only. IC filters the worklist by <b>Hub Name</b>, opens each row, finds the
@@ -380,7 +371,7 @@
       </li>
 
       <li>
-        <span class="bead mono">08</span>
+        <span class="bead mono">07</span>
         <div class="row"><h3>Final check before handover</h3><span class="chip">DE / Implant</span><span class="chip ok">Closed</span></div>
         <p class="body">
           The returned goods arrive back and are checked once more <b>immediately before handover to
@@ -481,9 +472,9 @@
             <td>Reject returns</td>
           </tr>
           <tr>
-            <td><span class="chip">Validator</span></td>
-            <td>Checks the driver&rsquo;s reject photos before anything moves</td>
-            <td>Reject returns &mdash; the <b>Pending Validator</b> queue, partial and whole rejects alike</td>
+            <td><span class="chip warn">Validator</span></td>
+            <td>Dormant since 31 Aug 2026 &mdash; the pre-check it gated was removed</td>
+            <td><b>Nothing</b> &mdash; a reject goes straight to DE. Assign a real role alongside it.</td>
           </tr>
           <tr>
             <td><span class="chip warn">SwipeRx</span></td>
@@ -537,21 +528,22 @@
       </div>
 
       <div class="card">
-        <h3>Work the reject queue <span class="chip">Validator</span><span class="chip">DE / Implant</span><span class="chip">Station IC</span></h3>
+        <h3>Work the reject queue <span class="chip">DE / Implant</span><span class="chip">Station IC</span></h3>
         <ol class="steps">
-          <li><b>Validator</b> &mdash; open <b>Pending Validator</b>, check the photos (DN, return
-            table, goods, labels) against what the driver claimed, select the good rows and press
-            <b>Validate</b>. Nothing moves before this.</li>
-          <li><b>DE, partial returns</b> &mdash; on <b>Pending DE upload</b>, press
-            <b>Export return OC</b> (one <span class="id mono">-R01</span> row per reject, origin
-            pre-filled), upload it to Ninja, then <b>Mark OC uploaded</b>.</li>
-          <li><b>DE / Validator, whole refusals</b> &mdash; same tab: <b>Export RTS list</b> and
+          <li><b>DE, set the origin first</b> &mdash; on <b>Pending DE upload</b>, any row under the
+            <b>Origin unknown</b> filter is <b>excluded from the OC export</b> so a return can never
+            ship to the wrong warehouse. Bulk-set them with <b>Set Depok</b> / <b>Set Surabaya</b>
+            and they join the file.</li>
+          <li><b>DE, partial returns</b> &mdash; press <b>Export return OC (.csv)</b> (one
+            <span class="id mono">-R01</span> row per reject, origin pre-filled), upload it to
+            Ninja, then <b>Mark OC uploaded</b>.</li>
+          <li><b>DE, whole refusals</b> &mdash; same tab: <b>Export RTS list</b> and
             <b>Mark RTS triggered</b>. No new AWB, no print step.</li>
           <li><b>Station IC</b> &mdash; on <b>Pending print</b>, find the
             <span class="id mono">-R01</span> in OPV2 (it is shown on the row), print, label,
             repack, then <b>Mark printed &amp; labelled</b>.</li>
-          <li>Rows under the <b>Origin unknown</b> filter must be bulk-set first &mdash; they are
-            excluded from the OC export so a return can never ship to the wrong warehouse.</li>
+          <li>Open <b>Detail</b> on any row to see the driver&rsquo;s door photos before you act &mdash;
+            they travel with the row, they just no longer wait on a separate sign-off.</li>
           <li>Narrow the list any way you need: stage tabs, per-column filters (type / origin /
             hub), free-text search, and row checkboxes for bulk actions &mdash; they stack.</li>
         </ol>

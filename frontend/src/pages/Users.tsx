@@ -40,8 +40,10 @@ const ROLE_INFO: Record<Role, { label: string; blurb: string; grants: string[] }
   },
   validator: {
     label: "Validator",
-    blurb: "Reviews every reject's photos before DE or Station IC can act on it.",
-    grants: ["Reject returns — the Pending Validator queue, validate action"],
+    blurb:
+      "Dormant since 31 Aug 2026: the pre-check this role gated was removed, so a reject now " +
+      "goes straight to DE. Grants nothing on its own — assign a real role alongside it.",
+    grants: [],
   },
   swiperx: {
     label: "SwipeRx",

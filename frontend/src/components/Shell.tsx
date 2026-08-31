@@ -9,7 +9,7 @@ const NAV: { to: string; label: string; roles: Role[]; end?: boolean }[] = [
   { to: "/orders/new", label: "Order creation", roles: ["implant", "de"] },
   { to: "/links", label: "Courier links", roles: ["implant", "de", "station_ic"] },
   { to: "/orders", label: "Upload history", roles: ["implant", "de"], end: true },
-  { to: "/returns", label: "Reject returns", roles: ["implant", "de", "station_ic", "program_manager", "validator"] },
+  { to: "/returns", label: "Reject returns", roles: ["implant", "de", "station_ic", "program_manager"] },
   // Produces a real, working courier link. Started life as the phase-1 field-test tool and
   // still serves that, but it is also the route for a one-off order with no TMP template.
   // Sits last because it is the exception, not the daily flow.

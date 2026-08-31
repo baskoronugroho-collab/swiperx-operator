@@ -1,14 +1,15 @@
-"""Lane 3 — the reject-return pipeline (24 Aug rework).
+"""Lane 3 — the reject-return pipeline (validator gate removed 31 Aug 2026).
 
-    pending_validator -> pending_de_upload -> pending_print -> printed     (sebagian)
-                      -> pending_de_upload -> rts_triggered                (semua)
+    pending_de_upload -> pending_print -> printed     (sebagian)
+    pending_de_upload -> rts_triggered               (semua)
 
-These pin the two properties that make the pipeline trustworthy: nothing moves until the
-Validator has looked at the photos, and each closing path refuses the other type's rows.
+These pin the two properties that make the pipeline trustworthy: a submitted reject is
+immediately actionable by DE with nothing queued in front of it, and each closing path
+refuses the other type's rows.
 """
+import csv
 import io
 
-import openpyxl
 import pytest
 
 from conftest import photo
@@ -43,17 +44,11 @@ def _row(c):
     return c.get("/api/returns").json()["returns"][0]
 
 
-def _validate(c, rid):
-    """Validate as Vera, then hand the session back to Dewi.
-
-    The fixtures share ONE TestClient (one cookie jar), so 'being the validator' is a
-    login switch, not a separate client — exactly like one browser profile would be.
-    """
-    c.post("/api/auth/dev-login", json={"email": "vera.v@ninjavan.co"})
-    r = c.post("/api/returns/validate", json={"ids": [rid]})
-    c.post("/api/auth/dev-login", json={"email": "dewi.k@ninjavan.co"})
-    assert r.status_code == 200, r.text
-    return r.json()
+def _oc_rows(response):
+    """The return OC export, read back as the CSV DE actually hands to Ninja."""
+    rows = list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"))))
+    hdr, body = rows[0], [r for r in rows[1:] if r]
+    return [dict(zip(hdr, r)) for r in body]
 
 
 # ------------------------------------------------------------ entry state ----
@@ -61,17 +56,22 @@ def test_worklist_requires_a_session(client, rejected):  # noqa: ARG001
     assert client.get("/api/returns").status_code == 401
 
 
-def test_validator_role_can_see_the_worklist(validator_client, rejected):  # noqa: ARG001
-    assert validator_client.get("/api/returns").status_code == 200
-
-
-def test_row_starts_pending_validator_with_the_door_evidence(de_client, rejected):  # noqa: ARG001
+def test_row_lands_on_de_with_the_door_evidence(de_client, rejected):  # noqa: ARG001
+    """Submission IS the entry event — no queue sits in front of DE."""
     r = _row(de_client)
-    assert r["stage"] == "pending_validator"
+    assert r["stage"] == "pending_de_upload"
     assert r["reject_pcs"] == 3
     assert r["origin"] == "TMP_DEPOK" and r["origin_unknown"] is False
+    # The photos still ride along; DE reads them before exporting, nobody signs them off.
     kinds = {p["doc_type"] for p in r["proof_photos"]}
     assert {"delivery_note", "rejected_goods", "awb_sticker"} <= kinds
+
+
+def test_a_fresh_reject_is_immediately_actionable(de_client, rejected):  # noqa: ARG001
+    """The old flow returned 404/0 here until a Validator ticked the row first."""
+    rid = _row(de_client)["id"]
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 200
+    assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
 
 
 def test_reject_submit_requires_the_pcs_count(client, awb):
@@ -85,41 +85,32 @@ def test_reject_submit_requires_the_pcs_count(client, awb):
     assert r.json()["detail"] == "reject_pcs_required"
 
 
-# -------------------------------------------------------------- validation ----
-def test_de_cannot_validate(de_client, rejected):  # noqa: ARG001
+# ------------------------------------------------- the retired validator ----
+def test_the_validate_endpoint_is_gone(de_client, rejected):  # noqa: ARG001
     rid = _row(de_client)["id"]
-    assert de_client.post("/api/returns/validate", json={"ids": [rid]}).status_code == 403
+    assert de_client.post("/api/returns/validate", json={"ids": [rid]}).status_code == 404
 
 
-def test_validation_moves_the_row_to_pending_de_upload(de_client, rejected):  # noqa: ARG001
-    rid = _row(de_client)["id"]
-    assert _validate(de_client, rid)["updated"] == 1
-    r = _row(de_client)
-    assert r["stage"] == "pending_de_upload"
-    assert r["validated_by_email"] == "vera.v@ninjavan.co"
-    # Idempotent: re-validating an already-moved row is a no-op, not an error.
-    assert _validate(de_client, rid)["updated"] == 0
+def test_validator_role_no_longer_reaches_the_lane(validator_client, rejected):  # noqa: ARG001
+    """Vera holds ONLY `validator`, and the lane is now closed to it."""
+    assert validator_client.get("/api/returns").status_code == 403
 
 
-def test_nothing_downstream_works_before_validation(de_client, rejected):  # noqa: ARG001
-    rid = _row(de_client)["id"]
-    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
-    assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 0
-    assert de_client.post("/api/returns/rts", json={"ids": [rid]}).json()["updated"] == 0
+def test_pending_validator_is_not_a_stage_any_more(de_client, rejected):  # noqa: ARG001
+    assert de_client.get("/api/returns?stage=pending_validator").status_code == 400
 
 
 # --------------------------------------------------- sebagian: OC pipeline ----
 def test_partial_walks_export_upload_print(de_client, rejected):
     rid = _row(de_client)["id"]
-    _validate(de_client, rid)
 
-    # Export: one row, <SwipeAWB>-R01, addressed to the origin warehouse, pcs in col Y.
-    r = de_client.get("/api/returns/export-oc.xlsx")
+    # Export: one CSV row, <SwipeAWB>-R01, addressed to the origin warehouse, pcs in col Y.
+    r = de_client.get("/api/returns/export-oc.csv")
     assert r.status_code == 200
-    ws = openpyxl.load_workbook(io.BytesIO(r.content)).worksheets[0]
-    hdr = [c.value for c in ws[1]]
-    row = {h: ws.cell(2, i + 1).value for i, h in enumerate(hdr)}
-    assert ws.max_row == 2
+    assert r.headers["content-type"].startswith("text/csv")
+    rows = _oc_rows(r)
+    assert len(rows) == 1
+    row = rows[0]
     assert row["requested_tracking_number"] == f"{rejected['awb_id']}-R01"
     assert row["reference.merchant_order_number"] == rejected["awb_id"]
     assert row["to.address.city"] == "Depok"
@@ -131,7 +122,7 @@ def test_partial_walks_export_upload_print(de_client, rejected):
     assert r2["stage"] == "pending_print"
     assert r2["return_awb_id"] == f"{rejected['awb_id']}-R01"
     # Once uploaded it leaves the export file.
-    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
 
     # Printed & labelled -> closed.
     assert de_client.post("/api/returns/mark-printed", json={"ids": [rid]}).json()["updated"] == 1
@@ -143,35 +134,38 @@ async def _strip(dbs, awb_id):
     await dbs.execute("UPDATE return_parcel SET origin = NULL WHERE original_awb_id = ?", (awb_id,))
 
 
-def test_origin_unknown_blocks_the_oc_export_until_bulk_set(de_client, dbs, rejected):  # noqa: ARG001
+def test_origin_unknown_blocks_the_oc_export_until_bulk_set(de_client, dbs, rejected):
+    """DE's first move: set the OC origin on rows whose forward order never recorded one.
+
+    The export SKIPS these rather than guessing, so clearing them is what puts the row in
+    the file at all.
+    """
     import asyncio
 
     rid = _row(de_client)["id"]
-    _validate(de_client, rid)
     # Strip the origin from both the row and its forward AWB — the pre-tracking case.
     asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
         _strip(dbs, rejected["awb_id"])
     )
     r = _row(de_client)
     assert r["origin_unknown"] is True
-    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).status_code == 409
 
     assert de_client.post(
         "/api/returns/origin", json={"ids": [rid], "origin": "TMP_SURABAYA"}
     ).json()["updated"] == 1
     assert _row(de_client)["origin_unknown"] is False
-    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 200
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 200
 
 
 # ------------------------------------------------------- semua: RTS pipeline --
 def test_full_refusal_closes_by_rts_and_never_prints(de_client, fully_rejected):
     rid = _row(de_client)["id"]
     assert _row(de_client)["closes_by"] == "rts"
-    _validate(de_client, rid)
 
     # The full refusal never appears in the OC export — no new AWB exists for it.
-    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
     # And the print path refuses it outright.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 0
 
@@ -190,23 +184,22 @@ def test_full_refusal_closes_by_rts_and_never_prints(de_client, fully_rejected):
 
 def test_partial_rejects_are_invisible_to_the_rts_path(de_client, rejected):  # noqa: ARG001
     rid = _row(de_client)["id"]
-    _validate(de_client, rid)
     assert de_client.post("/api/returns/rts", json={"ids": [rid]}).json()["updated"] == 0
     assert de_client.get("/api/returns/export-rts.csv").status_code == 404
 
 
 # ------------------------------------------------------------------ misc ------
 def test_stage_filter_and_bad_stage(de_client, rejected):  # noqa: ARG001
-    rows = de_client.get("/api/returns?stage=pending_validator").json()["returns"]
+    rows = de_client.get("/api/returns?stage=pending_de_upload").json()["returns"]
     assert len(rows) == 1
     assert de_client.get("/api/returns?stage=pending_ack").status_code == 400
 
 
 def test_csv_export_carries_the_full_trail(de_client, rejected):
     rid = _row(de_client)["id"]
-    _validate(de_client, rid)
     de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
     text = de_client.get("/api/returns/export.csv").text
-    assert "validated_by" in text and "vera.v@ninjavan.co" in text
     assert f"{rejected['awb_id']}-R01" in text
     assert "pending_print" in text
+    # The validator columns survive as history for rows stamped under the old flow.
+    assert "legacy_validated_at" in text
