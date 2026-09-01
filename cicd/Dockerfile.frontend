@@ -23,6 +23,14 @@ RUN npm run build
 #   docker buildx imagetools inspect nginx:<tag> | head -2
 # sha256:97d490c1… = nginx 1.30.4 on alpine-minirootfs-3.24.1
 FROM nginx:1.30-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+
+# Pull security patches Alpine has published since this base image was cut. The pin above
+# fixes the base at a moment in time, so it necessarily lags: 3.24.1 ships openssl
+# 3.5.7-r0 while v3.24/main is already on 3.5.8-r0, which is the CVE-2026-14456 fix.
+# Scoped to the two packages that were actually flagged rather than a blanket `apk upgrade`,
+# so a surprise upstream bump cannot quietly change the rest of the runtime.
+RUN apk --no-cache upgrade libcrypto3 libssl3
+
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY cicd/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
