@@ -168,13 +168,27 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
     piece_count = sum(len(oc_engine.piece_trids(a)) for a in committed)
     err_text = "; ".join(_err_line(e) for e in errors) or None
 
+    # Things the operator must be told about a file that otherwise looks fine. Same role as
+    # converter v6's CEK column: the upload is still valid, but a column in it is not what
+    # they'd assume. Each is listed with up to 5 example AWBs so it can be checked in the TMP.
+    def _warn(awbs: list[str], text: str) -> str | None:
+        if not awbs:
+            return None
+        return f"{len(awbs)} AWB(s) {text}: {', '.join(awbs[:5])}{'…' if len(awbs) > 5 else ''}"
+
     # Col R is compliance text with a hard 500-char cap; if the link pushed it over, the
     # engine trimmed the RDO wording. That must never pass unnoticed.
-    truncated = [a["awb_id"] for a in committed
-                 if oc_engine.instr_truncated(a["delivery_instructions"])]
-    warn_text = (f"{len(truncated)} AWB(s) had the RDO instruction text truncated to fit the "
-                 f"500-char limit: {', '.join(truncated[:5])}"
-                 f"{'…' if len(truncated) > 5 else ''}") if truncated else None
+    warnings = [
+        _warn([a["awb_id"] for a in committed
+               if oc_engine.instr_truncated(a["delivery_instructions"])],
+              "had the RDO instruction text truncated to fit the 500-char limit"),
+        # H/L/W outside the volume rule ship EMPTY rather than guessed. Ninja accepts the
+        # row; nobody should discover the blank cells by reading the file.
+        _warn([a["awb_id"] for a in committed if oc_engine.dimensions_blank(a)],
+              "have no volume in the TMP (or one outside the rule), so their "
+              "height/length/width columns are blank"),
+    ]
+    warn_text = " | ".join(w for w in warnings if w) or None
 
     await db.execute(
         "UPDATE order_intake SET oc_template_ref=%s, links_file_ref=%s, awb_count=%s, piece_count=%s, "

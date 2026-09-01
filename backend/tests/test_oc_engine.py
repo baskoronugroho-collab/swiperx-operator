@@ -190,3 +190,94 @@ def test_both_origins_carry_confirmed_real_contact_details():
     # No origin may ship to production carrying a placeholder contact number.
     for code, o in e.CFG["origins"].items():
         assert o.get("phone_confirmed") is True, f"{code} still has an unconfirmed phone"
+
+
+# ------------------------------------------------- parcel dimensions (AF/AG/AH) ----
+# Ported from converter v6 cols AF/AG/AH after Albert/regional signed off (31 Aug 2026).
+# `v` = the volume of ONE parcel in cm3 = TMP col D (m3) x 1,000,000 / koli.
+
+@pytest.mark.parametrize(
+    ("volume", "koli", "h", "length", "w"),
+    [
+        # Each branch of the rule, at a real value taken from the locked TMP sample.
+        ("0.001423", 1, "10", "14.23", "10"),      # v = 1,423      -> v < 10,000
+        ("0.009864", 3, "10", "32.88", "10"),      # v = 3,288      -> koli divides the AWB total
+        ("0.023541", 1, "100", "23.541", "10"),    # v = 23,541     -> 10,000 <= v < 100,000
+        ("0.5", 1, "100", "50", "100"),            # v = 500,000    -> 100,000 <= v < 1,000,000
+        ("0.01", 1, "100", "10", "10"),            # v = 10,000     -> exactly on a boundary
+    ],
+)
+def test_dimensions_follow_the_converter_v6_rule(volume, koli, h, length, w):
+    d = e.parcel_dimensions(volume, koli)
+    assert d["parcel_job.dimensions.height"] == h
+    assert d["parcel_job.dimensions.length"] == length
+    assert d["parcel_job.dimensions.width"] == w
+
+
+@pytest.mark.parametrize("volume", ["", "0", "-0.5", "1.0", "2", "abc", None])
+def test_dimensions_are_blank_outside_the_rule_never_guessed(volume):
+    """No rule exists below 0 or at/above 1,000,000 cm3, so nothing is emitted.
+
+    A guessed carton is worse than an absent one: NV accepts the row either way, but a wrong
+    L x W x H misprices the shipment. `1.0` m3 = exactly 1,000,000 cm3, which is OUT.
+    """
+    d = e.parcel_dimensions(volume, 1)
+    assert list(d.values()) == ["", "", ""]
+
+
+def test_dimensions_multiply_back_to_the_measured_volume():
+    """The property that makes the rule safe: H x L x W reproduces v EXACTLY, never rounded.
+
+    Repeating decimals are the interesting case — v6 emits Excel's 15 significant digits and
+    the engine must match to the character, or the two files disagree on 18 of the locked
+    sample's 94 rows.
+    """
+    for volume, koli in [("0.001423", 1), ("0.035216", 3), ("0.0002", 1),
+                         ("0.023541", 1), ("0.9", 1), ("0.000352", 7)]:
+        d = e.parcel_dimensions(volume, koli)
+        v = float(volume) * 1_000_000 / koli
+        got = (float(d["parcel_job.dimensions.height"])
+               * float(d["parcel_job.dimensions.length"])
+               * float(d["parcel_job.dimensions.width"]))
+        assert abs(got - v) < 1e-6, f"{volume}/{koli}: {got} != {v}"
+    # The exact string converter v6 caches for AWB02WJMZ in the locked sample:
+    # v = 11,738.6666... -> second branch -> v/1000, at Excel's 15 significant digits.
+    assert e.parcel_dimensions("0.035216", 3)["parcel_job.dimensions.length"] == "11.7386666666667"
+
+
+def test_forward_upload_carries_the_dimension_columns_after_branch_id():
+    header, rows = _rows("S1", [_awb(volume="0.001423", collies=1,
+                                     po_lines=[{"po_number": "PO1", "koli": 1}])])
+    assert header[-4:] == [
+        "corporate.branch_id",
+        "parcel_job.dimensions.height",
+        "parcel_job.dimensions.length",
+        "parcel_job.dimensions.width",
+    ]
+    assert rows[0]["parcel_job.dimensions.length"] == "14.23"
+
+
+def test_an_awb_with_no_volume_still_uploads_with_blank_dimensions():
+    """Volume is not required. The row ships; `dimensions_blank` is what flags it upstream."""
+    awb = _awb(volume="")
+    _, rows = _rows("S1", [awb])
+    assert rows[0]["parcel_job.dimensions.height"] in (None, "")
+    assert rows[0]["parcel_job.dimensions.weight"] == "4.5"   # unrelated column untouched
+    assert e.dimensions_blank(awb) is True
+    assert e.dimensions_blank(_awb(volume="0.001423", collies=1)) is False
+
+
+def test_the_return_oc_does_not_claim_dimensions():
+    """A repacked return's volume is unknown at the door, so the file must not have the cols.
+
+    Baskoro's call, 31 Aug 2026: forward-only. A blank column here would read as a
+    measurement that came back empty rather than one that was never taken.
+    """
+    import csv as _csv
+    data = e.build_return_csv([{
+        "awb_id": "AWB02U24V", "pharmacy_name": "Apotek Uji", "phone": "0812",
+        "address": "Jl. Uji 1", "origin": "TMP_DEPOK", "reject_pcs": 3,
+    }])
+    header = next(_csv.reader(io.StringIO(data.decode("utf-8-sig"))))
+    assert header == e.FWD_COLS
+    assert not [c for c in header if c in e.DIM_COLS]

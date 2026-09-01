@@ -46,6 +46,7 @@
         "name": "A",
         "swipe_awb": "B",
         "weight": "C",
+        "volume": "D",
         "po": "E",
         "address": "I",
         "zip": "J",
@@ -67,6 +68,7 @@
         "name": "A",
         "swipe_awb": "B",
         "weight": "C",
+        "volume": "D",
         "po": "E",
         "address": "I",
         "zip": "J",
@@ -95,7 +97,8 @@
         "phone": "O"
       }
     },
-    "_header_checks_comment": "header_checks: cells the uploaded file's header row must match (case-insensitive, trimmed) before parsing starts. Catches a non-TMP file — or a layout drift — with a clear 422 instead of committing garbage (OC_AWB_PARENT_CHECK.md 7b). The `return` layout has none defined; S3 is disabled."
+    "_header_checks_comment": "header_checks: cells the uploaded file's header row must match (case-insensitive, trimmed) before parsing starts. Catches a non-TMP file — or a layout drift — with a clear 422 instead of committing garbage (OC_AWB_PARENT_CHECK.md 7b). The `return` layout has none defined; S3 is disabled.",
+    "_dimensions_comment": "`volume` = TMP col D 'Total Volume per AWB (m3)'. Read once, on the row carrying the SwipeAWB, exactly like `weight` — continuation PO rows leave A-D blank. Feeds the AF/AG/AH dimension columns; see oc_engine.parcel_dimensions()."
   },
   "max_collies_per_awb": 200,
   "warehouse": {

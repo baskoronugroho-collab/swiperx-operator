@@ -42,6 +42,15 @@ RET_EXTRA_COLS = [
     "parcel_job.pickup_date", "parcel_job.pickup_timeslot.start_time", "parcel_job.pickup_timeslot.end_time",
     "parcel_job.pickup_timeslot.timezone", "parcel_job.pickup_instructions",
 ]
+# AF/AG/AH — appended after AE on FORWARD uploads only. Ninja's stock `Tmplt UploadV4`
+# has no dimension columns beyond `weight` at W; these were added by Albert/regional and
+# shipped in converter v6 (18 Aug 2026). The engine follows v6 as of 31 Aug, after their
+# sign-off. Reject-return and pickup-return files do NOT carry them: a repacked return
+# parcel's volume is genuinely unknown at the door, so a blank column would be a claim
+# rather than a measurement.
+DIM_COLS = [
+    "parcel_job.dimensions.height", "parcel_job.dimensions.length", "parcel_job.dimensions.width",
+]
 
 
 class OcError(ValueError):
@@ -156,6 +165,64 @@ def build_return_csv(rows: list[dict], today: str | None = None) -> bytes:
     return ("﻿" + bio.getvalue()).encode("utf-8")
 
 
+def parcel_dimensions(volume_m3: str, collies: int) -> dict:
+    """Per-parcel H/L/W in CENTIMETRES, ported byte-for-byte from converter v6 (cols AF/AG/AH).
+
+    `v` is the volume of ONE parcel in cm3: the AWB's total volume in m3 scaled by 1,000,000
+    and divided by its koli count. Albert's formula divides by parcel count, and in
+    `Bulk_Upload_MPS_RDO` L x W x H equals the VOLUME field on a 5-carton row, which is what
+    settles it as per-parcel rather than per-bundle.
+
+    Three branches, first match wins; each reproduces `v` EXACTLY, so H*L*W is the volume
+    that was measured, not an approximation:
+
+        v <    10,000 -> h  10  w  10  l = v/100
+        v <   100,000 -> h 100  w  10  l = v/1000
+        v < 1,000,000 -> h 100  w 100  l = v/10000
+
+    Outside that range there is no rule, so nothing is emitted: a missing, zero, negative or
+    >= 1,000,000 cm3 volume returns all three blank rather than a guess. `oc.create` counts
+    those rows into the intake warning, the same way converter v6 flags them in its CEK
+    column. No rounding — v6 does none, and rounding here would desync the two.
+    """
+    blank = {c: "" for c in DIM_COLS}
+    try:
+        v = float(volume_m3) * 1_000_000 / int(collies)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return blank
+    if v <= 0 or v >= 1_000_000:
+        return blank
+    if v < 10_000:
+        h, w, length = 10, 10, v / 100
+    elif v < 100_000:
+        h, w, length = 100, 10, v / 1000
+    else:
+        h, w, length = 100, 100, v / 10000
+    return {
+        "parcel_job.dimensions.height": str(h),
+        "parcel_job.dimensions.length": _num(length),
+        "parcel_job.dimensions.width": str(w),
+    }
+
+
+def dimensions_blank(awb: dict) -> bool:
+    """True when this AWB's volume is outside the rule, so its H/L/W ship empty."""
+    return not parcel_dimensions(awb.get("volume", ""), awb.get("collies", 0))[
+        "parcel_job.dimensions.height"
+    ]
+
+
+def _num(x: float) -> str:
+    """Format a computed length the way converter v6's cells do: 15 significant digits.
+
+    NOT rounded to a fixed number of decimals. v6 does no rounding, and Excel serialises a
+    double at 15 sig figs (`11.7386666666667`), so anything else desyncs the two files on
+    every volume that divides into a repeating decimal — 18 of the 94 rows in the locked
+    sample. `%.15g` also drops the trailing zeros `repr()` would leave behind.
+    """
+    return str(int(x)) if float(x).is_integer() else f"{x:.15g}"
+
+
 def _norm(v) -> str:
     """Normalize an openpyxl cell value to a clean string (ints without .0, no sci-notation)."""
     if v is None:
@@ -247,6 +314,8 @@ def _parse_forward(ws, layout, errors) -> list[dict]:
                     "pharmacy_name": _get(ws, c["name"], r), "phone": _get(ws, c["phone"], r),
                     "address": _get(ws, c["address"], r), "city": _get(ws, c["city"], r),
                     "postcode": _get(ws, c["zip"], r), "weight": _get(ws, c["weight"], r),
+                    # Read once, on the SwipeAWB row — continuation PO rows leave A-D blank.
+                    "volume": _get(ws, c["volume"], r) if c.get("volume") else "",
                     "po_lines": [], "collies": 0, "is_return": False,
                     "invoice": "", "item_detail": "",
                 }
@@ -459,6 +528,7 @@ def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today
             "parcel_job.dimensions.weight": awb["weight"] or "1",
             "parcel_job.is_pickup_required": fx["is_pickup_required_forward"],
         })
+        row.update(parcel_dimensions(awb.get("volume", ""), awb["collies"]))
     return row
 
 
@@ -466,7 +536,7 @@ def build_upload_xlsx(service_code: str, awbs: list[dict], today: str | None = N
     """Build the Ninja Van upload workbook. Each AWB must already have delivery_instructions set."""
     today = today or date.today().isoformat()
     is_return = CFG["services"][service_code]["direction"] == "return"
-    cols = FWD_COLS + RET_EXTRA_COLS if is_return else FWD_COLS
+    cols = FWD_COLS + RET_EXTRA_COLS if is_return else FWD_COLS + DIM_COLS
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Upload"
