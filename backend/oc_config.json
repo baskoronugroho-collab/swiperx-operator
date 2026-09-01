@@ -1,6 +1,5 @@
 {
-  "_comment": "OC engine fixed config. Authoritative — the ../oc-engine Node harness it was once synced with was deleted 18 Aug 2026, so there is no longer a second copy to keep in step. Provenance for the extracted values: '../OC Template/OC_ENGINE_EXTRACTION_NOTES.md'. Note: the backend uses config.PUBLIC_BASE_URL (with scheme) for the link host, not public_base_url below.",
-  "public_base_url": "swiperx-operator.apps.substrait.build",
+  "_comment": "OC engine fixed config. Authoritative — the ../oc-engine Node harness it was once synced with was deleted 18 Aug 2026, so there is no longer a second copy to keep in step. Provenance for the extracted values: '../OC Template/OC_ENGINE_EXTRACTION_NOTES.md'. The courier-link host is NOT here: it is config.COURIER_BASE_URL (falling back to config.PUBLIC_BASE_URL), read from the environment so it can differ per deployment. A copy in this file could only ever drift out of step with the app that ships the links.",
   "master_shipper_id": "11398423",
   "services": {
     "S1": {
