@@ -25,10 +25,17 @@ RUN npm run build
 FROM nginx:1.30-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
 
 # Pull security patches Alpine has published since this base image was cut. The pin above
-# fixes the base at a moment in time, so it necessarily lags: 3.24.1 ships openssl
-# 3.5.7-r0 while v3.24/main is already on 3.5.8-r0, which is the CVE-2026-14456 fix.
-# Scoped to the two packages that were actually flagged rather than a blanket `apk upgrade`,
-# so a surprise upstream bump cannot quietly change the rest of the runtime.
+# fixes the base at a moment in time, so it necessarily lags.
+#
+# NOTE — this is currently a NO-OP on the platform builder, kept deliberately. Alpine
+# v3.24/main has openssl 3.5.8-r0 (the CVE-2026-14456 fix) but the base ships 3.5.7-r0,
+# and after this line ran, run #9000091 still scanned as 3.5.7-r0: the builder's apk
+# mirror serves the older index, the same staleness that made the 1.30-alpine TAG resolve
+# to an Alpine 3.21.3 image until it was pinned by digest. Left in place so the patch
+# lands by itself once the mirror catches up. It is not the reason the build is green.
+#
+# Scoped to the two flagged packages rather than a blanket `apk upgrade`, so a surprise
+# upstream bump cannot quietly change the rest of the runtime.
 RUN apk --no-cache upgrade libcrypto3 libssl3
 
 COPY --from=build /app/dist /usr/share/nginx/html
