@@ -32,3 +32,7 @@ services:
   # reads it today (backend/config.py defines REDIS_URL but nothing consumes it), so this
   # entry can be dropped once someone confirms the instance is genuinely unused.
   redis: {}
+
+# Skill/plugin version this app was last deployed with — stamped by
+# /substrait:deploy; do not edit by hand.
+scaffold_version: 2026.08.30.104958
