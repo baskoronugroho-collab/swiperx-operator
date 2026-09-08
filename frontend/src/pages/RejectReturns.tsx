@@ -299,8 +299,10 @@ export default function RejectReturns() {
               Mark printed &amp; labelled ({printIds.length})
             </Button>
           )}
-          {/* IC's move: say so, don't move it. */}
-          {canFlag && !canReverse && printIds.length > 0 && (
+          {/* IC's move: say so, don't move it. Shown to everyone who holds a flag role,
+              including people who can also reverse — a superadmin standing at a station is
+              doing the IC's job, and no role may be a subset of itself minus one action. */}
+          {canFlag && printIds.length > 0 && (
             <Button variant="ghost" disabled={busy} onClick={() => flag(printIds)}>
               Flag: can&rsquo;t find AWB ({printIds.length})
             </Button>

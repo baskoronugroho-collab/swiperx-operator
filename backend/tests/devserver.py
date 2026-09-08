@@ -25,14 +25,11 @@ import main  # noqa: E402
 
 async def _seed() -> None:
     """One forward AWB and one already-rejected AWB, so every screen has something.
-    Plus a superadmin (the conftest SEED has none) so /users is exercisable."""
-    await fake.execute(
-        "INSERT INTO users (name, google_email, active) VALUES ('Admin Dev','admin@ninjavan.co',1)", ()
-    )
-    await fake.execute(
-        "INSERT INTO user_roles (user_id, role) SELECT id, 'superadmin' FROM users "
-        "WHERE google_email='admin@ninjavan.co'", ()
-    )
+
+    The users come from the conftest SEED — admin@ninjavan.co (superadmin) included, so
+    /users is exercisable. Do not insert one here too: two rows share the address and
+    `load_user_by_email` returns whichever comes first, which may be the one with no roles.
+    """
     await fake.execute(
         "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
         "koli, link_token, status, is_return, origin) VALUES "

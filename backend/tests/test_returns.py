@@ -196,6 +196,32 @@ def test_station_ic_flags_the_row_and_de_sends_it_back(client, de_client, reject
     assert client.get("/api/returns/export-oc.csv").status_code == 200
 
 
+def test_superadmin_can_do_every_move_on_the_lane(client, de_client, rejected):  # noqa: ARG001
+    """Superadmin is a SUPERSET of every role, never a role with a hole in it.
+
+    It holds `superadmin` and nothing else, so every action here reaches it only through
+    `require_roles`'s short-circuit. Pinned as a property of the lane rather than trusted:
+    the person doing this job in the pilot may be standing at the station one day and at the
+    DE desk the next, and an action they cannot reach is an action that does not happen.
+    """
+    rid = _row(de_client)["id"]
+    client.post("/api/auth/dev-login", json={"email": "admin@ninjavan.co"})
+
+    # DE's moves.
+    assert client.get("/api/returns/export-oc.csv").status_code == 200
+    assert client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
+    # Station IC's move — the one a DE-only account is offered but does not need.
+    assert client.post("/api/returns/flag", json={"ids": [rid], "note": "cek"}).json()["updated"] == 1
+    # Both answers to a flag, which sit on the DE desk.
+    assert client.post("/api/returns/unflag", json={"ids": [rid]}).json()["updated"] == 1
+    assert client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 1
+    assert _row(client)["stage"] == "pending_de_upload"
+    # And IC's closing move, on a row walked back forward.
+    client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    assert client.post("/api/returns/mark-printed", json={"ids": [rid]}).json()["updated"] == 1
+    assert _row(client)["stage"] == "printed"
+
+
 def test_a_flag_needs_a_note_and_only_sticks_to_pending_print(de_client, rejected):  # noqa: ARG001
     """Empty remarks say nothing, and no other stage has an AWB to fail to find."""
     rid = _row(de_client)["id"]

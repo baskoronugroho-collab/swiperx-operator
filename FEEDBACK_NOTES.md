@@ -249,3 +249,10 @@ new return TRID).
   or a flag could vanish before anyone read it.
 - UI: `Flagged only` filter, a red *N flagged by IC* count on the toolbar, and the note printed
   on the row itself under the stage badge — DE must be able to read it without opening anything.
+- **Superadmin is a superset, never a role with a hole in it** (Baskoro, 8 Sep). The flag button
+  was briefly hidden from anyone who could also reverse, on the reasoning that they should just
+  fix it — which also hid it from superadmin. Now shown to everyone holding a flag role. This was
+  the ONLY place in the app that could exclude superadmin; `require_roles` and the frontend's
+  `has()` both short-circuit on it everywhere else. Pinned by
+  `test_superadmin_can_do_every_move_on_the_lane`, which walks every action on the lane as an
+  account holding `superadmin` and nothing else.

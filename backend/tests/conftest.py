@@ -124,6 +124,10 @@ SEED = [
     ("INSERT INTO user_roles (user_id, role) VALUES (2,'station_ic')", ()),
     ("INSERT INTO users (id, name, google_email, active) VALUES (4,'Vera V.','vera.v@ninjavan.co',1)", ()),
     ("INSERT INTO user_roles (user_id, role) VALUES (4,'validator')", ()),
+    # Superadmin holds the ONE role and reaches everything through it — `require_roles`
+    # short-circuits on it. Seeded so tests can pin that, rather than trusting the guard.
+    ("INSERT INTO users (id, name, google_email, active) VALUES (5,'Admin Dev','admin@ninjavan.co',1)", ()),
+    ("INSERT INTO user_roles (user_id, role) VALUES (5,'superadmin')", ()),
 ]
 
 _PLACEHOLDER = re.compile(r"%s")
