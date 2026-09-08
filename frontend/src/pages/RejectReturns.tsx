@@ -16,7 +16,16 @@ import { Badge, Button, Card, EmptyState, ErrorNote, Spinner, inputClass } from 
  *
  *  One flat, filterable list with checkbox selection: the toolbar offers exactly the bulk
  *  actions the current tab's stage supports, and the server re-checks stage + role on every
- *  one, so a mis-click can never move a row somewhere its history doesn't support. */
+ *  one, so a mis-click can never move a row somewhere its history doesn't support.
+ *
+ *  The one move BACKWARDS is "Send back to DE upload" on Pending print. It's there because
+ *  marking the OC uploaded without exporting the CSV first strands the row: the export only
+ *  ever contains Pending DE upload rows. It's a DE / implant / PM move.
+ *
+ *  Station IC is who FINDS OUT — the -R01 isn't in OPV2 and the parcel is on their bench —
+ *  so they get "Flag: can't find AWB" instead: a remark that moves nothing and puts the row
+ *  in front of DE with the reason on it. DE answers it by sending the row back, or by
+ *  clearing the flag if the AWB was there after all. */
 
 const TABS: { key: string; label: string }[] = [
   { key: "pending_de_upload", label: "Pending DE upload" },
@@ -34,6 +43,7 @@ export default function RejectReturns() {
   const [fType, setFType] = useState("");
   const [fOrigin, setFOrigin] = useState("");
   const [fHub, setFHub] = useState("");
+  const [fFlag, setFFlag] = useState(false);
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -66,6 +76,7 @@ export default function RejectReturns() {
     if (!rows) return null;
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
+      if (fFlag && !r.flagged) return false;
       if (fType && r.return_type !== fType) return false;
       if (fOrigin === "unknown" ? !r.origin_unknown : fOrigin && r.origin !== fOrigin) return false;
       if (fHub && r.hub_name !== fHub) return false;
@@ -75,7 +86,7 @@ export default function RejectReturns() {
         .toLowerCase()
         .includes(term);
     });
-  }, [rows, q, fType, fOrigin, fHub]);
+  }, [rows, q, fType, fOrigin, fHub, fFlag]);
 
   const shown = filtered ?? [];
   const selected = shown.filter((r) => sel.has(r.id));
@@ -98,14 +109,50 @@ export default function RejectReturns() {
     }
   }
 
+  /* Station IC's remark. Deliberately a prompt for free text and not a fixed reason list:
+     "can't find the AWB" is the case we know about, and the ones we don't are exactly what
+     we want written down in the IC's own words. */
+  async function flag(ids: number[]) {
+    const note = window.prompt(
+      `Flag ${ids.length} row(s) for DE. What's wrong?\n` +
+        "Most often: the -R01 isn't in NV / OPV2, so there's nothing to print.\n" +
+        "This doesn't move the row — it puts it in front of DE with your note on it.",
+      "AWB tidak ditemukan di NV / OPV2",
+    );
+    if (note === null || !note.trim()) return;
+    await run("Flagged for DE", () => api.returns.flag(ids, note.trim()));
+  }
+
+  /* Undo the upload stamp on Pending print rows so DE can export the OC CSV again — the
+     export only ever picks up Pending DE upload rows, so a row marked uploaded before the
+     CSV was pulled can't be exported at all until it comes back here. */
+  async function reopen(ids: number[]) {
+    if (
+      !window.confirm(
+        `Send ${ids.length} row(s) back to Pending DE upload?
+` +
+          "Use this when the OC was marked uploaded but the CSV was never exported. " +
+          "The upload stamp and the -R01 are cleared, and DE exports and marks it again.",
+      )
+    )
+      return;
+    await run("Sent back to DE upload", () => api.returns.reopenUpload(ids));
+  }
+
   /* Stage-appropriate bulk actions. Acting on the SELECTION when there is one, otherwise
      on everything shown — matching how "bulk" was asked for on the whiteboard. */
   const canDe = has("implant", "de");
   const canPrint = has("station_ic", "implant", "de");
+  // Sending a row back un-does DE's own upload claim, so it stays on that desk. IC flags.
+  const canReverse = has("implant", "de", "program_manager");
+  const canFlag = has("station_ic", "implant", "de");
 
   const ocIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "return_oc");
   const rtsIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "rts");
+  // Pending print rows: what IC closes by printing, the only rows that can go back, and the
+  // only stage where an IC is hunting for an AWB — so the only stage a flag can describe.
   const printIds = pick(shown, (r) => r.stage === "pending_print");
+  const flaggedIds = pick(shown, (r) => r.flagged);
   const unknownIds = pick(shown, (r) => r.origin_unknown && !CLOSED.includes(r.stage));
 
   return (
@@ -162,6 +209,15 @@ export default function RejectReturns() {
           <option value="TMP_SURABAYA">TMP Surabaya</option>
           <option value="unknown">Origin unknown</option>
         </select>
+        <label className="flex items-center gap-2 whitespace-nowrap text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-nv-red"
+            checked={fFlag}
+            onChange={(e) => setFFlag(e.target.checked)}
+          />
+          Flagged only
+        </label>
         <select className={`${inputClass} w-auto`} value={fHub} onChange={(e) => setFHub(e.target.value)}>
           <option value="">Hub: all</option>
           {hubs.map((h) => (
@@ -173,11 +229,17 @@ export default function RejectReturns() {
       </div>
 
       {/* ---- stage toolbar: only the actions this tab's rows can take ---- */}
-      {(canDe || canPrint) && shown.length > 0 && tab !== "closed" && (
+      {(canDe || canPrint || canReverse) && shown.length > 0 && tab !== "closed" && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
           <span className="text-xs font-semibold uppercase text-ink-muted">
             {selected.length > 0 ? `${selected.length} selected` : "All shown"}
           </span>
+          {/* Loudest thing on the bar when it's there: a human on a bench is stuck. */}
+          {flaggedIds.length > 0 && (
+            <span className="flex items-center gap-2 border-r border-line pr-2">
+              <Badge tone="danger">{flaggedIds.length} flagged by IC</Badge>
+            </span>
+          )}
           {/* Step 1. Sits first because the export SKIPS origin-unknown rows: clearing this
               badge is what makes them appear in the file at all. */}
           {unknownIds.length > 0 && (
@@ -237,6 +299,25 @@ export default function RejectReturns() {
               Mark printed &amp; labelled ({printIds.length})
             </Button>
           )}
+          {/* IC's move: say so, don't move it. */}
+          {canFlag && !canReverse && printIds.length > 0 && (
+            <Button variant="ghost" disabled={busy} onClick={() => flag(printIds)}>
+              Flag: can&rsquo;t find AWB ({printIds.length})
+            </Button>
+          )}
+          {/* The one step backwards. Confirmed because it clears the upload stamp — the row
+              must not keep claiming an upload that never happened. */}
+          {canReverse && printIds.length > 0 && (
+            <Button variant="ghost" disabled={busy} onClick={() => reopen(printIds)}>
+              Send back to DE upload ({printIds.length})
+            </Button>
+          )}
+          {/* Answering a flag the other way: DE looked, the AWB is there, print it. */}
+          {canReverse && flaggedIds.length > 0 && (
+            <Button variant="ghost" disabled={busy} onClick={() => run("Flag cleared", () => api.returns.unflag(flaggedIds))}>
+              Clear flag ({flaggedIds.length})
+            </Button>
+          )}
         </div>
       )}
 
@@ -247,7 +328,7 @@ export default function RejectReturns() {
       {!filtered && !error && <Spinner label="Loading…" />}
       {filtered && filtered.length === 0 && (
         <EmptyState
-          title={q || fType || fOrigin || fHub ? "No matches" : "Nothing here"}
+          title={q || fType || fOrigin || fHub || fFlag ? "No matches" : "Nothing here"}
           body={tab === "pending_de_upload" ? "No rejects waiting on DE." : undefined}
         />
       )}
@@ -361,6 +442,14 @@ function Row({
         <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-muted">{row.rejected_at}</td>
         <td className="px-4 py-3">
           <StageBadge stage={row.stage} />
+          {/* The note itself, on the row — DE has to be able to read it without opening
+              anything, or it may as well have stayed in the chat group. */}
+          {row.flagged && (
+            <span className="mt-1 block max-w-56">
+              <Badge tone="danger">flagged by IC</Badge>
+              <span className="mt-0.5 block text-xs text-ink-muted">{row.flag_note}</span>
+            </span>
+          )}
         </td>
         <td className="px-4 py-3">
           <button onClick={onToggle} className="text-xs font-semibold text-nv-red hover:underline">
@@ -413,6 +502,12 @@ function Row({
                     <li>
                       ✓ RTS triggered on <span className="font-mono">{row.original_awb_id}</span>{" "}
                       {row.rts_requested_at} by {row.rts_requested_by_email ?? "—"}
+                    </li>
+                  )}
+                  {row.flagged && (
+                    <li className="text-danger">
+                      ⚑ Flagged {row.flagged_at} by {row.flagged_by_email ?? "—"} — &ldquo;
+                      {row.flag_note}&rdquo;
                     </li>
                   )}
                   {row.return_tids && <li>Legacy TIDs: <span className="font-mono">{row.return_tids}</span></li>}

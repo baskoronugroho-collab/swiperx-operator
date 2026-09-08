@@ -12,6 +12,13 @@ front of it any more:
 * A FULL refusal (`semua`) never gets a new AWB and never reaches print: RTS is triggered
   on the original forward tracking number, marked in bulk and exported as a list.
 
+The one step BACKWARDS on this lane is `pending_print → pending_de_upload` (`/reopen-upload`,
+DE / implant / program_manager): a DE who marks the OC uploaded before exporting the CSV
+strands the row, because the export only ever contains `pending_de_upload` rows. Station IC,
+who is the one who finds out — the `-R01` is not in OPV2 — cannot make that move; they raise a
+remark on the row instead (`/flag`), which is what DE reads before pressing it. A flag is a
+note, never a stage: it moves nothing, and it clears when the row goes back.
+
 The VALIDATOR pre-check is gone (31 Aug 2026). It held every reject — both types — behind a
 second pair of eyes on the door photos, which is a queue the pilot cannot staff; the photos
 are still attached to every row and DE sees them before acting. Rows validated under the old
@@ -42,6 +49,12 @@ de_roles = require_roles("implant", "de")
 # return OC, so both closing paths now start from one desk.
 rts_roles = require_roles("implant", "de")
 printer_roles = require_roles("station_ic", "implant", "de")
+# Sending a Pending Print row BACK is a DE-desk decision — it un-does DE's own upload stamp
+# and puts the row back in the export file. Station IC is deliberately NOT here: an IC who
+# cannot find the AWB raises a flag on the row instead (`/flag`), and DE acts on it.
+reopen_roles = require_roles("implant", "de", "program_manager")
+# Raising that flag is Station IC's move, from the bench, at the moment the search fails.
+flag_roles = require_roles("station_ic", "implant", "de")
 
 # The account the deck mandates for replacement return TIDs.
 RTS_SHIPPER_ID = "11398434"
@@ -56,22 +69,25 @@ _SELECT = """
            rp.acknowledged_at, rp.return_tids, rp.tids_sent_at,
            rp.rts_requested_at, rp.reject_pcs,
            rp.validated_at, rp.de_uploaded_at, rp.printed_at,
+           rp.flag_note, rp.flagged_at,
            COALESCE(rp.origin, a.origin) AS origin,
            a.pharmacy_name, a.city, a.hub_name, a.phone, a.address,
            val.google_email     AS validated_by_email,
            dup.google_email     AS de_uploaded_by_email,
            prt.google_email     AS printed_by_email,
-           rts.google_email     AS rts_requested_by_email
+           rts.google_email     AS rts_requested_by_email,
+           flg.google_email     AS flagged_by_email
       FROM return_parcel rp
       LEFT JOIN awb   a   ON a.awb_id   = rp.original_awb_id
       LEFT JOIN users val ON val.id     = rp.validated_by
       LEFT JOIN users dup ON dup.id     = rp.de_uploaded_by
       LEFT JOIN users prt ON prt.id     = rp.printed_by
       LEFT JOIN users rts ON rts.id     = rp.rts_requested_by
+      LEFT JOIN users flg ON flg.id     = rp.flagged_by
 """
 
 _TIMES = ("rejected_at", "acknowledged_at", "tids_sent_at", "rts_requested_at",
-          "validated_at", "de_uploaded_at", "printed_at")
+          "validated_at", "de_uploaded_at", "printed_at", "flagged_at")
 
 
 def _is_full(row: dict) -> bool:
@@ -107,6 +123,9 @@ def _shape(row: dict) -> dict:
     row["origin_unknown"] = not row.get("origin")
     # Which closing pipeline this row is on, so the UI never re-derives the rule.
     row["closes_by"] = "rts" if _is_full(row) else "return_oc"
+    # A Station IC remark hanging on the row. NOT a stage — it moves nothing, it just makes
+    # the row shout on DE's screen with the reason written on it.
+    row["flagged"] = bool(row.get("flagged_at"))
     return row
 
 
@@ -242,6 +261,129 @@ async def mark_uploaded_bulk(
     return {"updated": updated}
 
 
+# ------------------------------------------------- station IC: the flag ----
+FLAG_MAX = 500
+
+
+@router.post("/flag")
+async def flag_bulk(
+    ids: list[int] = Body(..., embed=True),
+    note: str = Body(..., embed=True),
+    user: dict = Depends(flag_roles),
+):
+    """Station IC attaches a remark to a Pending Print row — normally "AWB not in NV".
+
+    The bench case: IC searches the `-R01` in OPV2 to print the label and it is not there,
+    because the OC was marked uploaded without the CSV ever being exported, so Ninja never
+    issued it. The IC cannot fix that — sending a row back is DE's move (`/reopen-upload`) —
+    but they are the only person who knows, and until now the news travelled by chat group.
+
+    So this MOVES NOTHING. It is a note, and its whole job is to put the row in front of DE
+    with the reason written on it. Only `pending_print` rows take one: that is the only stage
+    where an IC is hunting for an AWB, and a flag anywhere else would describe nothing.
+
+    One flag per row, replaced by the next. The audit log keeps every raise — the row keeps
+    only the current one, because what DE needs to read is the reason it is stuck TODAY.
+    """
+    note = (note or "").strip()
+    if not note:
+        raise HTTPException(status_code=400, detail="no_note")
+    if len(note) > FLAG_MAX:
+        raise HTTPException(status_code=400, detail="note_too_long")
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    flagged = []
+    for r in await _rows(ids):
+        if r["stage"] == "pending_print":
+            await db.execute(
+                "UPDATE return_parcel SET flag_note = %s, flagged_at = NOW(), flagged_by = %s, "
+                "updated_at = NOW() WHERE id = %s", (note, user["id"], r["id"]),
+            )
+            flagged.append(r["id"])
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_flagged', 'return_parcel', %s)",
+        (user["email"], f"{flagged}: {note}"),
+    )
+    return {"updated": len(flagged)}
+
+
+@router.post("/unflag")
+async def unflag_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(reopen_roles),
+):
+    """Clear the flag without moving the row — DE looked, and the AWB is really there.
+
+    Same desk as `/reopen-upload`, because both are the answer to a flag: either the row goes
+    back to be re-exported, or the IC is told to look again. Leaving it to the raiser would
+    let a flag be withdrawn before anyone read it.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    cleared = []
+    for r in await _rows(ids):
+        if r["flagged"]:
+            await db.execute(
+                "UPDATE return_parcel SET flag_note = NULL, flagged_at = NULL, "
+                "flagged_by = NULL, updated_at = NOW() WHERE id = %s", (r["id"],),
+            )
+            cleared.append(r["id"])
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_unflagged', 'return_parcel', %s)",
+        (user["email"], f"{cleared}"),
+    )
+    return {"updated": len(cleared)}
+
+
+@router.post("/reopen-upload")
+async def reopen_upload_bulk(
+    ids: list[int] = Body(..., embed=True),
+    user: dict = Depends(reopen_roles),
+):
+    """Send a Pending Print row back to Pending DE upload.
+
+    The failure this exists for: DE marks the OC uploaded WITHOUT having exported the CSV
+    first. The row moves to Pending Print, and the return OC export only ever contains
+    `pending_de_upload` rows (`_exportable_oc`) — so the file that has to go into Ninja can
+    no longer be produced, and the parcel is stuck with a label nobody can print.
+
+    DE, implant and program_manager only. Station IC is the one who NOTICES — the `-R01` is not
+    in OPV2 and the parcel is on their bench — but the move itself belongs to the desk that
+    made the upload claim and has to re-run export → mark uploaded. The IC's route in is
+    `/flag`: a remark on the row, which is what DE reads before pressing this.
+
+    Reversal means CLEARING `de_uploaded_at` (and the `-R01` it stamped), because the stage
+    is derived from the timestamps: leaving the stamp would leave the row claiming an upload
+    that never happened. The reversal itself is recorded in `audit_log`, with the row ids —
+    that is where the history of the correction lives.
+
+    Only `pending_print` rows move. A `printed` row is past this door (Station IC already
+    printed and labelled), and `pending_de_upload` is already where this sends things. Any
+    flag on the row is cleared with the stamp — the reason for it is being acted on.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="no_ids")
+    moved = []
+    for r in await _rows(ids):
+        if r["stage"] == "pending_print":
+            # The flag goes with it: "can't find this AWB" is answered by the row going
+            # back to be exported, and a stale flag would send DE looking twice.
+            await db.execute(
+                "UPDATE return_parcel SET de_uploaded_at = NULL, de_uploaded_by = NULL, "
+                "return_awb_id = NULL, flag_note = NULL, flagged_at = NULL, flagged_by = NULL, "
+                "updated_at = NOW() WHERE id = %s", (r["id"],),
+            )
+            moved.append(r["id"])
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_upload_reopened', 'return_parcel', %s)",
+        (user["email"], f"{moved} -> pending_de_upload"),
+    )
+    return {"updated": len(moved)}
+
+
 @router.post("/mark-printed")
 async def mark_printed_bulk(
     ids: list[int] = Body(..., embed=True),
@@ -331,7 +473,7 @@ async def export_csv(_: dict = Depends(viewer_roles)):
         "rejected_at", "stage", "closes_by", "hub", "origin", "reject_pcs",
         "legacy_validated_at", "legacy_validated_by", "de_uploaded_at", "de_uploaded_by",
         "printed_at", "printed_by", "rts_requested_at", "rts_requested_by",
-        "legacy_return_tids",
+        "flagged_at", "flagged_by", "flag_note", "legacy_return_tids",
     ])
     for s in rows:
         w.writerow([
@@ -343,6 +485,7 @@ async def export_csv(_: dict = Depends(viewer_roles)):
             s["de_uploaded_at"] or "", s["de_uploaded_by_email"] or "",
             s["printed_at"] or "", s["printed_by_email"] or "",
             s["rts_requested_at"] or "", s["rts_requested_by_email"] or "",
+            s["flagged_at"] or "", s["flagged_by_email"] or "", s["flag_note"] or "",
             s["return_tids"] or "",
         ])
     return Response(content="﻿" + buf.getvalue(), media_type="text/csv",

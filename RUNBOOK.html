@@ -368,6 +368,16 @@
           it back. The tracking number is handed to them &mdash; no hunting through a chat group for it.
         </p>
         <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending Print</b> &rarr; <b>Printed &amp; Labelled</b></p>
+        <div class="call" style="margin-top:.35rem">
+          <span class="lbl">AWB not in NV? Flag it &mdash; don&rsquo;t chase it</span>
+          <p>If the <span class="id mono">-R01</span> is not in OPV2, it was almost certainly never
+          issued: DE marked the OC uploaded without ever exporting the CSV, so nothing reached Ninja.
+          <b>IC presses <span class="id mono">Flag: can&rsquo;t find AWB</span></b> on the row and types
+          what is wrong. That <b>moves nothing</b> &mdash; it puts the row on DE&rsquo;s screen with the
+          reason on it. <b>Only DE / Implant / Program Manager</b> can then press <b>Send back to DE
+          upload</b>, which clears the upload stamp and the <span class="id mono">-R01</span> so the CSV
+          can be exported again. Nothing to do at the bench but wait for the row to come back printable.</p>
+        </div>
       </li>
 
       <li>
@@ -542,6 +552,15 @@
           <li><b>Station IC</b> &mdash; on <b>Pending print</b>, find the
             <span class="id mono">-R01</span> in OPV2 (it is shown on the row), print, label,
             repack, then <b>Mark printed &amp; labelled</b>.</li>
+          <li><b>Station IC, not in OPV2?</b> &mdash; press <b>Flag: can&rsquo;t find AWB</b> on the
+            row and type the reason. It <b>moves nothing</b>; it flags the row for DE. Then stop
+            &mdash; the fix is not yours to make.</li>
+          <li><b>DE / Implant / PM, answering a flag</b> &mdash; tick <b>Flagged only</b> on the
+            <b>Pending print</b> tab. Either <b>Send back to DE upload</b> (the usual case: the OC
+            was marked uploaded without the CSV ever being exported, so re-run export &rarr;
+            <b>Mark OC uploaded</b>), or <b>Clear flag</b> if the AWB really is in NV and the IC
+            should look again. Only Pending print rows move; anything already printed stays
+            printed.</li>
           <li>Open <b>Detail</b> on any row to see the driver&rsquo;s door photos before you act &mdash;
             they travel with the row, they just no longer wait on a separate sign-off.</li>
           <li>Narrow the list any way you need: stage tabs, per-column filters (type / origin /

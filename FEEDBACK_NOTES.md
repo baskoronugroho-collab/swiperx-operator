@@ -217,3 +217,35 @@ new return TRID).
 
 1. Final hub->TMP mapping (61 hubs unmapped; **CBN-KNG** mapped to both TMPs in the sheet).
 2. TMP Surabaya's real phone number (placeholder = Depok's).
+
+
+---
+
+## Built 8 Sep 2026 — the one step backwards, and the flag that asks for it
+
+- **Send back to DE upload** (`POST /api/returns/reopen-upload`): a *Pending print* row returns
+  to *Pending DE upload*. Straight from the floor — a DE pressed **Mark OC uploaded** having
+  never exported the CSV, and the row was then unrecoverable: `export-oc.csv` only ever
+  contains `pending_de_upload` rows, so the file Ninja needs could not be produced from any
+  stage the row could still reach, and the IC waited for an `-R01` that was never issued.
+- **DE / implant / program_manager only.** Un-doing DE's own upload claim belongs to the desk
+  that made it and has to re-run the export. Station IC is explicitly NOT on it.
+- Reversal **clears** `de_uploaded_at`, `de_uploaded_by`, the `-R01` and any flag, because the
+  stage is derived from those timestamps — a kept stamp would leave the row claiming an upload
+  that never happened, and a kept flag would send DE looking twice. The correction lives in
+  `audit_log` as `return_upload_reopened`, with the row ids and who pressed it.
+- **One door, one direction**: only `pending_print` rows move. A *printed* row stays printed —
+  that label exists in the world. A *Pending DE upload* row is already there.
+
+- **Station IC's flag** (`POST /api/returns/flag`, migration **V11**): the IC is the one who
+  finds out — the `-R01` is not in OPV2 and the parcel is on the bench — but the move is not
+  theirs. So they attach a **remark** to the row (free text, default *"AWB tidak ditemukan di
+  NV / OPV2"*, ≤500 chars). It **moves nothing**: it is a note, not a stage. Its whole job is
+  to put the row on DE's screen with the reason written on it instead of in a chat group.
+- Only `pending_print` rows take a flag — no other stage has an AWB to fail to find. One flag
+  per row, replaced by the next; every raise is kept in `audit_log` (`return_flagged`).
+- **`POST /api/returns/unflag`** is the other answer — DE looked, the AWB is there, the IC
+  should look again. Same desk as the reversal: the **raiser cannot withdraw their own flag**,
+  or a flag could vanish before anyone read it.
+- UI: `Flagged only` filter, a red *N flagged by IC* count on the toolbar, and the note printed
+  on the row itself under the stage badge — DE must be able to read it without opening anything.

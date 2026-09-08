@@ -282,6 +282,12 @@ export interface RejectReturn {
   rts_requested_at: string | null;
   rts_requested_by_email: string | null;
   return_tids: string | null;
+  /** Station IC's remark on a Pending print row — normally "AWB not in NV". A note, never a
+   *  stage: it moves nothing. It clears when DE sends the row back, or clears it by hand. */
+  flagged: boolean;
+  flag_note: string | null;
+  flagged_at: string | null;
+  flagged_by_email: string | null;
   proof_photos: { doc_type: DocType; photo_url: string }[];
 }
 
@@ -457,6 +463,16 @@ export const api = {
     /** DE confirms the exported return OC went into Ninja — rows move to Pending Print. */
     markUploaded: (ids: number[]) =>
       postJson<{ updated: number }>("/api/returns/mark-uploaded", { ids }),
+    /** Send a Pending Print row back to Pending DE upload — the fix for an OC marked
+     *  uploaded before the CSV was exported (the export only ever sees pending rows).
+     *  DE / implant / program_manager; clears any flag with it. */
+    reopenUpload: (ids: number[]) =>
+      postJson<{ updated: number }>("/api/returns/reopen-upload", { ids }),
+    /** Station IC's remark on a Pending print row they can't find in NV. Moves nothing. */
+    flag: (ids: number[], note: string) =>
+      postJson<{ updated: number }>("/api/returns/flag", { ids, note }),
+    /** DE looked and the AWB is there after all — drop the flag, leave the row put. */
+    unflag: (ids: number[]) => postJson<{ updated: number }>("/api/returns/unflag", { ids }),
     /** Station IC printed and labelled — the row closes. */
     markPrinted: (ids: number[]) =>
       postJson<{ updated: number }>("/api/returns/mark-printed", { ids }),

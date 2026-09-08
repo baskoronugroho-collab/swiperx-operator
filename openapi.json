@@ -1701,6 +1701,231 @@
         }
       }
     },
+    "/api/returns/flag": {
+      "post": {
+        "operationId": "flag_bulk",
+        "tags": [
+          "returns"
+        ],
+        "summary": "Attaches a Station IC remark to each selected pending_print row — normally that the -R01 cannot be found in NV/OPV2, because the OC was marked uploaded without its CSV ever being exported. A NOTE, not a stage: nothing moves. One flag per row, replaced by the next; every raise is kept in audit_log as return_flagged. Rows in any other stage are skipped.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids",
+                  "note"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "The remark, in the IC's own words. Trimmed; empty is rejected."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows flagged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkUpdateResult"
+                }
+              }
+            }
+          },
+        "400": {
+          "description": "no_ids, no_note or note_too_long",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "not_authenticated",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "forbidden — requires station_ic, implant or de",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        }
+        }
+      }
+    },
+    "/api/returns/unflag": {
+      "post": {
+        "operationId": "unflag_bulk",
+        "tags": [
+          "returns"
+        ],
+        "summary": "Clears the Station IC flag on each selected row without moving it — DE looked and the AWB is there after all. Same desk as reopen-upload, because both are answers to a flag; the raiser cannot withdraw it. Recorded in audit_log as return_unflagged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of flags cleared.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkUpdateResult"
+                }
+              }
+            }
+          },
+        "400": {
+          "description": "no_ids",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "not_authenticated",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "forbidden — requires implant, de or program_manager",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPError"
+              }
+            }
+          }
+        }
+        }
+      }
+    },
+    "/api/returns/reopen-upload": {
+      "post": {
+        "operationId": "reopen_upload_bulk",
+        "tags": [
+          "returns"
+        ],
+        "summary": "Sends each selected row sitting at pending_print back to pending_de_upload by clearing de_uploaded_at/by, the -R01 stamp and any Station IC flag — the correction for an OC marked uploaded before its CSV was exported, since the export only ever contains pending_de_upload rows. Recorded in audit_log as return_upload_reopened.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows sent back to pending_de_upload. Rows in any other stage are skipped.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkUpdateResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "no_ids",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "not_authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden — requires implant, de or program_manager (Station IC raises a flag instead)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/returns/rts": {
       "post": {
         "operationId": "mark_rts_bulk",
@@ -1845,7 +2070,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "UTF-8 BOM + CSV, columns: return_id, forward_awb, return_awb, pharmacy, city, reject_type, rejected_at, stage, closes_by, hub, origin, reject_pcs, legacy_validated_at, legacy_validated_by, de_uploaded_at, de_uploaded_by, printed_at, printed_by, rts_requested_at, rts_requested_by, legacy_return_tids.",
+            "description": "UTF-8 BOM + CSV, columns: return_id, forward_awb, return_awb, pharmacy, city, reject_type, rejected_at, stage, closes_by, hub, origin, reject_pcs, legacy_validated_at, legacy_validated_by, de_uploaded_at, de_uploaded_by, printed_at, printed_by, rts_requested_at, rts_requested_by, flagged_at, flagged_by, flag_note, legacy_return_tids.",
             "headers": {
               "Content-Disposition": {
                 "schema": {
@@ -3773,7 +3998,7 @@
       },
       "BulkUpdateResult": {
         "type": "object",
-        "description": "Shared response of the three bulk stage-advance endpoints (mark-uploaded, mark-printed, rts).",
+        "description": "Shared response of the bulk row endpoints (mark-uploaded, mark-printed, rts, reopen-upload, flag, unflag).",
         "required": [
           "updated"
         ],
@@ -3962,6 +4187,23 @@
               "return_oc"
             ],
             "description": "'rts' for semua, 'return_oc' for sebagian."
+          },
+          "flagged": {
+            "type": "boolean",
+            "description": "A Station IC remark is hanging on this row. Never a stage — it moves nothing."
+          },
+          "flag_note": {
+            "type": "string",
+            "nullable": true,
+            "description": "The current remark, e.g. 'AWB tidak ditemukan di NV / OPV2'."
+          },
+          "flagged_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "flagged_by_email": {
+            "type": "string",
+            "nullable": true
           },
           "proof_photos": {
             "type": "array",

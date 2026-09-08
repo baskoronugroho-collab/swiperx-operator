@@ -129,6 +129,133 @@ def test_partial_walks_export_upload_print(de_client, rejected):
     assert _row(de_client)["stage"] == "printed"
 
 
+def test_pending_print_can_be_sent_back_so_the_oc_csv_can_be_exported(de_client, rejected):
+    """The real failure: DE marks the OC uploaded but never pulled the CSV.
+
+    The export only ever contains `pending_de_upload` rows, so the row is stranded — the file
+    Ninja needs cannot be produced from any stage it can now reach. Sending it back restores
+    exactly that, and clears the upload stamp so nothing claims an upload that never happened.
+    """
+    rid = _row(de_client)["id"]
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 404  # stranded
+
+    assert de_client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 1
+    back = _row(de_client)
+    assert back["stage"] == "pending_de_upload"
+    assert back["de_uploaded_at"] is None
+    assert back["return_awb_id"] is None  # the -R01 was never really issued
+
+    # The whole point: the OC CSV is exportable again, unchanged.
+    r = de_client.get("/api/returns/export-oc.csv")
+    assert r.status_code == 200
+    assert _oc_rows(r)[0]["requested_tracking_number"] == f"{rejected['awb_id']}-R01"
+
+    # And the row walks forward again from there.
+    assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
+    assert _row(de_client)["stage"] == "pending_print"
+
+
+def test_station_ic_cannot_send_a_row_back(client, de_client, rejected):  # noqa: ARG001
+    """IC finds out, DE moves. Un-doing DE's own upload claim stays on the DE desk."""
+    rid = _row(de_client)["id"]
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+
+    client.post("/api/auth/dev-login", json={"email": "agus.s@ninjavan.co"})  # station_ic only
+    assert client.post("/api/returns/reopen-upload", json={"ids": [rid]}).status_code == 403
+    assert _row(client)["stage"] == "pending_print"
+
+
+def test_station_ic_flags_the_row_and_de_sends_it_back(client, de_client, rejected):  # noqa: ARG001
+    """The whole loop: IC can't find the AWB, says so on the row, DE reads it and acts.
+
+    The flag is the IC's only move here, and it is a NOTE — the row does not budge. What it
+    buys is that the reason reaches DE on the row itself instead of in a chat group.
+    """
+    rid = _row(de_client)["id"]
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+
+    client.post("/api/auth/dev-login", json={"email": "agus.s@ninjavan.co"})  # station_ic only
+    r = client.post(
+        "/api/returns/flag",
+        json={"ids": [rid], "note": "AWB tidak ditemukan di NV / OPV2"},
+    )
+    assert r.status_code == 200, r.text
+    flagged = _row(client)
+    assert flagged["flagged"] is True
+    assert flagged["flag_note"] == "AWB tidak ditemukan di NV / OPV2"
+    assert flagged["flagged_by_email"] == "agus.s@ninjavan.co"
+    assert flagged["stage"] == "pending_print"  # a note, not a stage
+
+    # DE reads it and makes the move the IC could not.
+    client.post("/api/auth/dev-login", json={"email": "dewi.k@ninjavan.co"})
+    assert client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 1
+    back = _row(client)
+    assert back["stage"] == "pending_de_upload"
+    assert back["flagged"] is False  # answered — a stale flag would send DE looking twice
+    assert client.get("/api/returns/export-oc.csv").status_code == 200
+
+
+def test_a_flag_needs_a_note_and_only_sticks_to_pending_print(de_client, rejected):  # noqa: ARG001
+    """Empty remarks say nothing, and no other stage has an AWB to fail to find."""
+    rid = _row(de_client)["id"]
+    # Still waiting on DE — nobody is hunting for an AWB yet.
+    assert de_client.post("/api/returns/flag", json={"ids": [rid], "note": "x"}).json()["updated"] == 0
+
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    assert de_client.post("/api/returns/flag", json={"ids": [rid], "note": "   "}).status_code == 400
+    assert de_client.post("/api/returns/flag", json={"ids": [rid], "note": "x" * 501}).status_code == 400
+    assert _row(de_client)["flagged"] is False
+
+
+def test_de_can_clear_a_flag_without_moving_the_row(client, de_client, rejected):  # noqa: ARG001
+    """The other answer: DE looked, the AWB is there, the IC should look again."""
+    rid = _row(de_client)["id"]
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    client.post("/api/auth/dev-login", json={"email": "agus.s@ninjavan.co"})
+    client.post("/api/returns/flag", json={"ids": [rid], "note": "tidak ketemu"})
+    # The raiser cannot withdraw it — a flag no one read would be worse than none.
+    assert client.post("/api/returns/unflag", json={"ids": [rid]}).status_code == 403
+
+    client.post("/api/auth/dev-login", json={"email": "dewi.k@ninjavan.co"})
+    assert client.post("/api/returns/unflag", json={"ids": [rid]}).json()["updated"] == 1
+    cleared = _row(client)
+    assert cleared["flagged"] is False
+    assert cleared["stage"] == "pending_print"  # still IC's to print
+
+
+def test_send_back_only_moves_pending_print_rows(de_client, rejected):  # noqa: ARG001
+    """One door, one direction: not a fresh reject, and not past a print that happened."""
+    rid = _row(de_client)["id"]
+    # Already waiting on DE — nothing to undo.
+    assert de_client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 0
+
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    de_client.post("/api/returns/mark-printed", json={"ids": [rid]})
+    # Printed and labelled — the label exists in the world, undoing here would lie about it.
+    assert de_client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 0
+    assert _row(de_client)["stage"] == "printed"
+
+
+def test_sending_back_is_recorded_in_the_audit_log(de_client, dbs, rejected):  # noqa: ARG001
+    """Clearing the stamp erases the row's own trail — the audit log is where it survives."""
+    import asyncio
+
+    rid = _row(de_client)["id"]
+    de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
+    de_client.post("/api/returns/reopen-upload", json={"ids": [rid]})
+
+    async def entries():
+        return await dbs.fetch_all(
+            "SELECT actor, entity_id FROM audit_log WHERE action = 'return_upload_reopened'", ()
+        )
+
+    rows = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(entries())
+    assert len(rows) == 1
+    assert rows[0]["actor"] == "dewi.k@ninjavan.co"
+    assert str(rid) in rows[0]["entity_id"]
+
+
 async def _strip(dbs, awb_id):
     await dbs.execute("UPDATE awb SET origin = NULL WHERE awb_id = ?", (awb_id,))
     await dbs.execute("UPDATE return_parcel SET origin = NULL WHERE original_awb_id = ?", (awb_id,))
