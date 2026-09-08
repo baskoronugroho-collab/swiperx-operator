@@ -99,6 +99,7 @@ CREATE TABLE return_parcel (
   de_uploaded_at TIMESTAMP, de_uploaded_by INTEGER,
   printed_at TIMESTAMP, printed_by INTEGER,
   flag_note TEXT, flagged_at TIMESTAMP, flagged_by INTEGER,
+  po_number TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP
 );
 CREATE TABLE hub (

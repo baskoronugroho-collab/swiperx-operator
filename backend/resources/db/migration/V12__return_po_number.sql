@@ -1,0 +1,27 @@
+-- V12 — the PO a partial return belongs to (8 Sep 2026)
+--
+-- The POD-Return OC file was rejected by the OC system because two of its columns carried
+-- the SAME value: `requested_tracking_number` and
+-- `bundle_information.requested_piece_tracking_numbers` were both `<SwipeAWB>-R01`. A parcel
+-- and its own piece cannot share an identifier.
+--
+-- The new shape hangs the return off the PO instead of the SwipeAWB:
+--
+--     PO number   26081604253445DR37PY2ML
+--     parcel      26081604253445DR37PY2ML1        <- requested_tracking_number, PO + "1"
+--     piece       26081604253445DR37PY2ML1-R01    <- ...requested_piece_tracking_numbers
+--
+-- Which means the PO has to be KNOWN, and only one person is in a position to know it: the
+-- courier standing at the counter with the goods in their hand. So a partial reject now
+-- asks them to pick which PO the returned items came from, from that AWB's own PO lines
+-- (`po_line`), and the answer is stored here.
+--
+-- NULL-able, because it is unknowable for rows created before this: a reject filed under the
+-- old flow has no PO recorded and nobody can supply one after the fact. Those rows report
+-- `po_unknown` and are held out of the OC export the same way an origin-unknown row is —
+-- except where the forward AWB has exactly ONE PO line, in which case there is nothing to
+-- choose and the value is derived rather than guessed.
+--
+-- Only `sebagian` needs it. A `semua` refusal closes by RTS on the forward tracking number
+-- and never produces an OC row at all, so there is no field for a PO to fill.
+ALTER TABLE return_parcel ADD COLUMN po_number VARCHAR(64) NULL;

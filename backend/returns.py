@@ -6,9 +6,11 @@ front of it any more:
     pending_de_upload ──▶ pending_print ──▶ printed      (sebagian)
     pending_de_upload ──▶ rts_triggered                  (semua)
 
-* A PARTIAL return (`sebagian`) needs a new AWB (`<SwipeAWB>-R01`): DE sets the origin if
-  the forward order never recorded one, exports the return OC CSV, uploads it to Ninja and
-  marks it uploaded; Station IC then prints, labels and repacks.
+* A PARTIAL return (`sebagian`) needs a new AWB, built from the PO the courier picked at the
+  door: parcel `<PO>1`, its one piece `<PO>1-R01` (8 Sep 2026 — they used to be the same
+  `<SwipeAWB>-R01` string, which the OC system rejects). DE sets the origin if the forward
+  order never recorded one, exports the return OC CSV, uploads it to Ninja and marks it
+  uploaded; Station IC then prints, labels and repacks.
 * A FULL refusal (`semua`) never gets a new AWB and never reaches print: RTS is triggered
   on the original forward tracking number, marked in bulk and exported as a list.
 
@@ -68,6 +70,14 @@ _SELECT = """
            rp.created_at        AS rejected_at,
            rp.acknowledged_at, rp.return_tids, rp.tids_sent_at,
            rp.rts_requested_at, rp.reject_pcs,
+           -- The PO the courier picked. For rows filed BEFORE they were asked (8 Sep 2026)
+           -- fall back to the forward order's PO — but only where it has exactly one, so
+           -- there is nothing to choose. `HAVING COUNT(*) = 1` with no GROUP BY makes the
+           -- subquery return NULL the moment the AWB has two, which is the honest answer:
+           -- nobody can say afterwards which one a box of strips came from.
+           COALESCE(rp.po_number,
+                    (SELECT MIN(pl.po_number) FROM po_line pl
+                      WHERE pl.awb_id = rp.original_awb_id HAVING COUNT(*) = 1)) AS po_number,
            rp.validated_at, rp.de_uploaded_at, rp.printed_at,
            rp.flag_note, rp.flagged_at,
            COALESCE(rp.origin, a.origin) AS origin,
@@ -121,6 +131,11 @@ def _shape(row: dict) -> dict:
     # A return with no recorded origin cannot be addressed home — DE must set it (in
     # bulk from the worklist) before the return OC can be exported.
     row["origin_unknown"] = not row.get("origin")
+    # And with no PO it has no tracking number: the return OC's `requested_tracking_number`
+    # IS `<PO>1`. Unlike origin this is NOT fixable from a desk — only the courier at the
+    # counter knew which PO the goods came from — so these rows are held out of the export
+    # rather than offered a bulk-set. Full refusals never carry one: no OC row, no field.
+    row["po_unknown"] = not _is_full(row) and not row.get("po_number")
     # Which closing pipeline this row is on, so the UI never re-derives the rule.
     row["closes_by"] = "rts" if _is_full(row) else "return_oc"
     # A Station IC remark hanging on the row. NOT a stage — it moves nothing, it just makes
@@ -200,23 +215,29 @@ async def set_origin_bulk(
 # --------------------------------------------------- sebagian: DE pipeline ----
 def _exportable_oc(rows: list[dict]) -> list[dict]:
     return [r for r in rows
-            if r["stage"] == "pending_de_upload" and not _is_full(r) and not r["origin_unknown"]]
+            if r["stage"] == "pending_de_upload" and not _is_full(r)
+            and not r["origin_unknown"] and not r["po_unknown"]]
 
 
 @router.get("/export-oc.csv")
 async def export_return_oc(_: dict = Depends(de_roles)):
     """The return OC CSV for every partial reject awaiting upload.
 
-    One row per reject, `<SwipeAWB>-R01`, addressed from the pharmacy back to the origin
-    warehouse recorded on the forward order. Rows whose origin is unknown are EXCLUDED —
-    exporting them would ship the parcel to the wrong city; DE fixes those with the
-    origin-unknown filter first, which is why setting the origin comes before the export.
+    One row per reject, tracking number `<PO>1` with a single piece `<PO>1-R01`, addressed
+    from the pharmacy back to the origin warehouse recorded on the forward order.
+
+    Two kinds of row are EXCLUDED. Origin-unknown, because exporting them would ship the
+    parcel to the wrong city — DE clears those with the origin-unknown filter first, which is
+    why setting the origin comes before the export. And PO-unknown, because the tracking
+    number is built from the PO and there is nothing to build it from; those are legacy rows
+    filed before the courier was asked, and no desk can answer for them.
     """
     rows = _exportable_oc(await _rows())
     if not rows:
         raise HTTPException(status_code=404, detail="no_exportable_rows")
     data = oc_engine.build_return_csv([{
         "awb_id": r["original_awb_id"],
+        "po_number": r["po_number"],
         "pharmacy_name": r["pharmacy_name"] or "",
         "phone": r["phone"] or "",
         "address": r["address"] or "",
@@ -237,8 +258,9 @@ async def mark_uploaded_bulk(
 ):
     """DE confirms the exported return OC went into Ninja — rows move to Pending Print.
 
-    Stamps the generated `-R01` on the row so Station IC has the tracking number to search
-    in OPV2 without deriving anything.
+    Stamps the generated `<PO>1` on the row so Station IC has the tracking number to search
+    in OPV2 without deriving anything. A row with no PO has no such number and is refused
+    here for the same reason it is held out of the export.
     """
     if not ids:
         raise HTTPException(status_code=400, detail="no_ids")
@@ -247,10 +269,12 @@ async def mark_uploaded_bulk(
         if r["stage"] == "pending_de_upload" and not _is_full(r):
             if r["origin_unknown"]:
                 raise HTTPException(status_code=409, detail="origin_unknown")
+            if r["po_unknown"]:
+                raise HTTPException(status_code=409, detail="po_unknown")
             await db.execute(
                 "UPDATE return_parcel SET de_uploaded_at = NOW(), de_uploaded_by = %s, "
                 "return_awb_id = %s, updated_at = NOW() WHERE id = %s",
-                (user["id"], oc_engine.return_trid(r["original_awb_id"])[:40], r["id"]),
+                (user["id"], oc_engine.return_trid(r["po_number"])[:40], r["id"]),
             )
             updated += 1
     await db.execute(
@@ -470,7 +494,7 @@ async def export_csv(_: dict = Depends(viewer_roles)):
     w = csv.writer(buf)
     w.writerow([
         "return_id", "forward_awb", "return_awb", "pharmacy", "city", "reject_type",
-        "rejected_at", "stage", "closes_by", "hub", "origin", "reject_pcs",
+        "rejected_at", "stage", "closes_by", "hub", "origin", "po_number", "reject_pcs",
         "legacy_validated_at", "legacy_validated_by", "de_uploaded_at", "de_uploaded_by",
         "printed_at", "printed_by", "rts_requested_at", "rts_requested_by",
         "flagged_at", "flagged_by", "flag_note", "legacy_return_tids",
@@ -480,7 +504,7 @@ async def export_csv(_: dict = Depends(viewer_roles)):
             s["id"], s["original_awb_id"], s["return_awb_id"] or "",
             s["pharmacy_name"] or "", s["city"] or "",
             s["return_type"], s["rejected_at"] or "", s["stage"], s["closes_by"],
-            s["hub_name"] or "", s["origin"] or "", s["reject_pcs"] or "",
+            s["hub_name"] or "", s["origin"] or "", s["po_number"] or "", s["reject_pcs"] or "",
             s["validated_at"] or "", s["validated_by_email"] or "",
             s["de_uploaded_at"] or "", s["de_uploaded_by_email"] or "",
             s["printed_at"] or "", s["printed_by_email"] or "",

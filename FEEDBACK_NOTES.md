@@ -256,3 +256,44 @@ new return TRID).
   `has()` both short-circuit on it everywhere else. Pinned by
   `test_superadmin_can_do_every_move_on_the_lane`, which walks every action on the lane as an
   account holding `superadmin` and nothing else.
+
+
+---
+
+## Built 8 Sep 2026 — the return hangs off the PO, not the AWB
+
+The OC system refused the POD-Return file. Two of its columns carried the **same** string:
+`requested_tracking_number` and `bundle_information.requested_piece_tracking_numbers` were
+both `<SwipeAWB>-R01`. A parcel and its own piece cannot share an identifier.
+
+- **New shape** (Baskoro's worked example, pinned verbatim in `test_oc_engine.py`):
+  PO `26081604253445DR37PY2ML` → parcel `26081604253445DR37PY2ML1` → piece
+  `26081604253445DR37PY2ML1-R01`. The `-R01` did not disappear; it moved down a level.
+- **So the PO has to be known**, and only the courier holding the goods can say. A partial
+  reject now asks **which PO** the returned items came from — a tappable list of that AWB's
+  own PO lines, never a `<select>`/`<datalist>` (mobile webviews render those as a scroll
+  wheel, the same trap as the hub picker). Single-PO orders are preselected. Server-enforced:
+  `po_number_required`, and `po_number_not_on_awb` for anything not on that AWB.
+- **`semua` is not asked** — a full refusal closes by RTS and produces no OC row at all.
+- **Legacy rows** (filed before this) report `po_unknown`, are held out of the export and
+  refused at mark-uploaded. Deliberately **no bulk-set**, unlike origin: origin is a fact
+  about a warehouse that a desk knows, the PO is a fact about what is in the box. The one
+  exception is an AWB with exactly ONE PO line, where the value is derived — nothing to choose.
+- Migration **V12** (`return_parcel.po_number`).
+
+### The CSV itself, fixed to what the OC system reads
+
+1. **BOM removed.** This file is machine-read, not opened in Excel — `﻿` sticks to the
+   first header cell, so the system saw `﻿requested_tracking_number`, a column it does
+   not have, and rejected a file that looked perfect on screen. The RTS list and the audit
+   export **keep** their BOM: those are read by humans in Excel.
+2. **Plain UTF-8**, no BOM, no ANSI.
+3. **Headers verified against the template** by a test that types the 31 names out by hand
+   rather than reading them back from `FWD_COLS` — a rename cannot quietly agree with itself.
+4. **Commas quoted** (csv.writer's QUOTE_MINIMAL, pinned with a real address).
+
+## Still open
+
+- **A partial return spanning TWO POs** is one return against one PO today. If a pharmacy
+  hands back items from two different POs in one delivery, that needs a decision — flagged in
+  the runbook rather than guessed at the door.

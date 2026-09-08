@@ -344,9 +344,11 @@
         <div class="grid two" style="margin-top:.35rem">
           <div class="call">
             <span class="lbl">Retur sebagian &mdash; part came back</span>
-            <p>The forward AWB is already completed, so a <b>new return AWB is required</b>. DE sets
-            the <b>origin</b> on any row the original order never recorded one for, exports the return
-            OC as a <b>CSV</b> &mdash; origin pre-filled from the original order &mdash; uploads it to
+            <p>The forward AWB is already completed, so a <b>new return AWB is required</b>. Its number
+            is built from the <b>PO the driver picked at the door</b>: the parcel is
+            <span class="id mono">&lt;PO&gt;1</span> and its single piece is
+            <span class="id mono">&lt;PO&gt;1-R01</span>. DE sets the <b>origin</b> on any row the
+            original order never recorded one for, exports the return OC as a <b>CSV</b>, uploads it to
             Ninja, then marks it uploaded and the row moves to Pending Print.</p>
           </div>
           <div class="call">
@@ -364,18 +366,19 @@
         <div class="row"><h3>Station IC prints, labels and repacks</h3><span class="chip">Station IC</span></div>
         <p class="body">
           Partial returns only. IC filters the worklist by <b>Hub Name</b>, opens each row, finds the
-          tracking number in <b>OPV2</b>, prints the label, labels and repacks the parcel, then sends
-          it back. The tracking number is handed to them &mdash; no hunting through a chat group for it.
+          tracking number &mdash; <span class="id mono">&lt;PO&gt;1</span>, shown on the row &mdash; in
+          <b>OPV2</b>, prints the label, labels and repacks the parcel, then sends it back. The tracking
+          number is handed to them &mdash; no hunting through a chat group for it.
         </p>
         <p class="where"><b>Where:</b> Reject returns &rarr; <b>Pending Print</b> &rarr; <b>Printed &amp; Labelled</b></p>
         <div class="call" style="margin-top:.35rem">
           <span class="lbl">AWB not in NV? Flag it &mdash; don&rsquo;t chase it</span>
-          <p>If the <span class="id mono">-R01</span> is not in OPV2, it was almost certainly never
+          <p>If the return number (<span class="id mono">&lt;PO&gt;1</span>) is not in OPV2, it was almost certainly never
           issued: DE marked the OC uploaded without ever exporting the CSV, so nothing reached Ninja.
           <b>IC presses <span class="id mono">Flag: can&rsquo;t find AWB</span></b> on the row and types
           what is wrong. That <b>moves nothing</b> &mdash; it puts the row on DE&rsquo;s screen with the
           reason on it. <b>Only DE / Implant / Program Manager</b> can then press <b>Send back to DE
-          upload</b>, which clears the upload stamp and the <span class="id mono">-R01</span> so the CSV
+          upload</b>, which clears the upload stamp and the return number so the CSV
           can be exported again. Nothing to do at the bench but wait for the row to come back printable.</p>
         </div>
       </li>
@@ -545,12 +548,12 @@
             ship to the wrong warehouse. Bulk-set them with <b>Set Depok</b> / <b>Set Surabaya</b>
             and they join the file.</li>
           <li><b>DE, partial returns</b> &mdash; press <b>Export return OC (.csv)</b> (one
-            <span class="id mono">-R01</span> row per reject, origin pre-filled), upload it to
+            <span class="id mono">&lt;PO&gt;1</span> row per reject, origin pre-filled), upload it to
             Ninja, then <b>Mark OC uploaded</b>.</li>
           <li><b>DE, whole refusals</b> &mdash; same tab: <b>Export RTS list</b> and
             <b>Mark RTS triggered</b>. No new AWB, no print step.</li>
           <li><b>Station IC</b> &mdash; on <b>Pending print</b>, find the
-            <span class="id mono">-R01</span> in OPV2 (it is shown on the row), print, label,
+            <span class="id mono">&lt;PO&gt;1</span> in OPV2 (it is shown on the row), print, label,
             repack, then <b>Mark printed &amp; labelled</b>.</li>
           <li><b>Station IC, not in OPV2?</b> &mdash; press <b>Flag: can&rsquo;t find AWB</b> on the
             row and type the reason. It <b>moves nothing</b>; it flags the row for DE. Then stop
@@ -615,6 +618,9 @@
         <ul class="plain">
           <li>Delivery Note, full page &mdash; signed &amp; stamped, with the attestation tick</li>
           <li>Close-up of the Berita Acara Return table</li>
+          <li><b>Which PO the returned goods came from</b> &mdash; tapped from that order&rsquo;s own
+            PO list. The return&rsquo;s tracking number is built from it, so a wrong tap is only caught
+            at the station; a single-PO order is preselected</li>
           <li><b>How many pieces came back</b> &mdash; a count, no item names</li>
           <li>Photos of the rejected goods and each AWB label (multiple allowed)</li>
           <li>Review, submit, screenshot the final page for the Station IC</li>
@@ -742,6 +748,37 @@
           The TMP&rsquo;s header row is checked before parsing &mdash; upload the wrong file (or a
           drifted layout) and Order creation refuses it with a message naming the offending cell,
           instead of silently committing weights as AWBs.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>The return OC file is for the machine, not for Excel</h3>
+        <p class="body">
+          <b>Do not open it in Excel and re-save it.</b> Excel writes the file back with a
+          <b>BOM</b> &mdash; three invisible bytes that stick to the first column name, so the OC
+          system reads <span class="id mono">requested_tracking_number</span> as a column it does not
+          have and rejects the upload on a file that looks perfect on screen.
+        </p>
+        <p class="body">
+          The download is already exactly what the system wants: UTF-8 <b>without</b> BOM, the
+          template&rsquo;s 31 headers in order, and addresses quoted so a comma cannot shift a column.
+          Upload the file as it came out.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>One partial return, one PO</h3>
+        <p class="body">
+          The driver picks <b>one</b> PO for the goods coming back, because the return&rsquo;s
+          tracking number is built from it. If a pharmacy hands back items from <b>two different
+          POs</b> in one delivery, that is currently one return against one PO &mdash; raise it rather
+          than guessing at the door.
+        </p>
+        <p class="body">
+          Rejects filed <b>before 8 Sep 2026</b> have no PO recorded and show <b>no PO</b> on the row.
+          They cannot be exported and there is no way to fix them from a desk &mdash; only the driver
+          holding the goods ever knew. The exception is an order with a single PO line, where there was
+          nothing to choose and the value is filled in automatically.
         </p>
       </div>
 

@@ -161,7 +161,8 @@ def test_reject_opens_a_row_on_the_ops_worklist(client, de_client, awb):
     for doc in ("delivery_note", "rejected_goods", "awb_sticker"):
         client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
 
-    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian", "reject_pcs": 2})
+    r = client.post(f"/api/c/{t}/submit", json={"outcome": "reject", "return_type": "sebagian",
+                                               "reject_pcs": 2, "po_number": "PO-AAA"})
     assert r.status_code == 200
     assert r.json()["return_flagged"] is True
     assert r.json()["return_awbs"] == ["AWBTEST01"]

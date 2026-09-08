@@ -267,6 +267,81 @@ def test_an_awb_with_no_volume_still_uploads_with_blank_dimensions():
     assert e.dimensions_blank(_awb(volume="0.001423", collies=1)) is False
 
 
+# The OC system's own header list, typed out from the template rather than read back from
+# the code, so a rename in FWD_COLS cannot quietly agree with itself.
+OC_HEADERS = [
+    "requested_tracking_number", "global_shipper_id", "service_type",
+    "reference.merchant_order_number", "service_level", "from.name", "from.phone_number",
+    "from.address.address1", "from.address.country", "to.name", "to.phone_number",
+    "to.address.address1", "to.address.country", "to.address.kecamatan", "to.address.city",
+    "to.address.province", "to.address.postcode", "parcel_job.delivery_instructions",
+    "parcel_job.delivery_start_date", "parcel_job.delivery_timeslot.start_time",
+    "parcel_job.delivery_timeslot.end_time", "parcel_job.delivery_timeslot.timezone",
+    "parcel_job.dimensions.weight", "parcel_job.is_pickup_required",
+    "parcel_job.items.0.item_description", "parcel_job.items.0.is_dangerous_good",
+    "b2b.documents_required", "bundle_information.total_quantity",
+    "bundle_information.requested_piece_tracking_numbers", "parcel_job.insured_value",
+    "corporate.branch_id",
+]
+
+
+def _return_csv(po="26081604253445DR37PY2ML", address="Jl. Uji 1"):
+    return e.build_return_csv([{
+        "awb_id": "AWB02U24V", "po_number": po, "pharmacy_name": "Apotek Uji",
+        "phone": "0812", "address": address, "origin": "TMP_DEPOK", "reject_pcs": 3,
+    }])
+
+
+def test_the_return_parcel_and_its_piece_are_different_identifiers():
+    """The bug this shape exists to fix: the OC system refuses a row where they match.
+
+    Both columns used to carry `<SwipeAWB>-R01`. Now the parcel is the PO + "1" and the
+    piece is that + "-R01" — Baskoro's worked example, 8 Sep 2026, pinned verbatim:
+
+        PO     26081604253445DR37PY2ML
+        parcel 26081604253445DR37PY2ML1
+        piece  26081604253445DR37PY2ML1-R01
+    """
+    import csv as _csv
+    rows = list(_csv.DictReader(io.StringIO(_return_csv().decode("utf-8"))))
+    assert len(rows) == 1
+    parcel = rows[0]["requested_tracking_number"]
+    piece = rows[0]["bundle_information.requested_piece_tracking_numbers"]
+    assert parcel == "26081604253445DR37PY2ML1"
+    assert piece == "26081604253445DR37PY2ML1-R01"
+    assert parcel != piece
+    # The SwipeAWB keeps its own column — the link back to the forward order is not lost.
+    assert rows[0]["reference.merchant_order_number"] == "AWB02U24V"
+
+
+def test_the_return_oc_is_utf8_with_no_bom_and_exact_headers():
+    """Four things the OC system checks before it will read the file at all.
+
+    A BOM is the one that bites silently: `\ufeff` sticks to the FIRST header cell, so the
+    system sees a column named `\ufeffrequested_tracking_number`, which it does not have,
+    and the upload fails on a file that looks perfect in Excel.
+    """
+    import csv as _csv
+    data = _return_csv(address="Jl. Melati Raya No. 12, Cakung, Jakarta Timur")
+
+    # 1 + 2. No BOM, and decodable as plain UTF-8.
+    assert not data.startswith(b"\xef\xbb\xbf")
+    text = data.decode("utf-8")
+    assert not text.startswith("\ufeff")
+
+    # 3. Headers exactly the template's, in order, with nothing clinging to the first one.
+    header = next(_csv.reader(io.StringIO(text)))
+    assert header == OC_HEADERS
+    assert header[0] == "requested_tracking_number"
+    assert [c for c in header if c != c.strip()] == []
+
+    # 4. A comma inside a field is quoted, so no column can shift under the reader.
+    assert '"Jl. Melati Raya No. 12, Cakung, Jakarta Timur"' in text
+    row = list(_csv.DictReader(io.StringIO(text)))[0]
+    assert row["from.address.address1"] == "Jl. Melati Raya No. 12, Cakung, Jakarta Timur"
+    assert row["from.address.country"] == "ID"  # the column after it did not shift
+
+
 def test_the_return_oc_does_not_claim_dimensions():
     """A repacked return's volume is unknown at the door, so the file must not have the cols.
 
@@ -275,8 +350,8 @@ def test_the_return_oc_does_not_claim_dimensions():
     """
     import csv as _csv
     data = e.build_return_csv([{
-        "awb_id": "AWB02U24V", "pharmacy_name": "Apotek Uji", "phone": "0812",
-        "address": "Jl. Uji 1", "origin": "TMP_DEPOK", "reject_pcs": 3,
+        "awb_id": "AWB02U24V", "po_number": "PO-AAA", "pharmacy_name": "Apotek Uji",
+        "phone": "0812", "address": "Jl. Uji 1", "origin": "TMP_DEPOK", "reject_pcs": 3,
     }])
     header = next(_csv.reader(io.StringIO(data.decode("utf-8-sig"))))
     assert header == e.FWD_COLS

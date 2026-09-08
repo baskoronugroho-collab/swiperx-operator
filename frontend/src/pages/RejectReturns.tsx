@@ -147,13 +147,17 @@ export default function RejectReturns() {
   const canReverse = has("implant", "de", "program_manager");
   const canFlag = has("station_ic", "implant", "de");
 
-  const ocIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "return_oc");
+  const ocIds = pick(
+    shown,
+    (r) => r.stage === "pending_de_upload" && r.closes_by === "return_oc" && !r.po_unknown,
+  );
   const rtsIds = pick(shown, (r) => r.stage === "pending_de_upload" && r.closes_by === "rts");
   // Pending print rows: what IC closes by printing, the only rows that can go back, and the
   // only stage where an IC is hunting for an AWB — so the only stage a flag can describe.
   const printIds = pick(shown, (r) => r.stage === "pending_print");
   const flaggedIds = pick(shown, (r) => r.flagged);
   const unknownIds = pick(shown, (r) => r.origin_unknown && !CLOSED.includes(r.stage));
+  const poUnknownIds = pick(shown, (r) => r.po_unknown && !CLOSED.includes(r.stage));
 
   return (
     <div className="space-y-6">
@@ -163,9 +167,10 @@ export default function RejectReturns() {
           <p className="mt-1 text-sm text-ink-muted">
             Every reject a courier files lands here for <strong className="font-semibold text-ink">DE</strong>{" "}
             the moment it&rsquo;s submitted. A <strong className="font-semibold text-ink">partial</strong>{" "}
-            return gets its origin set if the forward order never recorded one, then its{" "}
-            <span className="font-mono">-R01</span> return OC exported as CSV, uploaded to Ninja and
-            printed. A <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
+            return gets its origin set if the forward order never recorded one, then its return
+            OC exported as CSV, uploaded to Ninja and printed — tracked as{" "}
+            <span className="font-mono">&lt;PO&gt;1</span>, built from the PO the courier picked at
+            the door. A <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
             bulk-marked <strong className="font-semibold text-ink">RTS</strong> on its original AWB —
             no new tracking number, no print step.
           </p>
@@ -238,6 +243,13 @@ export default function RejectReturns() {
           {flaggedIds.length > 0 && (
             <span className="flex items-center gap-2 border-r border-line pr-2">
               <Badge tone="danger">{flaggedIds.length} flagged by IC</Badge>
+            </span>
+          )}
+          {/* No PO, no tracking number — and no button, deliberately. These are rows filed
+              before the courier was asked; nobody at a desk can answer for them. */}
+          {poUnknownIds.length > 0 && (
+            <span className="flex items-center gap-2 border-r border-line pr-2">
+              <Badge tone="warn">{poUnknownIds.length} no PO — can&rsquo;t export</Badge>
             </span>
           )}
           {/* Step 1. Sits first because the export SKIPS origin-unknown rows: clearing this
@@ -424,6 +436,17 @@ function Row({
           {row.return_awb_id && (
             <span className="mt-1 block font-mono text-[11px] text-ink-muted">→ {row.return_awb_id}</span>
           )}
+          {/* The PO the return hangs off — its tracking number is this + "1". */}
+          {row.closes_by === "return_oc" &&
+            (row.po_unknown ? (
+              <span className="mt-1 block">
+                <Badge tone="warn">no PO</Badge>
+              </span>
+            ) : (
+              <span className="mt-1 block break-all font-mono text-[11px] text-ink-muted">
+                PO {row.po_number}
+              </span>
+            ))}
         </td>
         <td className="px-4 py-3">
           {row.pharmacy_name}

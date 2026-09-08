@@ -365,6 +365,7 @@ async def submit(
     outcome: str = Body(...),
     return_type: str | None = Body(default=None),
     reject_pcs: int | None = Body(default=None),
+    po_number: str | None = Body(default=None),
 ):
     """Confirm the delivery. `outcome` is `delivered` or `reject`.
 
@@ -388,6 +389,21 @@ async def submit(
         # without it is an unverifiable return, so the UI gate is backed server-side.
         if not awb["is_return"] and not (reject_pcs and reject_pcs > 0):
             raise HTTPException(status_code=422, detail="reject_pcs_required")
+        # WHICH PO the goods came from. Only the courier can answer — the return OC's
+        # tracking number is built from it (`<PO>1`), and no one downstream can look at a
+        # box of returned strips and say which purchase order they were ordered under.
+        # `semua` never produces an OC row, so it is not asked and not required.
+        if rtype == "sebagian" and not awb["is_return"]:
+            if not po_number:
+                raise HTTPException(status_code=422, detail="po_number_required")
+            known = await db.fetch_one(
+                "SELECT 1 AS ok FROM po_line WHERE awb_id = %s AND po_number = %s",
+                (awb["awb_id"], po_number),
+            )
+            # Typed or stale values are refused rather than stored: a PO that is not on this
+            # AWB builds a tracking number for an order that does not exist.
+            if not known:
+                raise HTTPException(status_code=422, detail="po_number_not_on_awb")
 
     await db.execute(
         "UPDATE awb SET status = 'delivered', return_type = %s, delivered_at = NOW(), "
@@ -408,8 +424,9 @@ async def submit(
             # worklist surfaces those as "origin unknown" and DE sets them in bulk.
             await db.execute(
                 "INSERT INTO return_parcel (original_awb_id, return_type, service_id, "
-                "reject_pcs, origin) VALUES (%s, %s, %s, %s, %s)",
-                (awb["awb_id"], rtype, awb["service_id"], reject_pcs, awb.get("origin")),
+                "reject_pcs, origin, po_number) VALUES (%s, %s, %s, %s, %s, %s)",
+                (awb["awb_id"], rtype, awb["service_id"], reject_pcs, awb.get("origin"),
+                 po_number if rtype == "sebagian" else None),
             )
         return_awbs = [awb["awb_id"]]
 

@@ -267,6 +267,11 @@ export interface RejectReturn {
   hub_name: string | null;
   origin: string | null;
   origin_unknown: boolean;
+  /** The PO the courier said the goods came from. The return OC's tracking number is
+   *  `<po_number>1`, so a row without one cannot be exported — and unlike origin there is
+   *  no bulk-set, because only the courier at the counter could ever have answered. */
+  po_number: string | null;
+  po_unknown: boolean;
   reject_pcs: number | null;
   /** Which closing pipeline this row is on. "rts" = RTS on the existing forward AWB,
    *  no new tracking number. "return_oc" = DE exports the -R01 return OC. */
@@ -450,7 +455,14 @@ export const api = {
       }),
     submit: (
       token: string,
-      body: { outcome: Outcome; return_type?: "sebagian" | "semua"; reject_pcs?: number },
+      body: {
+        outcome: Outcome;
+        return_type?: "sebagian" | "semua";
+        reject_pcs?: number;
+        /** Which PO the returned goods came from. Required for a `sebagian` reject and
+         *  enforced server-side: the return OC's tracking number is `<po_number>1`. */
+        po_number?: string;
+      },
     ) =>
       postJson<CourierSubmitResult>(`/api/c/${token}/submit`, body),
     fail: (token: string, body: { fail_reason: FailReason; reason_note?: string; gps?: string }) =>

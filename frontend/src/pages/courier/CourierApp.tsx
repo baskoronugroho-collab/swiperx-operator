@@ -78,6 +78,11 @@ export default function CourierApp() {
    *  becomes the return OC's item_description and is what the pre-handover check reconciles
    *  against, alongside the goods photo and the notes on the BA Retur. */
   const [rejectPcs, setRejectPcs] = useState("");
+  /** Which PO the returned goods came from. The return OC's tracking number is built from
+   *  it (`<PO>1`), and only the person holding the goods can answer — so it is asked here
+   *  and enforced server-side. Only for `sebagian`: a whole refusal never produces an OC
+   *  row, so there is no field for a PO to fill. */
+  const [poNumber, setPoNumber] = useState("");
   const [driverId, setDriverId] = useState("");
   const [hubName, setHubName] = useState("");
   /** Fallback: the fixed hub list is maintained by ops and can lag reality. Ticking this
@@ -129,6 +134,10 @@ export default function CourierApp() {
       setHubName(o.hub_name ?? fallback?.hubName ?? "");
       if (o.hub_name && !o.hubs.includes(o.hub_name)) setHubNotListed(true);
       else if (!o.hub_name && fallback?.hubNotListed) setHubNotListed(true);
+      // One PO on the order means there is nothing to choose. Preselect it rather than
+      // make the driver tap the only answer — but still SHOW it, because it is what the
+      // return's tracking number is built from and they should see it before sending.
+      if (o.po_lines.length === 1) setPoNumber(o.po_lines[0].po_number);
       if (o.terminal) setPhase(o.status === "delivery_failed" ? "done_failed" : "done_delivered");
       // Nobody captures anything before saying who they are. Once driver_id is set this
       // stops firing, so a resumed link does not ask twice.
@@ -177,6 +186,7 @@ export default function CourierApp() {
         outcome: target,
         return_type: returnType,
         reject_pcs: target === "reject" && rejectPcs ? Number(rejectPcs) : undefined,
+        po_number: target === "reject" && returnType === "sebagian" ? poNumber : undefined,
       });
       setPhase(target === "reject" ? "done_reject" : "done_delivered");
     } catch (err) {
@@ -480,6 +490,40 @@ export default function CourierApp() {
           label="Foto label AWB"
           hint="Foto tiap label kalau ada beberapa paket retur."
         />
+        {/* Which PO the goods came from. A tappable list, never a <select> or <datalist> —
+            mobile webviews render those as a scroll wheel, which is what made the hub
+            picker unusable in the field (28 Aug). Most AWBs carry one or two POs, so the
+            whole list fits on screen and the driver taps once. A single-PO order is
+            preselected: there is nothing to choose, and asking would be theatre. */}
+        {!fullReject && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <span className="block text-sm font-bold">Barang yang diretur dari PO mana?</span>
+            <span className="mt-1 block text-xs text-ink-muted">
+              Lihat nomor PO di Delivery Note. Nomor resi retur dibuat dari PO ini, jadi harus
+              yang benar.
+            </span>
+            <div className="mt-3 space-y-2">
+              {order.po_lines.map((p) => {
+                const on = poNumber === p.po_number;
+                return (
+                  <button
+                    key={p.po_number}
+                    type="button"
+                    onClick={() => setPoNumber(p.po_number)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left ${
+                      on ? "border-nv-red bg-nv-red/5" : "border-line bg-canvas"
+                    }`}
+                  >
+                    <span className="min-w-0 break-all font-mono text-sm font-semibold">
+                      {p.po_number}
+                    </span>
+                    <span className="shrink-0 text-xs text-ink-muted">{p.koli} koli</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <label className="block rounded-2xl border border-line bg-surface p-4">
           <span className="block text-sm font-bold">Berapa pcs barang yang diretur?</span>
           <span className="mt-1 block text-xs text-ink-muted">
@@ -502,7 +546,8 @@ export default function CourierApp() {
           dnShots.length < 2 ||
           !first("rejected_goods") ||
           !first("awb_sticker") ||
-          !rejectPcs
+          !rejectPcs ||
+          (!fullReject && !poNumber)
         }
         onClick={() => setPhase("confirm")}
         onBack={() => setPhase("delivery_note")}
@@ -538,6 +583,13 @@ export default function CourierApp() {
           <div className="rounded-2xl bg-danger-soft p-4 text-sm text-danger">
             Ditandai sebagai <b>{fullReject ? "retur semua paket" : "retur sebagian"}</b>. Tim
             Ops akan menindaklanjuti retur ini.
+            {/* The PO decides the return's tracking number, so it gets read back before
+                sending — a wrong pick here is only visible again at the station. */}
+            {!fullReject && poNumber && (
+              <span className="mt-2 block">
+                PO retur: <b className="break-all font-mono">{poNumber}</b>
+              </span>
+            )}
           </div>
         )}
         {gateMissing.length > 0 && (

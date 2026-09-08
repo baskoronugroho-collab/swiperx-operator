@@ -15,7 +15,12 @@ import pytest
 from conftest import photo
 
 
-def _reject(client, awb, return_type, pcs=3):
+# The `awb` fixture carries two PO lines; a partial reject must say which one came back,
+# because the return OC's tracking number is built from it.
+PO = "PO-AAA"
+
+
+def _reject(client, awb, return_type, pcs=3, po=PO):
     """Drive a real courier reject end to end, the way production creates the row."""
     t = awb["token"]
     dn = client.post(f"/api/c/{t}/capture", data={"doc_type": "delivery_note"}, files=photo()).json()
@@ -24,7 +29,8 @@ def _reject(client, awb, return_type, pcs=3):
         client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
     r = client.post(
         f"/api/c/{t}/submit",
-        json={"outcome": "reject", "return_type": return_type, "reject_pcs": pcs},
+        json={"outcome": "reject", "return_type": return_type, "reject_pcs": pcs,
+              "po_number": po if return_type == "sebagian" else None},
     )
     assert r.status_code == 200, r.text
     return awb
@@ -104,23 +110,25 @@ def test_pending_validator_is_not_a_stage_any_more(de_client, rejected):  # noqa
 def test_partial_walks_export_upload_print(de_client, rejected):
     rid = _row(de_client)["id"]
 
-    # Export: one CSV row, <SwipeAWB>-R01, addressed to the origin warehouse, pcs in col Y.
+    # Export: one CSV row built from the PO the courier picked, addressed to the origin
+    # warehouse, pcs in col Y. The parcel and its piece must NOT be the same string.
     r = de_client.get("/api/returns/export-oc.csv")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/csv")
     rows = _oc_rows(r)
     assert len(rows) == 1
     row = rows[0]
-    assert row["requested_tracking_number"] == f"{rejected['awb_id']}-R01"
+    assert row["requested_tracking_number"] == f"{PO}1"
+    assert row["bundle_information.requested_piece_tracking_numbers"] == f"{PO}1-R01"
     assert row["reference.merchant_order_number"] == rejected["awb_id"]
     assert row["to.address.city"] == "Depok"
     assert row["parcel_job.items.0.item_description"] == "3"
 
-    # Mark uploaded -> Pending Print, with the -R01 stamped for IC's OPV2 search.
+    # Mark uploaded -> Pending Print, with <PO>1 stamped for IC's OPV2 search.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
     r2 = _row(de_client)
     assert r2["stage"] == "pending_print"
-    assert r2["return_awb_id"] == f"{rejected['awb_id']}-R01"
+    assert r2["return_awb_id"] == f"{PO}1"
     # Once uploaded it leaves the export file.
     assert de_client.get("/api/returns/export-oc.csv").status_code == 404
 
@@ -144,12 +152,12 @@ def test_pending_print_can_be_sent_back_so_the_oc_csv_can_be_exported(de_client,
     back = _row(de_client)
     assert back["stage"] == "pending_de_upload"
     assert back["de_uploaded_at"] is None
-    assert back["return_awb_id"] is None  # the -R01 was never really issued
+    assert back["return_awb_id"] is None  # the <PO>1 was never really issued
 
     # The whole point: the OC CSV is exportable again, unchanged.
     r = de_client.get("/api/returns/export-oc.csv")
     assert r.status_code == 200
-    assert _oc_rows(r)[0]["requested_tracking_number"] == f"{rejected['awb_id']}-R01"
+    assert _oc_rows(r)[0]["requested_tracking_number"] == f"{PO}1"
 
     # And the row walks forward again from there.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
@@ -282,6 +290,80 @@ def test_sending_back_is_recorded_in_the_audit_log(de_client, dbs, rejected):  #
     assert str(rid) in rows[0]["entity_id"]
 
 
+def test_a_partial_reject_must_name_the_po_it_came_from(client, awb):
+    """Only the courier can answer this, so the door is where it is asked — and enforced.
+
+    The return OC's `requested_tracking_number` IS `<PO>1`. Without a PO there is no number
+    to issue, and no desk downstream can look at a box of returned strips and say which
+    purchase order they were ordered under.
+    """
+    t = awb["token"]
+    dn = client.post(f"/api/c/{t}/capture", data={"doc_type": "delivery_note"}, files=photo()).json()
+    client.patch(f"/api/c/{t}/capture/{dn['id']}", json={"signed_stamped": True})
+    for doc in ("delivery_note", "rejected_goods", "awb_sticker"):
+        client.post(f"/api/c/{t}/capture", data={"doc_type": doc}, files=photo())
+
+    body = {"outcome": "reject", "return_type": "sebagian", "reject_pcs": 3}
+    assert client.post(f"/api/c/{t}/submit", json=body).status_code == 422
+    # A PO that is not on this AWB would mint a number for an order that does not exist.
+    r = client.post(f"/api/c/{t}/submit", json={**body, "po_number": "PO-NOT-HERE"})
+    assert r.status_code == 422
+    assert r.json()["detail"] == "po_number_not_on_awb"
+    assert client.post(f"/api/c/{t}/submit", json={**body, "po_number": "PO-BBB"}).status_code == 200
+
+
+def test_a_full_refusal_is_not_asked_for_a_po(client, de_client, awb):
+    """`semua` closes by RTS on the forward number and never produces an OC row."""
+    _reject(client, awb, "semua", po=None)
+    row = _row(de_client)
+    assert row["return_type"] == "semua"
+    assert row["po_number"] is None
+    assert row["po_unknown"] is False  # there is no field for a PO to be missing from
+
+
+def test_a_row_with_no_po_is_held_out_of_the_export(de_client, dbs, rejected):
+    """Legacy rows — filed before the courier was asked — cannot be exported or uploaded.
+
+    Unlike origin-unknown there is deliberately NO bulk-set to clear this: origin is a fact
+    about the warehouse a batch left, which a desk knows; the PO is a fact about what is in
+    the box, which only the person holding it knew.
+    """
+    import asyncio
+
+    async def forget():
+        await dbs.execute("UPDATE return_parcel SET po_number = NULL WHERE original_awb_id = ?",
+                          (rejected["awb_id"],))
+
+    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(forget())
+
+    row = _row(de_client)
+    assert row["po_unknown"] is True
+    assert row["po_number"] is None  # two PO lines on the AWB — nothing to fall back to
+    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
+    assert de_client.post(
+        "/api/returns/mark-uploaded", json={"ids": [row["id"]]}
+    ).status_code == 409
+
+
+def test_a_legacy_row_on_a_single_po_awb_needs_no_choice(de_client, dbs, rejected):
+    """One PO line means there is nothing to choose — that is derivation, not a guess."""
+    import asyncio
+
+    async def one_po():
+        await dbs.execute("UPDATE return_parcel SET po_number = NULL WHERE original_awb_id = ?",
+                          (rejected["awb_id"],))
+        await dbs.execute("DELETE FROM po_line WHERE awb_id = ? AND po_number = 'PO-BBB'",
+                          (rejected["awb_id"],))
+
+    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(one_po())
+
+    row = _row(de_client)
+    assert row["po_number"] == "PO-AAA"
+    assert row["po_unknown"] is False
+    assert _oc_rows(de_client.get("/api/returns/export-oc.csv"))[0][
+        "requested_tracking_number"] == "PO-AAA1"
+
+
 async def _strip(dbs, awb_id):
     await dbs.execute("UPDATE awb SET origin = NULL WHERE awb_id = ?", (awb_id,))
     await dbs.execute("UPDATE return_parcel SET origin = NULL WHERE original_awb_id = ?", (awb_id,))
@@ -352,7 +434,8 @@ def test_csv_export_carries_the_full_trail(de_client, rejected):
     rid = _row(de_client)["id"]
     de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
     text = de_client.get("/api/returns/export.csv").text
-    assert f"{rejected['awb_id']}-R01" in text
+    assert f"{PO}1" in text
+    assert PO in text  # the PO itself, so the trail says which one came back
     assert "pending_print" in text
     # The validator columns survive as history for rows stamped under the old flow.
     assert "legacy_validated_at" in text
