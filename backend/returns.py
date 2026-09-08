@@ -57,6 +57,10 @@ printer_roles = require_roles("station_ic", "implant", "de")
 reopen_roles = require_roles("implant", "de", "program_manager")
 # Raising that flag is Station IC's move, from the bench, at the moment the search fails.
 flag_roles = require_roles("station_ic", "implant", "de")
+# Filling in a PO by hand is the superadmin's alone. It is the one field on this lane whose
+# real answer only ever existed at the door, so writing one afterwards is a judgement call
+# about a fact nobody witnessed — not a step in anyone's daily work.
+po_admin_roles = require_roles("superadmin")
 
 # The account the deck mandates for replacement return TIDs.
 RTS_SHIPPER_ID = "11398434"
@@ -136,6 +140,8 @@ def _shape(row: dict) -> dict:
     # counter knew which PO the goods came from — so these rows are held out of the export
     # rather than offered a bulk-set. Full refusals never carry one: no OC row, no field.
     row["po_unknown"] = not _is_full(row) and not row.get("po_number")
+    # Filled in by the list route for the rows that need it (superadmin's picker).
+    row["po_options"] = []
     # Which closing pipeline this row is on, so the UI never re-derives the rule.
     row["closes_by"] = "rts" if _is_full(row) else "return_oc"
     # A Station IC remark hanging on the row. NOT a stage — it moves nothing, it just makes
@@ -163,6 +169,18 @@ async def _proof_photos(awb_id: str) -> list[dict]:
     return [{"doc_type": r["doc_type"], "photo_url": f"/api/media/{r['photo_ref']}"} for r in rows]
 
 
+async def _po_options(awb_id: str) -> list[dict]:
+    """The forward order's PO lines — the SAME list the courier was shown at the door.
+
+    Read from `po_line`, in the order they came off the TMP file, so a superadmin filling a
+    gap is choosing between the real POs on that consignment and nothing else.
+    """
+    rows = await db.fetch_all(
+        "SELECT po_number, koli FROM po_line WHERE awb_id = %s ORDER BY id", (awb_id,)
+    )
+    return [{"po_number": r["po_number"], "koli": r["koli"]} for r in rows]
+
+
 @router.get("")
 async def list_returns(
     stage: str | None = Query(default=None, description="|".join(STAGES)),
@@ -176,6 +194,9 @@ async def list_returns(
         if stage and r["stage"] != stage:
             continue
         r["proof_photos"] = await _proof_photos(r["original_awb_id"])
+        # What a superadmin may choose from, on the rows that need it. Fetched only for
+        # those: it is the forward order's own PO lines, the same list the courier saw.
+        r["po_options"] = await _po_options(r["original_awb_id"]) if r["po_unknown"] else []
         out.append(r)
     return {"returns": out, "rts_shipper_id": RTS_SHIPPER_ID}
 
@@ -283,6 +304,54 @@ async def mark_uploaded_bulk(
         (user["email"], f"{updated} rows"),
     )
     return {"updated": updated}
+
+
+@router.post("/po")
+async def set_po(
+    id: int = Body(..., embed=True),
+    po_number: str = Body(..., embed=True),
+    user: dict = Depends(po_admin_roles),
+):
+    """Superadmin fills in the PO on a row that has none. One row at a time, by hand.
+
+    Why this exists: a reject filed before couriers were asked (8 Sep 2026) carries no PO, and
+    without one there is no `requested_tracking_number` to issue — the row cannot be exported
+    and is stuck on Pending DE upload forever. Somebody has to be able to unstick it.
+
+    Why superadmin only: the honest answer to "which PO did these goods come from" existed for
+    a few seconds at a pharmacy counter and was not written down. Anyone filling it in
+    afterwards is reconstructing it from the delivery note or a phone call, which is a
+    judgement call about a fact nobody recorded — not a step in DE's or IC's daily work. It is
+    deliberately awkward, deliberately one row at a time, and deliberately logged.
+
+    Two limits, both on purpose:
+
+    * The PO must be one of the FORWARD ORDER'S OWN `po_line` rows. A free-typed value would
+      mint a tracking number for an order that does not exist — the same rule the courier's
+      pick is held to.
+    * Only a row that HAS no PO. A PO the courier chose is a fact from the door and is never
+      overwritten from a desk, exactly as a stored origin is never overwritten.
+    """
+    rows = await _rows([id])
+    if not rows:
+        raise HTTPException(status_code=404, detail="not_found")
+    row = rows[0]
+    if _is_full(row):
+        raise HTTPException(status_code=409, detail="full_refusal_has_no_oc_row")
+    if not row["po_unknown"]:
+        raise HTTPException(status_code=409, detail="po_already_set")
+    if po_number not in {p["po_number"] for p in await _po_options(row["original_awb_id"])}:
+        raise HTTPException(status_code=422, detail="po_number_not_on_awb")
+    await db.execute(
+        "UPDATE return_parcel SET po_number = %s, updated_at = NOW() WHERE id = %s",
+        (po_number, id),
+    )
+    await db.execute(
+        "INSERT INTO audit_log (actor, action, entity, entity_id) "
+        "VALUES (%s, 'return_po_set_by_hand', 'return_parcel', %s)",
+        (user["email"], f"{id} -> {po_number}"),
+    )
+    return {"updated": 1, "po_number": po_number}
 
 
 # ------------------------------------------------- station IC: the flag ----

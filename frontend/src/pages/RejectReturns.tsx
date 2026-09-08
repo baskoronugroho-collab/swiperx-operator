@@ -109,6 +109,13 @@ export default function RejectReturns() {
     }
   }
 
+  /* Fill in a PO on a row that has none, so a stuck legacy row can be exported at all.
+     Superadmin only, one row at a time, and only a PO that is on that forward order —
+     see the endpoint for why this is deliberately awkward. */
+  async function setPo(id: number, po: string) {
+    await run("PO set", async () => ({ updated: (await api.returns.setPo(id, po)).updated }));
+  }
+
   /* Station IC's remark. Deliberately a prompt for free text and not a fixed reason list:
      "can't find the AWB" is the case we know about, and the ones we don't are exactly what
      we want written down in the IC's own words. */
@@ -146,6 +153,9 @@ export default function RejectReturns() {
   // Sending a row back un-does DE's own upload claim, so it stays on that desk. IC flags.
   const canReverse = has("implant", "de", "program_manager");
   const canFlag = has("station_ic", "implant", "de");
+  // `has` returns true for superadmin against any role, so this reads exactly as
+  // "is the superadmin" — the only person who may answer for a PO nobody recorded.
+  const isSuper = has("superadmin");
 
   const ocIds = pick(
     shown,
@@ -250,6 +260,9 @@ export default function RejectReturns() {
           {poUnknownIds.length > 0 && (
             <span className="flex items-center gap-2 border-r border-line pr-2">
               <Badge tone="warn">{poUnknownIds.length} no PO — can&rsquo;t export</Badge>
+              <span className="text-xs text-ink-muted">
+                {isSuper ? "Set it on the row" : "Superadmin can set it on the row"}
+              </span>
             </span>
           )}
           {/* Step 1. Sits first because the export SKIPS origin-unknown rows: clearing this
@@ -388,6 +401,8 @@ export default function RejectReturns() {
                     }}
                     open={openId === r.id}
                     onToggle={() => setOpenId(openId === r.id ? null : r.id)}
+                    onSetPo={isSuper ? setPo : undefined}
+                    busy={busy}
                   />
                 ))}
               </tbody>
@@ -413,12 +428,17 @@ function Row({
   onCheck,
   open,
   onToggle,
+  onSetPo,
+  busy,
 }: {
   row: RejectReturn;
   checked: boolean;
   onCheck: (v: boolean) => void;
   open: boolean;
   onToggle: () => void;
+  /** Present only for a superadmin — nobody else may answer for a missing PO. */
+  onSetPo?: (id: number, po: string) => void;
+  busy: boolean;
 }) {
   return (
     <>
@@ -441,6 +461,26 @@ function Row({
             (row.po_unknown ? (
               <span className="mt-1 block">
                 <Badge tone="warn">no PO</Badge>
+                {/* A plain <select> is right here: this is the ops desk on a laptop, not
+                    the driver's phone where a select becomes a scroll wheel. Only the
+                    forward order's own POs are offered — the server refuses anything
+                    else, because a typed value would mint a number for an order that
+                    does not exist. */}
+                {onSetPo && row.po_options.length > 0 && (
+                  <select
+                    className="mt-1 block w-40 rounded-lg border border-line bg-canvas px-2 py-1 text-xs"
+                    disabled={busy}
+                    defaultValue=""
+                    onChange={(e) => e.target.value && onSetPo(row.id, e.target.value)}
+                  >
+                    <option value="">Set PO by hand…</option>
+                    {row.po_options.map((p) => (
+                      <option key={p.po_number} value={p.po_number}>
+                        {p.po_number} ({p.koli} koli)
+                      </option>
+                    ))}
+                  </select>
+                )}
               </span>
             ) : (
               <span className="mt-1 block break-all font-mono text-[11px] text-ink-muted">

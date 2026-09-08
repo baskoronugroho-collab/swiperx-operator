@@ -292,6 +292,24 @@ both `<SwipeAWB>-R01`. A parcel and its own piece cannot share an identifier.
    rather than reading them back from `FWD_COLS` — a rename cannot quietly agree with itself.
 4. **Commas quoted** (csv.writer's QUOTE_MINIMAL, pinned with a real address).
 
+### Unsticking a row with no PO (added same day, Baskoro)
+
+A real row sat on Pending DE upload with no PO — filed before couriers were asked, on an order
+with more than one PO line, so nothing could be derived and it could never be exported.
+
+- **`POST /api/returns/po`, superadmin ONLY.** One row at a time, from a dropdown on the row
+  itself. Not DE, not IC: the real answer existed for a few seconds at a pharmacy counter and
+  was never written down, so filling it in afterwards is a reconstruction from the Delivery
+  Note — a judgement call somebody signs for, not a step in anyone's daily work. Deliberately
+  awkward, and logged as `return_po_set_by_hand`.
+- **Two bounds.** The value must be one of that forward order's own `po_line` rows (a typed
+  value would mint a number for an order that does not exist — the same rule the courier's
+  pick is held to), and a PO the courier DID choose is never overwritten from a desk, exactly
+  as a stored origin never is.
+- The worklist now carries `po_options` on PO-unknown rows: the same list the courier saw.
+- The devserver seeds a stuck legacy row (`AWBDEMO003`, two PO lines, no PO) so the picker is
+  exercisable and the case is visible to whoever works on this next.
+
 ## Still open
 
 - **A partial return spanning TWO POs** is one return against one PO today. If a pharmacy

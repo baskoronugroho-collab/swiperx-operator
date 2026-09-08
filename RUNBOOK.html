@@ -555,6 +555,10 @@
           <li><b>Station IC</b> &mdash; on <b>Pending print</b>, find the
             <span class="id mono">&lt;PO&gt;1</span> in OPV2 (it is shown on the row), print, label,
             repack, then <b>Mark printed &amp; labelled</b>.</li>
+          <li><b>Superadmin, a row showing "no PO"</b> &mdash; pick the right PO from the dropdown on
+            that row (only that order&rsquo;s real POs are offered). Until then the row is excluded
+            from the OC export and cannot be marked uploaded. Check the Delivery Note, and ask
+            &mdash; do not pick the first one to clear the badge.</li>
           <li><b>Station IC, not in OPV2?</b> &mdash; press <b>Flag: can&rsquo;t find AWB</b> on the
             row and type the reason. It <b>moves nothing</b>; it flags the row for DE. Then stop
             &mdash; the fix is not yours to make.</li>
@@ -776,9 +780,16 @@
         </p>
         <p class="body">
           Rejects filed <b>before 8 Sep 2026</b> have no PO recorded and show <b>no PO</b> on the row.
-          They cannot be exported and there is no way to fix them from a desk &mdash; only the driver
-          holding the goods ever knew. The exception is an order with a single PO line, where there was
-          nothing to choose and the value is filled in automatically.
+          They cannot be exported until one is supplied. Where the order has a <b>single PO line</b>
+          there was nothing to choose and the value is filled in automatically.
+        </p>
+        <p class="body">
+          Otherwise <b>only the superadmin</b> can set it, from the dropdown on the row itself, and
+          only to a PO that is genuinely on that order. It is restricted on purpose: the real answer
+          existed for a few seconds at a pharmacy counter and was never written down, so filling it in
+          afterwards is a reconstruction from the Delivery Note &mdash; a judgement call somebody has
+          to sign for, not a routine step. Every one is recorded in the audit log. A PO the driver
+          <em>did</em> choose is never overwritten from a desk.
         </p>
       </div>
 

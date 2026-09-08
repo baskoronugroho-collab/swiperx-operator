@@ -272,6 +272,9 @@ export interface RejectReturn {
    *  no bulk-set, because only the courier at the counter could ever have answered. */
   po_number: string | null;
   po_unknown: boolean;
+  /** What a superadmin may pick from on a PO-unknown row — the forward order's own PO
+   *  lines, the same list the courier saw. Empty on every other row. */
+  po_options: { po_number: string; koli: number }[];
   reject_pcs: number | null;
   /** Which closing pipeline this row is on. "rts" = RTS on the existing forward AWB,
    *  no new tracking number. "return_oc" = DE exports the -R01 return OC. */
@@ -490,6 +493,10 @@ export const api = {
       postJson<{ updated: number }>("/api/returns/mark-printed", { ids }),
     /** Bulk-mark full refusals as RTS-triggered on their forward AWB. */
     markRts: (ids: number[]) => postJson<{ updated: number }>("/api/returns/rts", { ids }),
+    /** Superadmin fills in the PO on a row that has none, so a stuck legacy row can be
+     *  exported. One row at a time, only a PO on that AWB, only into a gap. */
+    setPo: (id: number, po_number: string) =>
+      postJson<{ updated: number; po_number: string }>("/api/returns/po", { id, po_number }),
     /** Bulk-set the origin on rows whose forward order predates origin tracking. */
     setOrigin: (ids: number[], origin: string) =>
       postJson<{ updated: number }>(`/api/returns/origin`, { ids, origin }),

@@ -345,6 +345,89 @@ def test_a_row_with_no_po_is_held_out_of_the_export(de_client, dbs, rejected):
     ).status_code == 409
 
 
+def _forget_po(dbs, awb_id):
+    import asyncio
+
+    async def go():
+        await dbs.execute("UPDATE return_parcel SET po_number = NULL WHERE original_awb_id = ?",
+                          (awb_id,))
+
+    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(go())
+
+
+def test_superadmin_can_fill_in_a_missing_po_by_hand(client, de_client, dbs, rejected):
+    """The way a stuck legacy row gets unstuck — one row, one person, logged.
+
+    Without a PO there is no `requested_tracking_number` to issue, so the row sits on
+    Pending DE upload forever. Somebody has to be able to answer for it; the answer is a
+    reconstruction of a fact nobody recorded, so it is the superadmin who signs for it.
+    """
+    _forget_po(dbs, rejected["awb_id"])
+    rid = _row(de_client)["id"]
+
+    # DE holds the lane but not this — it is not a step in their daily work.
+    assert de_client.post(
+        "/api/returns/po", json={"id": rid, "po_number": "PO-BBB"}
+    ).status_code == 403
+
+    client.post("/api/auth/dev-login", json={"email": "admin@ninjavan.co"})
+    # The picker offers the forward order's own PO lines — the same list the courier saw.
+    stuck = _row(client)
+    assert [p["po_number"] for p in stuck["po_options"]] == ["PO-AAA", "PO-BBB"]
+
+    r = client.post("/api/returns/po", json={"id": rid, "po_number": "PO-BBB"})
+    assert r.status_code == 200, r.text
+    fixed = _row(client)
+    assert fixed["po_number"] == "PO-BBB"
+    assert fixed["po_unknown"] is False
+    assert fixed["po_options"] == []  # nothing left to choose
+
+    # Unstuck: it exports, with the tracking number built from the PO just supplied.
+    assert _oc_rows(client.get("/api/returns/export-oc.csv"))[0][
+        "requested_tracking_number"] == "PO-BBB1"
+
+
+def test_filling_a_po_in_by_hand_is_bounded_and_logged(client, dbs, rejected):
+    """Two limits, both deliberate: only a real PO on that AWB, and only into a gap."""
+    import asyncio
+
+    client.post("/api/auth/dev-login", json={"email": "admin@ninjavan.co"})
+    rid = _row(client)["id"]
+
+    # The courier already answered — a fact from the door is not overwritten from a desk.
+    assert client.post(
+        "/api/returns/po", json={"id": rid, "po_number": "PO-BBB"}
+    ).status_code == 409
+
+    _forget_po(dbs, rejected["awb_id"])
+    # Free-typed values would mint a number for an order that does not exist.
+    assert client.post(
+        "/api/returns/po", json={"id": rid, "po_number": "PO-INVENTED"}
+    ).status_code == 422
+    assert _row(client)["po_unknown"] is True
+
+    client.post("/api/returns/po", json={"id": rid, "po_number": "PO-AAA"})
+
+    async def entries():
+        return await dbs.fetch_all(
+            "SELECT actor, entity_id FROM audit_log WHERE action = 'return_po_set_by_hand'", ()
+        )
+
+    log = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(entries())
+    assert len(log) == 1
+    assert log[0]["actor"] == "admin@ninjavan.co"
+    assert "PO-AAA" in log[0]["entity_id"]
+
+
+def test_a_full_refusal_has_no_po_to_fill(client, fully_rejected):  # noqa: ARG001
+    """`semua` produces no OC row, so there is no field and no gap."""
+    client.post("/api/auth/dev-login", json={"email": "admin@ninjavan.co"})
+    rid = _row(client)["id"]
+    assert client.post(
+        "/api/returns/po", json={"id": rid, "po_number": "PO-AAA"}
+    ).status_code == 409
+
+
 def test_a_legacy_row_on_a_single_po_awb_needs_no_choice(de_client, dbs, rejected):
     """One PO line means there is nothing to choose — that is derivation, not a guess."""
     import asyncio

@@ -50,8 +50,26 @@ async def _seed() -> None:
         "INSERT INTO po_line (awb_id, po_number, koli) VALUES ('AWBDEMO002','26070103390201VtagsQI7',2)", ()
     )
     await fake.execute(
+        "INSERT INTO return_parcel (original_awb_id, return_type, service_id, reject_pcs, origin, "
+        "po_number) VALUES ('AWBDEMO002','sebagian','S1',3,'TMP_DEPOK','26070103390201VtagsQI7')", ()
+    )
+    # A STUCK LEGACY ROW: rejected before couriers were asked which PO (8 Sep 2026), on an
+    # order carrying TWO PO lines — so nothing can be derived and the row cannot be exported.
+    # Seeded because it is the only way to see the superadmin's by-hand PO picker on screen,
+    # and because production has rows exactly like this.
+    await fake.execute(
+        "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
+        "koli, link_token, status, return_type, is_return, origin, driver_id, hub_name) VALUES "
+        "('AWBDEMO003','AWB02U62X','S1','Apotek Melati Dua','Jl. Anggrek No. 8','Jakarta Selatan',"
+        "3,'demo-token-legacy','delivered','sebagian',0,'TMP_DEPOK','654321','MAC-KD5')", ()
+    )
+    for po, koli in (("26081604253445DR37PY2ML", 2), ("26081604253446QW48RZ3NK", 1)):
+        await fake.execute(
+            "INSERT INTO po_line (awb_id, po_number, koli) VALUES ('AWBDEMO003', ?, ?)", (po, koli)
+        )
+    await fake.execute(
         "INSERT INTO return_parcel (original_awb_id, return_type, service_id, reject_pcs, origin) "
-        "VALUES ('AWBDEMO002','sebagian','S1',3,'TMP_DEPOK')", ()
+        "VALUES ('AWBDEMO003','sebagian','S1',2,'TMP_DEPOK')", ()
     )
     # Hub master — the REAL hub->TMP mapping from 'Mapping Dest Hub to TMP.xlsx' (24 Aug).
     # origin None = not yet mapped; those rows read as origin-unknown, same as production.

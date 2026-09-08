@@ -1388,6 +1388,110 @@
         }
       }
     },
+    "/api/returns/po": {
+      "post": {
+        "operationId": "set_po",
+        "tags": [
+          "returns"
+        ],
+        "summary": "Superadmin fills in the PO on a partial reject that has none, one row at a time — the only way to unstick a legacy row (filed before couriers were asked, 8 Sep 2026) which without a PO has no requested_tracking_number to issue and can never be exported. Restricted to superadmin because the real answer existed only at the pharmacy counter and was never recorded, so supplying one afterwards is a reconstruction somebody must sign for. The value must be one of that forward order's own po_line rows, and a PO the courier DID choose is never overwritten. Recorded in audit_log as return_po_set_by_hand.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "po_number"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "The return_parcel row."
+                  },
+                  "po_number": {
+                    "type": "string",
+                    "description": "Must appear in po_line for this row's forward AWB."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The PO written, as {updated, po_number}.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    },
+                    "po_number": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "not_authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden — requires superadmin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "po_already_set, or full_refusal_has_no_oc_row",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "po_number_not_on_awb",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/returns/origin": {
       "post": {
         "operationId": "set_origin_bulk",
@@ -4189,6 +4293,21 @@
             "type": "string",
             "nullable": true,
             "description": "The PO the courier said the returned goods came from. The return OC's requested_tracking_number is this + '1'. Falls back to the forward order's only PO line where it has exactly one."
+          },
+          "po_options": {
+            "type": "array",
+            "description": "Only populated on po_unknown rows: that forward order's own po_line entries, the same list the courier saw — what a superadmin may choose from via POST /api/returns/po.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "po_number": {
+                  "type": "string"
+                },
+                "koli": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "po_unknown": {
             "type": "boolean",
