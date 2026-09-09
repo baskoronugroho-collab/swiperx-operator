@@ -178,7 +178,7 @@ export default function RejectReturns() {
             Every reject a courier files lands here for <strong className="font-semibold text-ink">DE</strong>{" "}
             the moment it&rsquo;s submitted. A <strong className="font-semibold text-ink">partial</strong>{" "}
             return gets its origin set if the forward order never recorded one, then its return
-            OC exported as CSV, uploaded to Ninja and printed — tracked as{" "}
+            OC exported as XLSX, uploaded to Ninja and printed — tracked as{" "}
             <span className="font-mono">&lt;PO&gt;1</span>, built from the PO the courier picked at
             the door. A <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
             bulk-marked <strong className="font-semibold text-ink">RTS</strong> on its original AWB —
@@ -291,7 +291,7 @@ export default function RejectReturns() {
             <>
               <a href={api.returns.exportOcUrl()}>
                 <Button variant="ghost" disabled={busy}>
-                  Export return OC (.csv)
+                  Export return OC (.xlsx)
                 </Button>
               </a>
               <Button

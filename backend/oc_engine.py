@@ -116,12 +116,19 @@ def return_piece_trid(po_number: str) -> str:
     return f'{return_trid(po_number)}{CFG["return_oc"]["suffix"]}'
 
 
-def build_return_csv(rows: list[dict], today: str | None = None) -> bytes:
+def build_return_xlsx(rows: list[dict], today: str | None = None) -> bytes:
     """The POD-Return OC file DE uploads to Ninja for PARTIAL rejects.
 
-    CSV since 31 Aug 2026 (was .xlsx): DE downloads it, uploads it to Ninja, and marks the
-    rows uploaded here. Same NV columns in the same order as the forward upload, so it drops
-    into the same Ninja screen — only the container changed.
+    XLSX as of 9 Sep 2026 — the same container as the forward upload, into the same Ninja
+    screen. It was CSV between 31 Aug and 9 Sep, and CSV is what broke it: the file carried
+    the right bytes, but nothing in a CSV can tell Excel what a column IS, so opening one to
+    check it rewrote `628126789012` as `6.28126E+12` and `2026-09-09` as `9/8/2026`. Saving
+    from Excel then uploaded a sender phone that does not exist. Neither quoting nor a BOM
+    prevents that — Excel infers types per column regardless — and the tricks that do (a
+    leading tab, `="..."`) corrupt the value the OC system reads.
+
+    Every cell here is written as a STRING cell, so Excel renders it verbatim and cannot
+    reinterpret it. That is why the forward upload never had this problem.
 
     Shape is OPTION 1 — a single TRID per reject: `AB` = 1 and one child, because Station IC
     repacks the returned goods into ONE parcel before sending it back, so per-koli children
@@ -144,9 +151,10 @@ def build_return_csv(rows: list[dict], today: str | None = None) -> bytes:
     r = CFG["return_oc"]
     fx = CFG["fixed"]
     ts = fx["timeslot"]
-    bio = io.StringIO()
-    w = csv.writer(bio)
-    w.writerow(FWD_COLS)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Upload"
+    ws.append(FWD_COLS)
     for a in rows:
         o = CFG["origins"][a["origin"]]
         trid = return_trid(a["po_number"])
@@ -183,14 +191,12 @@ def build_return_csv(rows: list[dict], today: str | None = None) -> bytes:
             "parcel_job.insured_value": fx["insured_value"],
             "corporate.branch_id": r["branch_id"],
         }
-        w.writerow([str(row.get(c, "")) for c in FWD_COLS])
-    # NO BOM, deliberately (8 Sep 2026). This file is not read by a human in Excel — it is
-    # uploaded to the OC system, which takes the first header cell literally and saw
-    # `﻿requested_tracking_number`, a column it does not have. Plain UTF-8 only.
-    #
-    # Quoting is csv.writer's default QUOTE_MINIMAL, which wraps any field containing a
-    # comma — pharmacy addresses always do — so no column can shift under the reader.
-    return bio.getvalue().encode("utf-8")
+        # str() on every value, exactly as the forward upload does: openpyxl then writes a
+        # string cell, and a string cell is the only thing Excel will not "helpfully" retype.
+        ws.append([str(row.get(c, "")) for c in FWD_COLS])
+    bio = io.BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
 
 
 def parcel_dimensions(volume_m3: str, collies: int) -> dict:

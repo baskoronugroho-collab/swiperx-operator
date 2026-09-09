@@ -1587,17 +1587,17 @@
         }
       }
     },
-    "/api/returns/export-oc.csv": {
+    "/api/returns/export-oc.xlsx": {
       "get": {
         "operationId": "export_return_oc",
         "tags": [
           "returns"
         ],
-        "summary": "Builds and downloads the Ninja return-OC CSV covering every partial (sebagian) reject still at pending_de_upload whose origin AND PO are known. Each row is tracked as <PO>1 with one piece <PO>1-R01 — deliberately different strings, since the OC system refuses a row whose parcel and piece match. Plain UTF-8 with NO BOM (a BOM sticks to the first header cell and the upload fails), headers exactly the OC template's, and any field containing a comma is quoted. Origin-unknown rows are excluded so nothing ships to the wrong city; PO-unknown rows because they have no tracking number to issue.",
+        "summary": "Builds and downloads the Ninja return-OC workbook covering every partial (sebagian) reject still at pending_de_upload whose origin AND PO are known. Each row is tracked as <PO>1 with one piece <PO>1-R01 — deliberately different strings, since the OC system refuses a row whose parcel and piece match. XLSX since 9 Sep 2026, the same container as the forward upload: every cell is a string cell, so Excel cannot retype a 12-digit phone as 6.28126E+12 or an ISO date as 9/8/2026, which is what a CSV could not prevent. Headers are exactly the OC template's 31, in order. Origin-unknown rows are excluded so nothing ships to the wrong city; PO-unknown rows because they have no tracking number to issue.",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "CSV produced by oc_engine.build_return_csv, UTF-8 without BOM; Content-Disposition: attachment; filename=\"Return-OC-pending.csv\".",
+            "description": "XLSX produced by oc_engine.build_return_xlsx, every cell a string cell; Content-Disposition: attachment; filename=\"Return-OC-pending.xlsx\".",
             "headers": {
               "Content-Disposition": {
                 "schema": {

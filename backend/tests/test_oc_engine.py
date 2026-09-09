@@ -4,6 +4,7 @@ These pin the rules that broke the DE team's spreadsheet converter, so a future 
 the tracking-number scheme has to break a test rather than a live upload.
 """
 import io
+from datetime import date
 
 import openpyxl
 import pytest
@@ -285,11 +286,19 @@ OC_HEADERS = [
 ]
 
 
-def _return_csv(po="26081604253445DR37PY2ML", address="Jl. Uji 1"):
-    return e.build_return_csv([{
+def _return_ws(po="26081604253445DR37PY2ML", address="Jl. Uji 1", phone="628126789012"):
+    """The return OC workbook, read back as openpyxl sees it — cell types included."""
+    data = e.build_return_xlsx([{
         "awb_id": "AWB02U24V", "po_number": po, "pharmacy_name": "Apotek Uji",
-        "phone": "0812", "address": address, "origin": "TMP_DEPOK", "reject_pcs": 3,
+        "phone": phone, "address": address, "origin": "TMP_DEPOK", "reject_pcs": 3,
     }])
+    return openpyxl.load_workbook(io.BytesIO(data)).active
+
+
+def _return_row(**kw):
+    ws = _return_ws(**kw)
+    hdr = [c.value for c in ws[1]]
+    return dict(zip(hdr, ws[2])), hdr
 
 
 def test_the_return_parcel_and_its_piece_are_different_identifiers():
@@ -302,44 +311,70 @@ def test_the_return_parcel_and_its_piece_are_different_identifiers():
         parcel 26081604253445DR37PY2ML1
         piece  26081604253445DR37PY2ML1-R01
     """
-    import csv as _csv
-    rows = list(_csv.DictReader(io.StringIO(_return_csv().decode("utf-8"))))
-    assert len(rows) == 1
-    parcel = rows[0]["requested_tracking_number"]
-    piece = rows[0]["bundle_information.requested_piece_tracking_numbers"]
+    row, _ = _return_row()
+    parcel = row["requested_tracking_number"].value
+    piece = row["bundle_information.requested_piece_tracking_numbers"].value
     assert parcel == "26081604253445DR37PY2ML1"
     assert piece == "26081604253445DR37PY2ML1-R01"
     assert parcel != piece
     # The SwipeAWB keeps its own column — the link back to the forward order is not lost.
-    assert rows[0]["reference.merchant_order_number"] == "AWB02U24V"
+    assert row["reference.merchant_order_number"].value == "AWB02U24V"
 
 
-def test_the_return_oc_is_utf8_with_no_bom_and_exact_headers():
-    """Four things the OC system checks before it will read the file at all.
+def test_excel_cannot_retype_any_cell_in_the_return_oc():
+    """The 9 Sep 2026 fix, pinned on the two columns that were visibly wrong.
 
-    A BOM is the one that bites silently: `\ufeff` sticks to the FIRST header cell, so the
-    system sees a column named `\ufeffrequested_tracking_number`, which it does not have,
-    and the upload fails on a file that looks perfect in Excel.
+    As a CSV this file carried the right bytes and Excel still rewrote them on open, because
+    nothing in a CSV says what a column IS: a 12-digit phone with no leading zero became
+    `6.28126E+12`, and `2026-09-09` became `9/8/2026`. Saving from Excel then uploaded a
+    sender phone that does not exist.
+
+    XLSX can say it. Every cell is written as a STRING cell, which Excel renders verbatim —
+    the same reason the forward upload was never affected. This asserts the cell TYPE, not
+    only the value: a correct value sitting in a numeric cell would still be displayed and
+    re-saved wrong.
     """
-    import csv as _csv
-    data = _return_csv(address="Jl. Melati Raya No. 12, Cakung, Jakarta Timur")
+    row, _ = _return_row(phone="628126789012")
 
-    # 1 + 2. No BOM, and decodable as plain UTF-8.
-    assert not data.startswith(b"\xef\xbb\xbf")
-    text = data.decode("utf-8")
-    assert not text.startswith("\ufeff")
+    phone = row["from.phone_number"]
+    assert phone.value == "628126789012"  # not 628126789012.0, not 6.28126e+12
+    assert phone.data_type == "s"
 
-    # 3. Headers exactly the template's, in order, with nothing clinging to the first one.
-    header = next(_csv.reader(io.StringIO(text)))
+    day = row["parcel_job.delivery_start_date"]
+    assert day.value == date.today().isoformat()  # yyyy-mm-dd, not 9/8/2026
+    assert day.data_type == "s"
+
+    start = row["parcel_job.delivery_timeslot.start_time"]
+    end = row["parcel_job.delivery_timeslot.end_time"]
+    assert (start.value, start.data_type) == ("09:00", "s")
+    assert (end.value, end.data_type) == ("22:00", "s")
+
+    # A leading zero is just as fragile the other way round — Excel strips it off a number.
+    assert _return_row(phone="081234567890")[0]["from.phone_number"].value == "081234567890"
+
+    # And nothing anywhere in the sheet is stored as a number, a date or a boolean. (The
+    # one empty cell reads back as an inline string with no value — nothing for Excel to
+    # retype, so it is not worth forcing into a shared string.)
+    ws = _return_ws()
+    kinds = {c.data_type for r in ws.iter_rows() for c in r}
+    assert not kinds & {"n", "d", "b"}, kinds
+
+
+def test_the_return_oc_headers_are_exactly_the_template():
+    """The header row the OC system matches on, unchanged by the move to XLSX.
+
+    BOM and comma-quoting were CSV problems and are simply gone — a workbook has no encoding
+    preamble and no delimiter, so a comma in an address cannot shift a column. What still has
+    to hold is the header list: exact names, exact order, nothing clinging to the first one.
+    """
+    row, header = _return_row(address="Jl. Melati Raya No. 12, Cakung, Jakarta Timur")
     assert header == OC_HEADERS
     assert header[0] == "requested_tracking_number"
     assert [c for c in header if c != c.strip()] == []
 
-    # 4. A comma inside a field is quoted, so no column can shift under the reader.
-    assert '"Jl. Melati Raya No. 12, Cakung, Jakarta Timur"' in text
-    row = list(_csv.DictReader(io.StringIO(text)))[0]
-    assert row["from.address.address1"] == "Jl. Melati Raya No. 12, Cakung, Jakarta Timur"
-    assert row["from.address.country"] == "ID"  # the column after it did not shift
+    # The address that used to need quoting now needs nothing, and the next column holds.
+    assert row["from.address.address1"].value == "Jl. Melati Raya No. 12, Cakung, Jakarta Timur"
+    assert row["from.address.country"].value == "ID"
 
 
 def test_the_return_oc_does_not_claim_dimensions():
@@ -348,11 +383,6 @@ def test_the_return_oc_does_not_claim_dimensions():
     Baskoro's call, 31 Aug 2026: forward-only. A blank column here would read as a
     measurement that came back empty rather than one that was never taken.
     """
-    import csv as _csv
-    data = e.build_return_csv([{
-        "awb_id": "AWB02U24V", "po_number": "PO-AAA", "pharmacy_name": "Apotek Uji",
-        "phone": "0812", "address": "Jl. Uji 1", "origin": "TMP_DEPOK", "reject_pcs": 3,
-    }])
-    header = next(_csv.reader(io.StringIO(data.decode("utf-8-sig"))))
+    _, header = _return_row(po="PO-AAA")
     assert header == e.FWD_COLS
     assert not [c for c in header if c in e.DIM_COLS]

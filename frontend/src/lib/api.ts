@@ -500,7 +500,9 @@ export const api = {
     /** Bulk-set the origin on rows whose forward order predates origin tracking. */
     setOrigin: (ids: number[], origin: string) =>
       postJson<{ updated: number }>(`/api/returns/origin`, { ids, origin }),
-    exportOcUrl: () => "/api/returns/export-oc.csv",
+    /** XLSX, not CSV: a CSV cannot tell Excel that a 12-digit phone is text, so opening the
+     *  download to check it rewrote 628126789012 as 6.28126E+12. */
+    exportOcUrl: () => "/api/returns/export-oc.xlsx",
     exportRtsUrl: () => "/api/returns/export-rts.csv",
     exportUrl: () => "/api/returns/export.csv",
   },

@@ -310,6 +310,31 @@ with more than one PO line, so nothing could be derived and it could never be ex
 - The devserver seeds a stuck legacy row (`AWBDEMO003`, two PO lines, no PO) so the picker is
   exercisable and the case is visible to whoever works on this next.
 
+---
+
+## Built 9 Sep 2026 — the return OC goes back to .xlsx
+
+Baskoro sent screenshots of the downloaded file open in Excel: `from.phone_number` reading
+**`6.28126E+12`** and `parcel_job.delivery_start_date` reading **`9/8/2026`**.
+
+- **The file was never wrong.** The CSV held `628126789012` and `2026-09-09` as plain text.
+  Excel infers a type per column on open: 12 digits with no leading zero → a number →
+  scientific notation; an ISO date → a date. (`to.phone_number` beside it survived only
+  because its leading `0` stopped Excel reading it as a number.)
+- **It still mattered.** Anyone who opened the download to check it and saved would upload
+  `6.28126E+12` as the sender's phone — a shipment with a phone number that does not exist.
+- **No CSV can prevent it.** Quoting does not (Excel ignores quotes for type inference), nor
+  does a BOM. The tricks that do work — a leading tab, `="…"` — put junk into the value the
+  OC system reads.
+- **So: XLSX**, the same container as the forward upload, into the same Ninja screen
+  (Baskoro confirmed the return upload accepts it). Every cell is written as a **string cell**,
+  which Excel renders verbatim. That is exactly why the forward upload was never affected.
+  `build_return_csv` → `build_return_xlsx`; route `export-oc.csv` → `export-oc.xlsx`.
+- The 8 Sep CSV work does not survive because it no longer applies: a workbook has no encoding
+  preamble and no delimiter, so **BOM and comma-quoting are moot**. The **header** test stays,
+  and gains a companion pinning the **cell TYPE** of the four columns from the screenshots —
+  a right value in a numeric cell would still display and re-save wrong.
+
 ## Still open
 
 - **A partial return spanning TWO POs** is one return against one PO today. If a pharmacy

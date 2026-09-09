@@ -7,9 +7,9 @@ These pin the two properties that make the pipeline trustworthy: a submitted rej
 immediately actionable by DE with nothing queued in front of it, and each closing path
 refuses the other type's rows.
 """
-import csv
 import io
 
+import openpyxl
 import pytest
 
 from conftest import photo
@@ -51,10 +51,14 @@ def _row(c):
 
 
 def _oc_rows(response):
-    """The return OC export, read back as the CSV DE actually hands to Ninja."""
-    rows = list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"))))
-    hdr, body = rows[0], [r for r in rows[1:] if r]
-    return [dict(zip(hdr, r)) for r in body]
+    """The return OC export, read back as the workbook DE actually hands to Ninja.
+
+    XLSX since 9 Sep 2026 — a CSV could not stop Excel retyping the sender phone and the
+    delivery date when someone opened the download to check it.
+    """
+    ws = openpyxl.load_workbook(io.BytesIO(response.content)).active
+    hdr = [c.value for c in ws[1]]
+    return [dict(zip(hdr, [c.value for c in row])) for row in ws.iter_rows(min_row=2)]
 
 
 # ------------------------------------------------------------ entry state ----
@@ -76,7 +80,7 @@ def test_row_lands_on_de_with_the_door_evidence(de_client, rejected):  # noqa: A
 def test_a_fresh_reject_is_immediately_actionable(de_client, rejected):  # noqa: ARG001
     """The old flow returned 404/0 here until a Validator ticked the row first."""
     rid = _row(de_client)["id"]
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 200
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 200
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
 
 
@@ -112,9 +116,13 @@ def test_partial_walks_export_upload_print(de_client, rejected):
 
     # Export: one CSV row built from the PO the courier picked, addressed to the origin
     # warehouse, pcs in col Y. The parcel and its piece must NOT be the same string.
-    r = de_client.get("/api/returns/export-oc.csv")
+    r = de_client.get("/api/returns/export-oc.xlsx")
     assert r.status_code == 200
-    assert r.headers["content-type"].startswith("text/csv")
+    # The workbook content type, so a browser hands it to Excel rather than showing it.
+    assert r.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert "Return-OC-pending.xlsx" in r.headers["content-disposition"]
     rows = _oc_rows(r)
     assert len(rows) == 1
     row = rows[0]
@@ -130,7 +138,7 @@ def test_partial_walks_export_upload_print(de_client, rejected):
     assert r2["stage"] == "pending_print"
     assert r2["return_awb_id"] == f"{PO}1"
     # Once uploaded it leaves the export file.
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
 
     # Printed & labelled -> closed.
     assert de_client.post("/api/returns/mark-printed", json={"ids": [rid]}).json()["updated"] == 1
@@ -146,7 +154,7 @@ def test_pending_print_can_be_sent_back_so_the_oc_csv_can_be_exported(de_client,
     """
     rid = _row(de_client)["id"]
     de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 404  # stranded
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404  # stranded
 
     assert de_client.post("/api/returns/reopen-upload", json={"ids": [rid]}).json()["updated"] == 1
     back = _row(de_client)
@@ -155,7 +163,7 @@ def test_pending_print_can_be_sent_back_so_the_oc_csv_can_be_exported(de_client,
     assert back["return_awb_id"] is None  # the <PO>1 was never really issued
 
     # The whole point: the OC CSV is exportable again, unchanged.
-    r = de_client.get("/api/returns/export-oc.csv")
+    r = de_client.get("/api/returns/export-oc.xlsx")
     assert r.status_code == 200
     assert _oc_rows(r)[0]["requested_tracking_number"] == f"{PO}1"
 
@@ -201,7 +209,7 @@ def test_station_ic_flags_the_row_and_de_sends_it_back(client, de_client, reject
     back = _row(client)
     assert back["stage"] == "pending_de_upload"
     assert back["flagged"] is False  # answered — a stale flag would send DE looking twice
-    assert client.get("/api/returns/export-oc.csv").status_code == 200
+    assert client.get("/api/returns/export-oc.xlsx").status_code == 200
 
 
 def test_superadmin_can_do_every_move_on_the_lane(client, de_client, rejected):  # noqa: ARG001
@@ -216,7 +224,7 @@ def test_superadmin_can_do_every_move_on_the_lane(client, de_client, rejected): 
     client.post("/api/auth/dev-login", json={"email": "admin@ninjavan.co"})
 
     # DE's moves.
-    assert client.get("/api/returns/export-oc.csv").status_code == 200
+    assert client.get("/api/returns/export-oc.xlsx").status_code == 200
     assert client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
     # Station IC's move — the one a DE-only account is offered but does not need.
     assert client.post("/api/returns/flag", json={"ids": [rid], "note": "cek"}).json()["updated"] == 1
@@ -339,7 +347,7 @@ def test_a_row_with_no_po_is_held_out_of_the_export(de_client, dbs, rejected):
     row = _row(de_client)
     assert row["po_unknown"] is True
     assert row["po_number"] is None  # two PO lines on the AWB — nothing to fall back to
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
     assert de_client.post(
         "/api/returns/mark-uploaded", json={"ids": [row["id"]]}
     ).status_code == 409
@@ -383,7 +391,7 @@ def test_superadmin_can_fill_in_a_missing_po_by_hand(client, de_client, dbs, rej
     assert fixed["po_options"] == []  # nothing left to choose
 
     # Unstuck: it exports, with the tracking number built from the PO just supplied.
-    assert _oc_rows(client.get("/api/returns/export-oc.csv"))[0][
+    assert _oc_rows(client.get("/api/returns/export-oc.xlsx"))[0][
         "requested_tracking_number"] == "PO-BBB1"
 
 
@@ -443,7 +451,7 @@ def test_a_legacy_row_on_a_single_po_awb_needs_no_choice(de_client, dbs, rejecte
     row = _row(de_client)
     assert row["po_number"] == "PO-AAA"
     assert row["po_unknown"] is False
-    assert _oc_rows(de_client.get("/api/returns/export-oc.csv"))[0][
+    assert _oc_rows(de_client.get("/api/returns/export-oc.xlsx"))[0][
         "requested_tracking_number"] == "PO-AAA1"
 
 
@@ -467,14 +475,14 @@ def test_origin_unknown_blocks_the_oc_export_until_bulk_set(de_client, dbs, reje
     )
     r = _row(de_client)
     assert r["origin_unknown"] is True
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).status_code == 409
 
     assert de_client.post(
         "/api/returns/origin", json={"ids": [rid], "origin": "TMP_SURABAYA"}
     ).json()["updated"] == 1
     assert _row(de_client)["origin_unknown"] is False
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 200
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 200
 
 
 # ------------------------------------------------------- semua: RTS pipeline --
@@ -483,7 +491,7 @@ def test_full_refusal_closes_by_rts_and_never_prints(de_client, fully_rejected):
     assert _row(de_client)["closes_by"] == "rts"
 
     # The full refusal never appears in the OC export — no new AWB exists for it.
-    assert de_client.get("/api/returns/export-oc.csv").status_code == 404
+    assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
     # And the print path refuses it outright.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 0
 

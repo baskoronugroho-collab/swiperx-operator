@@ -348,8 +348,8 @@
             is built from the <b>PO the driver picked at the door</b>: the parcel is
             <span class="id mono">&lt;PO&gt;1</span> and its single piece is
             <span class="id mono">&lt;PO&gt;1-R01</span>. DE sets the <b>origin</b> on any row the
-            original order never recorded one for, exports the return OC as a <b>CSV</b>, uploads it to
-            Ninja, then marks it uploaded and the row moves to Pending Print.</p>
+            original order never recorded one for, exports the return OC as an <b>.xlsx</b>, uploads it
+            to Ninja, then marks it uploaded and the row moves to Pending Print.</p>
           </div>
           <div class="call">
             <span class="lbl">Retur semua &mdash; the whole delivery refused</span>
@@ -547,7 +547,7 @@
             <b>Origin unknown</b> filter is <b>excluded from the OC export</b> so a return can never
             ship to the wrong warehouse. Bulk-set them with <b>Set Depok</b> / <b>Set Surabaya</b>
             and they join the file.</li>
-          <li><b>DE, partial returns</b> &mdash; press <b>Export return OC (.csv)</b> (one
+          <li><b>DE, partial returns</b> &mdash; press <b>Export return OC (.xlsx)</b> (one
             <span class="id mono">&lt;PO&gt;1</span> row per reject, origin pre-filled), upload it to
             Ninja, then <b>Mark OC uploaded</b>.</li>
           <li><b>DE, whole refusals</b> &mdash; same tab: <b>Export RTS list</b> and
@@ -756,17 +756,19 @@
       </div>
 
       <div class="card">
-        <h3>The return OC file is for the machine, not for Excel</h3>
+        <h3>The return OC is an .xlsx, and that is deliberate</h3>
         <p class="body">
-          <b>Do not open it in Excel and re-save it.</b> Excel writes the file back with a
-          <b>BOM</b> &mdash; three invisible bytes that stick to the first column name, so the OC
-          system reads <span class="id mono">requested_tracking_number</span> as a column it does not
-          have and rejects the upload on a file that looks perfect on screen.
+          It was a <span class="id mono">.csv</span> until 9 Sep 2026, and the CSV was safe to
+          upload but <b>not safe to open</b>. Nothing in a CSV tells Excel what a column
+          <em>is</em>, so opening one to check it rewrote the sender phone
+          <span class="id mono">628126789012</span> as <span class="id mono">6.28126E+12</span> and
+          the date <span class="id mono">2026-09-09</span> as <span class="id mono">9/8/2026</span>.
+          Saving from Excel then uploaded a phone number that does not exist.
         </p>
         <p class="body">
-          The download is already exactly what the system wants: UTF-8 <b>without</b> BOM, the
-          template&rsquo;s 31 headers in order, and addresses quoted so a comma cannot shift a column.
-          Upload the file as it came out.
+          The workbook writes every cell as <b>text</b>, so Excel shows it exactly as it is and
+          cannot reinterpret it &mdash; the same reason the forward upload never had this problem.
+          <b>Open it, check it, upload it.</b> Same 31 columns in the same order as before.
         </p>
       </div>
 

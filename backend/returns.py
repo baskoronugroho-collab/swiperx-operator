@@ -9,8 +9,9 @@ front of it any more:
 * A PARTIAL return (`sebagian`) needs a new AWB, built from the PO the courier picked at the
   door: parcel `<PO>1`, its one piece `<PO>1-R01` (8 Sep 2026 — they used to be the same
   `<SwipeAWB>-R01` string, which the OC system rejects). DE sets the origin if the forward
-  order never recorded one, exports the return OC CSV, uploads it to Ninja and marks it
-  uploaded; Station IC then prints, labels and repacks.
+  order never recorded one, exports the return OC (**.xlsx** since 9 Sep, same container as
+  the forward upload), uploads it to Ninja and marks it uploaded; Station IC then prints,
+  labels and repacks.
 * A FULL refusal (`semua`) never gets a new AWB and never reaches print: RTS is triggered
   on the original forward tracking number, marked in bulk and exported as a list.
 
@@ -240,9 +241,9 @@ def _exportable_oc(rows: list[dict]) -> list[dict]:
             and not r["origin_unknown"] and not r["po_unknown"]]
 
 
-@router.get("/export-oc.csv")
+@router.get("/export-oc.xlsx")
 async def export_return_oc(_: dict = Depends(de_roles)):
-    """The return OC CSV for every partial reject awaiting upload.
+    """The return OC workbook for every partial reject awaiting upload.
 
     One row per reject, tracking number `<PO>1` with a single piece `<PO>1-R01`, addressed
     from the pharmacy back to the origin warehouse recorded on the forward order.
@@ -252,11 +253,15 @@ async def export_return_oc(_: dict = Depends(de_roles)):
     why setting the origin comes before the export. And PO-unknown, because the tracking
     number is built from the PO and there is nothing to build it from; those are legacy rows
     filed before the courier was asked, and no desk can answer for them.
+
+    XLSX, not CSV, since 9 Sep 2026 — see `oc_engine.build_return_xlsx`. Short version: a CSV
+    cannot tell Excel that `628126789012` is a phone number and not a quantity, so anyone who
+    opened the download to check it turned the sender's phone into `6.28126E+12`.
     """
     rows = _exportable_oc(await _rows())
     if not rows:
         raise HTTPException(status_code=404, detail="no_exportable_rows")
-    data = oc_engine.build_return_csv([{
+    data = oc_engine.build_return_xlsx([{
         "awb_id": r["original_awb_id"],
         "po_number": r["po_number"],
         "pharmacy_name": r["pharmacy_name"] or "",
@@ -267,8 +272,8 @@ async def export_return_oc(_: dict = Depends(de_roles)):
     } for r in rows])
     return Response(
         content=data,
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="Return-OC-pending.csv"'},
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="Return-OC-pending.xlsx"'},
     )
 
 
