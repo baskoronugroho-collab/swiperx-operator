@@ -6,9 +6,9 @@ front of it any more:
     pending_de_upload ──▶ pending_print ──▶ printed      (sebagian)
     pending_de_upload ──▶ rts_triggered                  (semua)
 
-* A PARTIAL return (`sebagian`) needs a new AWB, built from the PO the courier picked at the
-  door: parcel `<PO>1`, its one piece `<PO>1-R01` (8 Sep 2026 — they used to be the same
-  `<SwipeAWB>-R01` string, which the OC system rejects). DE sets the origin if the forward
+* A PARTIAL return (`sebagian`) needs a new AWB: parcel `<AWB>-R`, its one piece `<PO>1-R01`
+  built from the PO the courier picked at the door (11 Sep 2026 — the parcel and piece must
+  stay different strings, or the OC system rejects the row). DE sets the origin if the forward
   order never recorded one, exports the return OC (**.xlsx** since 9 Sep, same container as
   the forward upload), uploads it to Ninja and marks it uploaded; Station IC then prints,
   labels and repacks.

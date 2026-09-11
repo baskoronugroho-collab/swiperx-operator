@@ -179,8 +179,8 @@ export default function RejectReturns() {
             the moment it&rsquo;s submitted. A <strong className="font-semibold text-ink">partial</strong>{" "}
             return gets its origin set if the forward order never recorded one, then its return
             OC exported as XLSX, uploaded to Ninja and printed — tracked as{" "}
-            <span className="font-mono">&lt;PO&gt;1</span>, built from the PO the courier picked at
-            the door. A <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
+            <span className="font-mono">&lt;AWB&gt;-R</span>, built from the forward AWB. A{" "}
+            <strong className="font-semibold text-ink">whole-delivery refusal</strong> is
             bulk-marked <strong className="font-semibold text-ink">RTS</strong> on its original AWB —
             no new tracking number, no print step.
           </p>
