@@ -87,33 +87,28 @@ def origins() -> list[dict]:
             for k, v in CFG.get("origins", {}).items()]
 
 
-def return_trid(po_number: str) -> str:
-    """The return PARCEL tracking number for a partial reject: the PO number + `1`.
+def return_trid(awb_id: str) -> str:
+    """The return PARCEL tracking number for a partial reject: the forward AWB + `-R`.
 
-        26081604253445DR37PY2ML  ->  26081604253445DR37PY2ML1
+        AWB030UH5  ->  AWB030UH5-R
 
-    Changed 8 Sep 2026. It used to be `<SwipeAWB>-R01`, which was ALSO what went into
-    `bundle_information.requested_piece_tracking_numbers` — and the OC system refuses a row
-    whose parcel and piece carry the same identifier. Separating them meant giving the parcel
-    an identifier of its own, and the PO is the natural parent: the returned goods belong to
-    one PO, not to the whole consignment.
-
-    Which is why the courier is now asked WHICH PO the goods came from at the door. Nobody
-    downstream can answer that, so a row without a PO cannot be exported at all.
+    Changed 11 Sep 2026 back to the forward AWB (was the PO number + `1` between 8 and
+    11 Sep). Kept distinct from the piece id below so the parcel and its single child never
+    carry the same identifier — the OC system refuses a row when they do.
     """
-    return f"{po_number}1"
+    return f"{awb_id}-R"
 
 
 def return_piece_trid(po_number: str) -> str:
-    """The single child piece of that return parcel: the parcel number + `-R01`.
+    """The single child piece of that return parcel: the PO number + `1` + `-R01`.
 
         26081604253445DR37PY2ML  ->  26081604253445DR37PY2ML1-R01
 
-    Still `-R01` and never `-R02` — a second return on the same PO is not something the
-    process produces (confirmed 19 Aug 2026). The suffix simply moved down a level, from the
-    parcel to its piece, so that the two columns can no longer collide.
+    PO-based and independent of `return_trid`, so the parcel (`<AWB>-R`) and its piece
+    (`<PO>1-R01`) can never collide. The courier is asked WHICH PO the goods came from at
+    the door; a row without a PO has no piece id and cannot be exported at all.
     """
-    return f'{return_trid(po_number)}{CFG["return_oc"]["suffix"]}'
+    return f'{po_number}1{CFG["return_oc"]["suffix"]}'
 
 
 def build_return_xlsx(rows: list[dict], today: str | None = None) -> bytes:
@@ -136,7 +131,7 @@ def build_return_xlsx(rows: list[dict], today: str | None = None) -> bytes:
 
     The parcel and that one child must NOT carry the same identifier — the OC system rejects
     the row when they do, which is what happened while both were `<SwipeAWB>-R01`. Since
-    8 Sep 2026 the parcel is `<PO>1` and the piece is `<PO>1-R01`; see `return_trid`.
+    11 Sep 2026 the parcel is `<AWB>-R` and the piece is `<PO>1-R01`; see `return_trid`.
 
     The direction is reversed against a forward row: `from` is the pharmacy, `to` is the
     ORIGIN warehouse the delivery shipped out of. That is why origin is stamped on every AWB
@@ -157,7 +152,7 @@ def build_return_xlsx(rows: list[dict], today: str | None = None) -> bytes:
     ws.append(FWD_COLS)
     for a in rows:
         o = CFG["origins"][a["origin"]]
-        trid = return_trid(a["po_number"])
+        trid = return_trid(a["awb_id"])
         row = {
             "requested_tracking_number": trid,
             "global_shipper_id": CFG["master_shipper_id"],

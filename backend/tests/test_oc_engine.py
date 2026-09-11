@@ -304,17 +304,18 @@ def _return_row(**kw):
 def test_the_return_parcel_and_its_piece_are_different_identifiers():
     """The bug this shape exists to fix: the OC system refuses a row where they match.
 
-    Both columns used to carry `<SwipeAWB>-R01`. Now the parcel is the PO + "1" and the
-    piece is that + "-R01" — Baskoro's worked example, 8 Sep 2026, pinned verbatim:
+    Both columns used to carry `<SwipeAWB>-R01`. As of 11 Sep 2026 the parcel is the
+    forward AWB + "-R" and the piece is the PO + "1" + "-R01":
 
+        AWB    AWB02U24V
         PO     26081604253445DR37PY2ML
-        parcel 26081604253445DR37PY2ML1
+        parcel AWB02U24V-R
         piece  26081604253445DR37PY2ML1-R01
     """
     row, _ = _return_row()
     parcel = row["requested_tracking_number"].value
     piece = row["bundle_information.requested_piece_tracking_numbers"].value
-    assert parcel == "26081604253445DR37PY2ML1"
+    assert parcel == "AWB02U24V-R"
     assert piece == "26081604253445DR37PY2ML1-R01"
     assert parcel != piece
     # The SwipeAWB keeps its own column — the link back to the forward order is not lost.

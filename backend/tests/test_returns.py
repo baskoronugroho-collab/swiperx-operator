@@ -126,17 +126,17 @@ def test_partial_walks_export_upload_print(de_client, rejected):
     rows = _oc_rows(r)
     assert len(rows) == 1
     row = rows[0]
-    assert row["requested_tracking_number"] == f"{PO}1"
+    assert row["requested_tracking_number"] == f"{rejected['awb_id']}-R"
     assert row["bundle_information.requested_piece_tracking_numbers"] == f"{PO}1-R01"
     assert row["reference.merchant_order_number"] == rejected["awb_id"]
     assert row["to.address.city"] == "Depok"
     assert row["parcel_job.items.0.item_description"] == "3"
 
-    # Mark uploaded -> Pending Print, with <PO>1 stamped for IC's OPV2 search.
+    # Mark uploaded -> Pending Print, with <AWB>-R stamped for IC's OPV2 search.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
     r2 = _row(de_client)
     assert r2["stage"] == "pending_print"
-    assert r2["return_awb_id"] == f"{PO}1"
+    assert r2["return_awb_id"] == f"{rejected['awb_id']}-R"
     # Once uploaded it leaves the export file.
     assert de_client.get("/api/returns/export-oc.xlsx").status_code == 404
 
@@ -160,12 +160,12 @@ def test_pending_print_can_be_sent_back_so_the_oc_csv_can_be_exported(de_client,
     back = _row(de_client)
     assert back["stage"] == "pending_de_upload"
     assert back["de_uploaded_at"] is None
-    assert back["return_awb_id"] is None  # the <PO>1 was never really issued
+    assert back["return_awb_id"] is None  # the <AWB>-R was never really issued
 
     # The whole point: the OC CSV is exportable again, unchanged.
     r = de_client.get("/api/returns/export-oc.xlsx")
     assert r.status_code == 200
-    assert _oc_rows(r)[0]["requested_tracking_number"] == f"{PO}1"
+    assert _oc_rows(r)[0]["requested_tracking_number"] == f"{rejected['awb_id']}-R"
 
     # And the row walks forward again from there.
     assert de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]}).json()["updated"] == 1
@@ -390,9 +390,9 @@ def test_superadmin_can_fill_in_a_missing_po_by_hand(client, de_client, dbs, rej
     assert fixed["po_unknown"] is False
     assert fixed["po_options"] == []  # nothing left to choose
 
-    # Unstuck: it exports, with the tracking number built from the PO just supplied.
+    # Unstuck: it exports, with the tracking number built from the forward AWB.
     assert _oc_rows(client.get("/api/returns/export-oc.xlsx"))[0][
-        "requested_tracking_number"] == "PO-BBB1"
+        "requested_tracking_number"] == f"{rejected['awb_id']}-R"
 
 
 def test_filling_a_po_in_by_hand_is_bounded_and_logged(client, dbs, rejected):
@@ -452,7 +452,7 @@ def test_a_legacy_row_on_a_single_po_awb_needs_no_choice(de_client, dbs, rejecte
     assert row["po_number"] == "PO-AAA"
     assert row["po_unknown"] is False
     assert _oc_rows(de_client.get("/api/returns/export-oc.xlsx"))[0][
-        "requested_tracking_number"] == "PO-AAA1"
+        "requested_tracking_number"] == f"{rejected['awb_id']}-R"
 
 
 async def _strip(dbs, awb_id):
@@ -525,7 +525,7 @@ def test_csv_export_carries_the_full_trail(de_client, rejected):
     rid = _row(de_client)["id"]
     de_client.post("/api/returns/mark-uploaded", json={"ids": [rid]})
     text = de_client.get("/api/returns/export.csv").text
-    assert f"{PO}1" in text
+    assert f"{rejected['awb_id']}-R" in text
     assert PO in text  # the PO itself, so the trail says which one came back
     assert "pending_print" in text
     # The validator columns survive as history for rows stamped under the old flow.

@@ -284,9 +284,9 @@ async def mark_uploaded_bulk(
 ):
     """DE confirms the exported return OC went into Ninja — rows move to Pending Print.
 
-    Stamps the generated `<PO>1` on the row so Station IC has the tracking number to search
-    in OPV2 without deriving anything. A row with no PO has no such number and is refused
-    here for the same reason it is held out of the export.
+    Stamps the generated `<AWB>-R` on the row so Station IC has the tracking number to
+    search in OPV2 without deriving anything. A row with no PO has no such number and is
+    refused here for the same reason it is held out of the export.
     """
     if not ids:
         raise HTTPException(status_code=400, detail="no_ids")
@@ -300,7 +300,7 @@ async def mark_uploaded_bulk(
             await db.execute(
                 "UPDATE return_parcel SET de_uploaded_at = NOW(), de_uploaded_by = %s, "
                 "return_awb_id = %s, updated_at = NOW() WHERE id = %s",
-                (user["id"], oc_engine.return_trid(r["po_number"])[:40], r["id"]),
+                (user["id"], oc_engine.return_trid(r["original_awb_id"])[:40], r["id"]),
             )
             updated += 1
     await db.execute(
