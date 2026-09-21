@@ -87,6 +87,11 @@ def origins() -> list[dict]:
             for k, v in CFG.get("origins", {}).items()]
 
 
+def hubs() -> list[str]:
+    """Hub names the operator can tag a batch with at intake."""
+    return list(CFG.get("hubs", []))
+
+
 def return_trid(awb_id: str) -> str:
     """The return PARCEL tracking number for a partial reject: the forward AWB + `-R`.
 

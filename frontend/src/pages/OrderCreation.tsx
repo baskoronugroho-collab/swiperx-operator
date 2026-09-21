@@ -15,6 +15,8 @@ export default function OrderCreation() {
   const [service, setService] = useState("");
   const [origins, setOrigins] = useState<Origin[]>([]);
   const [origin, setOrigin] = useState("");
+  const [hubs, setHubs] = useState<string[]>([]);
+  const [hubName, setHubName] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(today());
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<OcPreview | null>(null);
@@ -30,6 +32,7 @@ export default function OrderCreation() {
         setServices(r.services);
         setService((s) => s || r.services[0]?.code || "");
         setOrigins(r.origins ?? []);
+        setHubs(r.hubs ?? []);
         setOrigin((o) => o || r.origins?.[0]?.code || "");
       })
       .catch(() => setError("Couldn’t load the service list."));
@@ -67,7 +70,7 @@ export default function OrderCreation() {
     setBusy("create");
     setError(null);
     try {
-      setResult(await api.oc.create(service, file, deliveryDate, origin));
+      setResult(await api.oc.create(service, file, deliveryDate, origin, hubName));
     } catch (err) {
       setError(describe(err));
     } finally {
@@ -130,6 +133,21 @@ export default function OrderCreation() {
               {origins.map((o) => (
                 <option key={o.code} value={o.code}>
                   {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Hub name" hint="Optional — the hub this batch is for.">
+            <select
+              className={inputClass}
+              value={hubName}
+              onChange={(e) => setHubName(e.target.value)}
+            >
+              <option value="">— none —</option>
+              {hubs.map((h) => (
+                <option key={h} value={h}>
+                  {h}
                 </option>
               ))}
             </select>
@@ -418,6 +436,7 @@ function describe(err: unknown): string {
     no_valid_awbs: "No valid AWBs were found in this file.",
     bad_delivery_date: "The pickup date isn’t valid.",
     bad_origin: "Pick which warehouse this batch ships out of.",
+    bad_hub: "That hub isn’t in the list — reload the page and pick again.",
     all_awbs_already_exist:
       "Every AWB in this file already exists, so nothing was created. Note that re-uploading "
       + "a corrected file does NOT update an existing AWB — it is skipped.",

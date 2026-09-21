@@ -386,18 +386,19 @@ export const api = {
   },
 
   oc: {
-    services: () => get<{ services: Service[]; origins: Origin[] }>("/api/oc/services"),
+    services: () => get<{ services: Service[]; origins: Origin[]; hubs?: string[] }>("/api/oc/services"),
     preview: (service: string, file: File) => {
       const fd = new FormData();
       fd.append("service", service);
       fd.append("file", file);
       return postForm<OcPreview>("/api/oc/preview", fd);
     },
-    create: (service: string, file: File, deliveryDate: string | undefined, origin: string) => {
+    create: (service: string, file: File, deliveryDate: string | undefined, origin: string, hubName?: string) => {
       const fd = new FormData();
       fd.append("service", service);
       fd.append("file", file);
       fd.append("origin", origin);
+      if (hubName) fd.append("hub_name", hubName);
       if (deliveryDate) fd.append("delivery_date", deliveryDate);
       return postForm<OcCreateResult>("/api/oc/create", fd);
     },

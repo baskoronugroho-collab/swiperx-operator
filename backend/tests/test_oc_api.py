@@ -195,3 +195,23 @@ def test_delete_intake_refuses_once_a_courier_has_filed_anything(de_client):
     assert r.json()["detail"] == "intake_has_courier_activity"
     # And nothing was deleted.
     assert de_client.get(f"/api/oc/intakes/{iid}").status_code == 200
+
+
+def test_services_list_the_hub_choices(de_client):
+    hubs = de_client.get("/api/oc/services").json()["hubs"]
+    assert hubs == ["MAC-UT5", "MAC-MA5", "MAC-KM5", "MAC-CB5", "MAC-KJ5", "MAC-KD5", "MAC-CP5"]
+
+
+def test_hub_name_is_optional_validated_and_stored_on_the_awb(de_client):
+    bad = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK", "hub_name": "NOPE"}, files=tmp_upload()
+    )
+    assert bad.status_code == 400 and bad.json()["detail"] == "bad_hub"
+
+    r = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK", "hub_name": "MAC-KD5"}, files=tmp_upload()
+    )
+    assert r.status_code == 201, r.text
+    first = de_client.get(f"/api/oc/intakes/{r.json()['intake_id']}").json()["awbs"][0]
+    token = first["courier_url"].rsplit("/", 1)[-1]
+    assert de_client.get(f"/api/c/{token}/order").json()["hub_name"] == "MAC-KD5"

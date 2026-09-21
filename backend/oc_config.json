@@ -135,6 +135,7 @@
   "master_shipper_name": "PT Teknologi Medika Pratama (B2BR)",
   "_shipper_names_comment": "Added 26 Jul 2026 for FR-OC1: picking a service shows read-only shipper id/name/branch. Source: the DE team's converter Config sheet.",
   "_origins_comment": "The two SwipeRx warehouses a delivery can ship out of. The origin is chosen at Order creation and STORED on every AWB in the batch, so a return can be addressed back to where it actually came from instead of being looked up by hand. On a return OC row this block fills the `to.*` columns (J-Q) — get it wrong and the parcel goes to the wrong city. `warehouse` above is the legacy single-origin block and still drives forward rows; it is identical to TMP_DEPOK.",
+  "hubs": ["MAC-UT5", "MAC-MA5", "MAC-KM5", "MAC-CB5", "MAC-KJ5", "MAC-KD5", "MAC-CP5"],
   "origins": {
     "TMP_DEPOK": {
       "label": "TMP Depok",

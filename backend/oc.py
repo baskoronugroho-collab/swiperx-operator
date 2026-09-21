@@ -79,7 +79,8 @@ async def _parse_upload(service: str, file: UploadFile) -> tuple[bytes, dict]:
 
 @router.get("/services")
 async def list_services(_: dict = Depends(intake_roles)):
-    return {"services": oc_engine.services(), "origins": oc_engine.origins()}
+    return {"services": oc_engine.services(), "origins": oc_engine.origins(),
+            "hubs": oc_engine.hubs()}
 
 
 @router.post("/preview")
@@ -102,6 +103,7 @@ async def preview(service: str = Form(...), file: UploadFile = File(...),
 async def create(service: str = Form(...), file: UploadFile = File(...),
                  delivery_date: str | None = Form(default=None),
                  origin: str = Form(...),
+                 hub_name: str | None = Form(default=None),
                  user: dict = Depends(intake_roles)):
     """Commit the batch: persist AWBs + tokens and generate the NV upload .xlsx + links.csv.
 
@@ -110,6 +112,9 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
     """
     day = _parse_delivery_date(delivery_date)
     origin = _parse_origin(origin)
+    hub_name = (hub_name or "").strip() or None
+    if hub_name and hub_name not in oc_engine.hubs():
+        raise HTTPException(status_code=400, detail="bad_hub")
     data, result = await _parse_upload(service, file)
     awbs = result["awbs"]
     if not awbs:
@@ -138,11 +143,11 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
         await db.execute(
             "INSERT INTO awb (awb_id, merchant_order_number, service_id, pharmacy_name, address, city, "
             "postcode, phone, weight, koli, link_token, status, return_type, is_return, invoice, "
-            "item_detail, delivery_instructions, created_by, intake_id, origin) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'created','none',%s,%s,%s,%s,%s,%s,%s)",
+            "item_detail, delivery_instructions, created_by, intake_id, origin, hub_name) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'created','none',%s,%s,%s,%s,%s,%s,%s,%s)",
             (a["awb_id"], a["merchant_order_number"], service, a["pharmacy_name"], a["address"], a["city"],
              a["postcode"], a["phone"], a["weight"], a["collies"], token, 1 if a["is_return"] else 0,
-             a["invoice"], a["item_detail"], a["delivery_instructions"], user["id"], intake_id, origin),
+             a["invoice"], a["item_detail"], a["delivery_instructions"], user["id"], intake_id, origin, hub_name),
         )
         for p in a["po_lines"]:
             await db.execute(
