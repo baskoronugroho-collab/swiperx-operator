@@ -497,9 +497,7 @@ def delivery_instructions(service_code: str, awb: dict, url: str) -> str:
 def _item_description(awb: dict) -> str:
     if awb["is_return"]:
         return CFG["fixed"]["item_description_return"]
-    total = awb["collies"]
-    parts = ", ".join(f'{p["po_number"]} ({p["koli"]})' for p in awb["po_lines"])
-    return f"{parts} — {total} koli"
+    return ""
 
 
 def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today: str) -> dict:

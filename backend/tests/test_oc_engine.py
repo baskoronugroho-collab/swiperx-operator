@@ -102,9 +102,9 @@ def test_weight_is_the_awb_total_not_a_hardcoded_one():
     assert rows[0]["parcel_job.dimensions.weight"] == "16.1"
 
 
-def test_item_description_carries_the_po_cross_check():
+def test_forward_item_description_is_blank():
     _, rows = _rows("S1", [_awb()])
-    assert rows[0]["parcel_job.items.0.item_description"] == "PO1 (2), PO2 (1), PO3 (1) — 4 koli"
+    assert rows[0]["parcel_job.items.0.item_description"] in (None, "")
 
 
 @pytest.mark.parametrize(
