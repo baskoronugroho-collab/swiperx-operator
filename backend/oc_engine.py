@@ -505,6 +505,11 @@ def _item_description(awb: dict) -> str:
     return ""
 
 
+def _with_hub(address: str, hub_name: str | None) -> str:
+    """Forward col L: the pharmacy address followed by the last 3 characters of the hub name."""
+    return f"{address} {hub_name[-3:]}" if hub_name else address
+
+
 def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today: str) -> dict:
     """One NV upload row = one AWB = one MPS order (guide §2.3: 1 WP = 1 MPS TRID = 1 SwipeAWB).
 
@@ -555,7 +560,8 @@ def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today
         row.update({
             "from.name": wh["name"], "from.phone_number": wh["phone"], "from.address.address1": wh["address1"],
             "from.address.country": wh["country"],
-            "to.name": awb["pharmacy_name"], "to.phone_number": awb["phone"], "to.address.address1": awb["address"],
+            "to.name": awb["pharmacy_name"], "to.phone_number": awb["phone"],
+            "to.address.address1": _with_hub(awb["address"], awb.get("hub_name")),
             "to.address.city": awb["city"], "to.address.postcode": awb["postcode"],
             "parcel_job.dimensions.weight": awb["weight"] or "1",
             "parcel_job.is_pickup_required": fx["is_pickup_required_forward"],

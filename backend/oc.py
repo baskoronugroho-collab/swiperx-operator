@@ -134,6 +134,7 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
             continue
         token = secrets.token_urlsafe(24)
         a["token"] = token
+        a["hub_name"] = hub_name
         # The courier link is the SPA wizard route: {base}/c/{token} (guide §2.4). Both
         # /c/* and /api/c/* are allowlisted past the platform SSO gateway, so a rider with
         # no Google account can open it. Links printed before 27 Jul used /api/c/<token>;

@@ -107,6 +107,14 @@ def test_forward_item_description_is_blank():
     assert rows[0]["parcel_job.items.0.item_description"] in (None, "")
 
 
+def test_forward_address_gets_the_last_3_letters_of_the_hub():
+    addr = "15120-Jalan Pondok Rajeg RT 01 RW 01, Kota Depok, Provinsi Jawa Barat,"
+    _, rows = _rows("S1", [_awb(address=addr, hub_name="MAC-KD5")])
+    assert rows[0]["to.address.address1"] == addr + " KD5"
+    _, rows = _rows("S1", [_awb(address=addr)])
+    assert rows[0]["to.address.address1"] == addr
+
+
 @pytest.mark.parametrize(
     ("service", "level", "branch"), [("S1", "STANDARD", "1"), ("S2", "SAMEDAY", "3")]
 )
