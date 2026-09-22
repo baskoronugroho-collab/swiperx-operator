@@ -662,7 +662,7 @@
         "tags": [
           "oc"
         ],
-        "summary": "Returns the enabled OC service definitions (code, movement, service level, direction, branch and shipper identity) together with the warehouse origins, so the intake form can populate its service and origin pickers.",
+        "summary": "Returns the enabled OC service definitions (code, movement, service level, direction, branch and shipper identity) together with the warehouse origins and the hub names a batch can be tagged with, so the intake form can populate its service, origin and hub pickers.",
         "parameters": [],
         "responses": {
           "200": {
@@ -673,7 +673,8 @@
                   "type": "object",
                   "required": [
                     "services",
-                    "origins"
+                    "origins",
+                    "hubs"
                   ],
                   "properties": {
                     "services": {
@@ -687,6 +688,13 @@
                       "items": {
                         "$ref": "#/components/schemas/Origin"
                       }
+                    },
+                    "hubs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Hub names (from oc_config.json `hubs`, e.g. MAC-UT5) accepted as `hub_name` on POST /api/oc/create."
                     }
                   }
                 }
@@ -834,6 +842,11 @@
                   "origin": {
                     "type": "string",
                     "description": "Origin warehouse code; must be a key of the configured origins (see GET /api/oc/services)."
+                  },
+                  "hub_name": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional hub stored on every AWB in the batch; must be one of `hubs` from GET /api/oc/services. Omitted or blank stores no hub."
                   }
                 }
               },
@@ -857,7 +870,7 @@
             }
           },
           "400": {
-            "description": "detail is \"bad_delivery_date\" (not ISO yyyy-mm-dd), \"bad_origin\" (missing or not a configured origin), \"unknown_service\", or \"empty_file\".",
+            "description": "detail is \"bad_delivery_date\" (not ISO yyyy-mm-dd), \"bad_origin\" (missing or not a configured origin), \"bad_hub\" (hub_name given but not a configured hub), \"unknown_service\", or \"empty_file\".",
             "content": {
               "application/json": {
                 "schema": {
