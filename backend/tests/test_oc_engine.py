@@ -107,12 +107,14 @@ def test_forward_item_description_is_blank():
     assert rows[0]["parcel_job.items.0.item_description"] in (None, "")
 
 
-def test_forward_address_gets_the_last_3_letters_of_the_hub():
-    addr = "15120-Jalan Pondok Rajeg RT 01 RW 01, Kota Depok, Provinsi Jawa Barat,"
-    _, rows = _rows("S1", [_awb(address=addr, hub_name="MAC-KD5")])
-    assert rows[0]["to.address.address1"] == addr + " KD5"
-    _, rows = _rows("S1", [_awb(address=addr)])
-    assert rows[0]["to.address.address1"] == addr
+def test_forward_wh_address_gets_the_last_3_letters_of_the_hub():
+    """Col H — the SwipeRx WH address, not col L (the pharmacy address, untouched)."""
+    _, rows = _rows("S1", [_awb(hub_name="MAC-KD5")])
+    wh_addr = e.CFG["warehouse"]["address1"]
+    assert rows[0]["from.address.address1"] == wh_addr + " KD5"
+    assert rows[0]["to.address.address1"] == _awb()["address"]
+    _, rows = _rows("S1", [_awb()])
+    assert rows[0]["from.address.address1"] == wh_addr
 
 
 @pytest.mark.parametrize(
