@@ -20,7 +20,14 @@
       "direction": "forward",
       "layout": "forward_sameday",
       "shipper_id": "11549046",
-      "shipper_name": "PT Teknologi Medika Pratama Sameday CTM (B2BR)"
+      "shipper_name": "PT Teknologi Medika Pratama Sameday CTM (B2BR)",
+      "origin_overrides": {
+        "TMP_SURABAYA": {
+          "shipper_id": "11798671",
+          "shipper_name": "Sameday SUB CTM - PT Teknologi Medika Pratama (B2BR)",
+          "branch_id": "3"
+        }
+      }
     },
     "S3": {
       "name": "RTS Account (Return Pickup)",

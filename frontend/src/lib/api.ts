@@ -86,6 +86,7 @@ export interface Service {
   service_level?: string;
   shipper_id?: string;
   shipper_name?: string;
+  origin_overrides?: Record<string, { shipper_id?: string; shipper_name?: string; branch_id?: string }>;
 }
 
 export interface OcRowError {

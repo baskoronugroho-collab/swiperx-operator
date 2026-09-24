@@ -38,7 +38,10 @@ export default function OrderCreation() {
       .catch(() => setError("Couldn’t load the service list."));
   }, []);
 
-  const chosen = useMemo(() => services.find((s) => s.code === service), [services, service]);
+  const chosen = useMemo(() => {
+    const svc = services.find((s) => s.code === service);
+    return svc && { ...svc, ...svc.origin_overrides?.[origin] };
+  }, [services, service, origin]);
 
   function reset() {
     setPreview(null);

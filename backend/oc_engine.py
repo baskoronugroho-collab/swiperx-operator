@@ -77,7 +77,8 @@ def services() -> list[dict]:
                     "branch_id": s["branch_id"], "shipper_id": s["shipper_id"],
                     "shipper_name": s.get("shipper_name", ""),
                     "master_shipper_id": CFG["master_shipper_id"],
-                    "master_shipper_name": CFG.get("master_shipper_name", "")})
+                    "master_shipper_name": CFG.get("master_shipper_name", ""),
+                    "origin_overrides": s.get("origin_overrides", {})})
     return out
 
 
@@ -505,6 +506,26 @@ def _item_description(awb: dict) -> str:
     return ""
 
 
+def _forward_from(awb: dict) -> dict:
+    """Sender block for a forward row: the warehouse the batch ships out of.
+
+    TMP Depok (or no origin) keeps the legacy `warehouse` block, whose address string is
+    the one the DE team's converter has always emitted — it is NOT byte-identical to the
+    Depok entry under `origins`, so it must not be swapped for it.
+    """
+    origin = awb.get("origin")
+    if not origin or origin == "TMP_DEPOK":
+        return CFG["warehouse"]
+    return CFG["origins"][origin]
+
+
+def _branch_id(service_code: str, awb: dict) -> str:
+    """corporate.branch_id, honouring a per-origin override (Sameday Surabaya)."""
+    svc = CFG["services"][service_code]
+    ov = svc.get("origin_overrides", {}).get(awb.get("origin") or "", {})
+    return ov.get("branch_id", svc["branch_id"])
+
+
 def _with_hub(address: str, hub_name: str | None) -> str:
     """Forward col H: the SwipeRx WH address followed by the last 3 characters of the hub name."""
     return f"{address} {hub_name[-3:]}" if hub_name else address
@@ -517,7 +538,7 @@ def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today
     which live only in `requested_piece_tracking_numbers`.
     """
     svc = CFG["services"][service_code]
-    wh = CFG["warehouse"]
+    wh = _forward_from(awb)
     fx = CFG["fixed"]
     ts = fx["timeslot"]
     row = {
@@ -540,7 +561,7 @@ def _upload_row(service_code: str, awb: dict, trid: str, trids: list[str], today
         "bundle_information.total_quantity": str(awb["collies"]),
         "bundle_information.requested_piece_tracking_numbers": ", ".join(trids),
         "parcel_job.insured_value": fx["insured_value"],
-        "corporate.branch_id": svc["branch_id"],
+        "corporate.branch_id": _branch_id(service_code, awb),
     }
     if awb["is_return"]:
         # Reverse job: from = pharmacy, to = SwipeRx WH.

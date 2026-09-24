@@ -397,3 +397,44 @@ def test_the_return_oc_does_not_claim_dimensions():
     _, header = _return_row(po="PO-AAA")
     assert header == e.FWD_COLS
     assert not [c for c in header if c in e.DIM_COLS]
+
+
+SURABAYA_ADDR = ("PT Teknologi Medika Pratama - Surabaya, Jl. Rungkut Industri III No.12, Kutisari, "
+                 "Kec. Tenggilis Mejoyo, Kota Surabaya, Jawa Timur 60291")
+
+
+@pytest.mark.parametrize("service", ["S1", "S2"])
+def test_forward_sender_follows_the_origin(service):
+    _, depok = _rows(service, [_awb(origin="TMP_DEPOK")])
+    _, legacy = _rows(service, [_awb()])
+    assert depok[0]["from.address.address1"] == e.CFG["warehouse"]["address1"]
+    assert legacy[0]["from.address.address1"] == e.CFG["warehouse"]["address1"]
+    _, sub = _rows(service, [_awb(origin="TMP_SURABAYA", hub_name="MAC-KD5")])
+    assert sub[0]["from.address.address1"] == SURABAYA_ADDR + " KD5"
+    assert sub[0]["from.phone_number"] == e.CFG["origins"]["TMP_SURABAYA"]["phone"]
+
+
+def test_sameday_surabaya_keeps_master_shipper_and_branch_3():
+    _, rows = _rows("S2", [_awb(origin="TMP_SURABAYA")])
+    assert rows[0]["global_shipper_id"] == "11398423"
+    assert rows[0]["corporate.branch_id"] == "3"
+    assert rows[0]["service_level"] == "SAMEDAY"
+
+
+def test_sameday_shows_the_surabaya_shipper_only_for_that_origin():
+    s2 = next(s for s in e.services() if s["code"] == "S2")
+    sub = s2["origin_overrides"]["TMP_SURABAYA"]
+    assert sub["shipper_id"] == "11798671"
+    assert sub["shipper_name"] == "Sameday SUB CTM - PT Teknologi Medika Pratama (B2BR)"
+    assert "TMP_DEPOK" not in s2["origin_overrides"]
+
+
+def test_return_reject_goes_back_to_the_origin_it_shipped_from():
+    def to_addr(origin):
+        data = e.build_return_xlsx([{
+            "awb_id": "AWB1", "po_number": "PO1", "pharmacy_name": "A", "phone": "1",
+            "address": "x", "origin": origin, "reject_pcs": 1}])
+        ws = openpyxl.load_workbook(io.BytesIO(data)).active
+        return ws["L2"].value, ws["O2"].value
+    assert to_addr("TMP_SURABAYA") == (SURABAYA_ADDR, "Surabaya")
+    assert to_addr("TMP_DEPOK")[1] == "Depok"
