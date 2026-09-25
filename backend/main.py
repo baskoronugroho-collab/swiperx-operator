@@ -19,6 +19,7 @@ import config
 import db
 from auth import router as auth_router
 from courier import router as courier_router
+from hubs import router as hubs_router
 from manual import router as manual_router
 from oc import public_router as courier_landing_router
 from oc import router as oc_router
@@ -39,6 +40,7 @@ app = FastAPI(title="SwipeRx Operator", version=config.APP_VERSION, lifespan=lif
 
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(hubs_router)
 app.include_router(oc_router)
 app.include_router(returns_router)
 # Phase-1 field-test instrument: one hand-typed courier link, no TMP file. Separate from

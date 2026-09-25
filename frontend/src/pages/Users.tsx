@@ -13,8 +13,12 @@ import { Badge, Button, Card, ErrorNote, Field, Spinner, inputClass } from "../c
 const ROLE_INFO: Record<Role, { label: string; blurb: string; grants: string[] }> = {
   superadmin: {
     label: "Superadmin",
-    blurb: "Full access to everything, plus the only role that can manage users.",
-    grants: ["Users — register people, assign roles, deactivate", "Every page below"],
+    blurb: "Full access to everything, plus the only role that can manage users and hubs.",
+    grants: [
+      "Users — register people, assign roles, deactivate",
+      "Hubs — add hubs, choose which show in Order Creation",
+      "Every page below",
+    ],
   },
   // DE = Data Entry. Implant is part of the DE team, placed at the SwipeRx site — same job,
   // two names, so the two roles are deliberately identical. Either one is fine to assign.

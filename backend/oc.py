@@ -18,6 +18,7 @@ from fastapi.responses import RedirectResponse, Response
 import config
 import db
 import oc_engine
+from hubs import oc_hub_names
 from security import require_roles
 from storage import store
 
@@ -79,8 +80,10 @@ async def _parse_upload(service: str, file: UploadFile) -> tuple[bytes, dict]:
 
 @router.get("/services")
 async def list_services(_: dict = Depends(intake_roles)):
+    # Hubs come from the hub table (V13), not oc_config.json, so superadmin can add one
+    # on the Hubs page without a deploy.
     return {"services": oc_engine.services(), "origins": oc_engine.origins(),
-            "hubs": oc_engine.hubs()}
+            "hubs": await oc_hub_names()}
 
 
 @router.post("/preview")
@@ -113,7 +116,7 @@ async def create(service: str = Form(...), file: UploadFile = File(...),
     day = _parse_delivery_date(delivery_date)
     origin = _parse_origin(origin)
     hub_name = (hub_name or "").strip() or None
-    if hub_name and hub_name not in oc_engine.hubs():
+    if hub_name and hub_name not in await oc_hub_names():
         raise HTTPException(status_code=400, detail="bad_hub")
     data, result = await _parse_upload(service, file)
     awbs = result["awbs"]

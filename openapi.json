@@ -25,6 +25,10 @@
       "description": "Superadmin account administration."
     },
     {
+      "name": "hubs",
+      "description": "Superadmin hub master administration."
+    },
+    {
       "name": "oc",
       "description": "Order-creation intake: parse a TMP batch, commit AWBs, download the NV upload."
     },
@@ -656,6 +660,329 @@
         }
       }
     },
+    "/api/hubs": {
+      "get": {
+        "operationId": "list_hubs",
+        "tags": [
+          "hubs"
+        ],
+        "summary": "Superadmin-only listing of the whole hub master ordered by name — each hub's fallback origin, active and Order Creation flags, and how many AWBs carry it — plus the configured origins for the origin picker.",
+        "responses": {
+          "200": {
+            "description": "Every hub and the origin choices.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "hubs",
+                    "origins"
+                  ],
+                  "properties": {
+                    "hubs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Hub"
+                      }
+                    },
+                    "origins": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Origin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Caller has no identity (detail: not_authenticated or invalid_session).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is authenticated but is not a superadmin (detail: \"forbidden\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create_hub",
+        "tags": [
+          "hubs"
+        ],
+        "summary": "Superadmin-only: adds a hub to the master. Takes effect immediately in the courier picker (when active) and in the Order Creation dropdown (when active and oc_enabled) — no deploy.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hub_name"
+                ],
+                "properties": {
+                  "hub_name": {
+                    "type": "string",
+                    "description": "2-32 characters: letters, digits, hyphens; trimmed and uppercased (e.g. SUB-GY5)."
+                  },
+                  "origin": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Fallback return warehouse; a configured origin code, or null/blank for none."
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "oc_enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Offer this hub in the Order Creation dropdown."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created hub.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hub"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "detail is \"bad_hub_name\" or \"bad_origin\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Caller has no identity (detail: not_authenticated or invalid_session).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is authenticated but is not a superadmin (detail: \"forbidden\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "detail is \"already_exists\" — a hub with that name is already on the list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hubs/{hub_name}": {
+      "patch": {
+        "operationId": "update_hub",
+        "tags": [
+          "hubs"
+        ],
+        "summary": "Superadmin-only partial update of a hub's origin, active and oc_enabled; an explicit null origin clears it, an omitted field is left alone. Audited.",
+        "parameters": [
+          {
+            "name": "hub_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Hub name; matched case-insensitively (uppercased before lookup)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "oc_enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The hub after the update.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hub"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "detail is \"bad_origin\", \"bad_active\", \"bad_oc_enabled\" or \"nothing_to_update\" (no recognised field in the body).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Caller has no identity (detail: not_authenticated or invalid_session).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is authenticated but is not a superadmin (detail: \"forbidden\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "detail is \"not_found\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_hub",
+        "tags": [
+          "hubs"
+        ],
+        "summary": "Superadmin-only: deletes a hub that no AWB references. A hub on any AWB is refused and must be deactivated instead, because AWBs point at it by name. Audited.",
+        "parameters": [
+          {
+            "name": "hub_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Hub name; matched case-insensitively (uppercased before lookup)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Caller has no identity (detail: not_authenticated or invalid_session).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is authenticated but is not a superadmin (detail: \"forbidden\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "detail is \"not_found\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "detail is \"hub_in_use\" — at least one AWB carries this hub.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/oc/services": {
       "get": {
         "operationId": "listServices",
@@ -694,7 +1021,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Hub names (from oc_config.json `hubs`, e.g. MAC-UT5) accepted as `hub_name` on POST /api/oc/create."
+                      "description": "Hubs that are active and switched on for Order Creation in the hub master (superadmin edits them via /api/hubs; e.g. MAC-UT5), sorted by name. The only values POST /api/oc/create accepts as `hub_name`."
                     }
                   }
                 }
@@ -3680,6 +4007,45 @@
           "master_shipper_name": {
             "type": "string",
             "description": "Empty string when not configured."
+          }
+        }
+      },
+      "Hub": {
+        "type": "object",
+        "required": [
+          "hub_name",
+          "origin",
+          "active",
+          "oc_enabled",
+          "awb_count",
+          "updated_at"
+        ],
+        "properties": {
+          "hub_name": {
+            "type": "string",
+            "example": "SUB-GY5"
+          },
+          "origin": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fallback return warehouse (origin code), or null when unmapped."
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Listed in the courier picker (and eligible for Order Creation)."
+          },
+          "oc_enabled": {
+            "type": "boolean",
+            "description": "Listed in the Order Creation dropdown while also active."
+          },
+          "awb_count": {
+            "type": "integer",
+            "description": "AWBs carrying this hub; > 0 means it cannot be deleted."
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "Last change, as the database returns it."
           }
         }
       },

@@ -197,12 +197,34 @@ def test_delete_intake_refuses_once_a_courier_has_filed_anything(de_client):
     assert de_client.get(f"/api/oc/intakes/{iid}").status_code == 200
 
 
-def test_services_list_the_hub_choices(de_client):
+def _hubs(dbs, *rows):
+    """Seed hub master rows as (hub_name, active, oc_enabled)."""
+    import asyncio
+
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    for name, active, oc in rows:
+        loop.run_until_complete(dbs.execute(
+            "INSERT INTO hub (hub_name, origin, active, oc_enabled) VALUES (?, 'TMP_DEPOK', ?, ?)",
+            (name, active, oc),
+        ))
+
+
+def test_services_list_only_active_oc_enabled_hubs(de_client, dbs):
+    """The dropdown is the hub master (V13), not a hard-coded list: a hub shows only when it
+    is both active and switched on for Order Creation."""
+    _hubs(dbs, ("MAC-KD5", 1, 1), ("SUB-GY5", 1, 1), ("BDO-BDO", 1, 0), ("MAC-OLD", 0, 1))
     hubs = de_client.get("/api/oc/services").json()["hubs"]
-    assert hubs == ["MAC-UT5", "MAC-MA5", "MAC-KM5", "MAC-CB5", "MAC-KJ5", "MAC-KD5", "MAC-CP5"]
+    assert hubs == ["MAC-KD5", "SUB-GY5"]
 
 
-def test_hub_name_is_optional_validated_and_stored_on_the_awb(de_client):
+def test_hub_name_is_optional_validated_and_stored_on_the_awb(de_client, dbs):
+    _hubs(dbs, ("MAC-KD5", 1, 1), ("BDO-BDO", 1, 0))
+    # On the courier list but not switched on for Order Creation: refused the same way.
+    off = de_client.post(
+        "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK", "hub_name": "BDO-BDO"}, files=tmp_upload()
+    )
+    assert off.status_code == 400 and off.json()["detail"] == "bad_hub"
+
     bad = de_client.post(
         "/api/oc/create", data={"service": "S1", "origin": "TMP_DEPOK", "hub_name": "NOPE"}, files=tmp_upload()
     )

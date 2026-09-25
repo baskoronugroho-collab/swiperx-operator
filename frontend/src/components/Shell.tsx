@@ -16,6 +16,8 @@ const NAV: { to: string; label: string; roles: Role[]; end?: boolean }[] = [
   { to: "/manual", label: "Manual link", roles: ["implant", "de"] },
   // Only superadmin ever holds this role check — the shell filter hides it for everyone else.
   { to: "/users", label: "Users", roles: ["superadmin"] },
+  // The hub master behind the Order Creation dropdown and the courier picker (hubs.py).
+  { to: "/hubs", label: "Hubs", roles: ["superadmin"] },
 ];
 
 export default function Shell() {

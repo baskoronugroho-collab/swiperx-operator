@@ -77,6 +77,12 @@ async def _seed() -> None:
         await fake.execute(
             "INSERT INTO hub (hub_name, origin, active) VALUES (%s, %s, 1)", (_h, _o),
         )
+    # V13: the Order Creation dropdown is the hub master's oc_enabled flag, seeded with the
+    # seven hubs oc_config.json used to hard-code.
+    await fake.execute(
+        "UPDATE hub SET oc_enabled = 1 WHERE hub_name IN "
+        "('MAC-UT5','MAC-MA5','MAC-KM5','MAC-CB5','MAC-KJ5','MAC-KD5','MAC-CP5')", ()
+    )
 
 
 

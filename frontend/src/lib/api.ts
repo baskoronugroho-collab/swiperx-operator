@@ -310,6 +310,20 @@ export interface ManagedUser {
   roles: Role[];
 }
 
+/** One row of the hub master (hubs.py). `oc_enabled` puts it in the Order Creation dropdown;
+ *  `active` governs both that and the courier picker. `awb_count` > 0 means it can only be
+ *  deactivated, never deleted — AWBs point at it by name. */
+export interface Hub {
+  hub_name: string;
+  origin: string | null;
+  active: boolean;
+  oc_enabled: boolean;
+  awb_count: number;
+  updated_at: string | null;
+}
+
+export type HubPatch = Partial<{ origin: string | null; active: boolean; oc_enabled: boolean }>;
+
 export const ALL_ROLES: Role[] = [
   "superadmin", "program_manager", "de", "implant", "station_ic", "validator", "swiperx",
 ];
@@ -384,6 +398,20 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       }),
+  },
+
+  hubs: {
+    list: () => get<{ hubs: Hub[]; origins: Origin[] }>("/api/hubs"),
+    create: (hub: { hub_name: string; origin: string | null; active: boolean; oc_enabled: boolean }) =>
+      postJson<Hub>("/api/hubs", hub),
+    update: (hubName: string, patch: HubPatch) =>
+      request<Hub>(`/api/hubs/${encodeURIComponent(hubName)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    remove: (hubName: string) =>
+      request<{ deleted: string }>(`/api/hubs/${encodeURIComponent(hubName)}`, { method: "DELETE" }),
   },
 
   oc: {

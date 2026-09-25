@@ -104,7 +104,7 @@ CREATE TABLE return_parcel (
 );
 CREATE TABLE hub (
   hub_name TEXT PRIMARY KEY, hub_label TEXT, origin TEXT,
-  active INTEGER NOT NULL DEFAULT 1,
+  active INTEGER NOT NULL DEFAULT 1, oc_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE audit_log (

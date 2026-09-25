@@ -9,6 +9,7 @@ import OrderCreation from "./pages/OrderCreation";
 import IntakeHistory from "./pages/IntakeHistory";
 import CourierLinks from "./pages/CourierLinks";
 import Users from "./pages/Users";
+import Hubs from "./pages/Hubs";
 import IntakeDetailPage from "./pages/IntakeDetail";
 import RejectReturns from "./pages/RejectReturns";
 import ManualLink from "./pages/ManualLink";
@@ -112,6 +113,14 @@ function Router() {
           element={
             <Protected roles={["superadmin"]}>
               <Users />
+            </Protected>
+          }
+        />
+        <Route
+          path="/hubs"
+          element={
+            <Protected roles={["superadmin"]}>
+              <Hubs />
             </Protected>
           }
         />
