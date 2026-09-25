@@ -21,12 +21,23 @@ RUN npm run build
 # cannot go stale — and if the builder's mirror lacks it, the pull fails loudly instead of
 # quietly shipping the old layer. Re-pin when bumping nginx:
 #   docker buildx imagetools inspect nginx:<tag> | head -2
-# sha256:ef8676b3… = nginx 1.30.5 on alpine-minirootfs-3.24.2 (re-pinned 22 Sep 2026)
-#   libexpat 2.8.4-r0  — CVE-2026-66046, -76956, -76957 (base 97d490c1 had 2.8.2-r0)
-#   libuuid  2.42.3-r1 — CVE-2026-53612/3/4, -76642, -78408, -78409 (had 2.42.1-r0)
-#   libssl3/libcrypto3 3.5.8-r0 — CVE-2026-14456 (had 3.5.7-r0)
-# Verified by reading /lib/apk/db/installed out of the amd64 layers of both digests.
-FROM nginx:1.30-alpine@sha256:ef8676b33d681f272ba429b27658bdd7e640963279714c96bddf1dc76307f7b6
+#
+# -ALPINE-SLIM, not -alpine (25 Sep 2026). CVE-2026-93990 needs libexpat >= 2.8.5-r0 and
+# no nginx:1.30-alpine build ships it yet (latest, sha256:98522025…, still has 2.8.4-r0).
+# libexpat was never ours to need: in the full image it is pulled in only by fontconfig
+# <- libgd <- nginx-module-image-filter, and the full image also carries the xslt, njs,
+# geoip and acme modules plus curl and ~50 X11/image/XML libraries (libuuid, libxml2,
+# libpng, tiff… — the packages behind every Trivy blocker listed above). This server uses
+# none of them: cicd/nginx.conf is core directives only (listen, root, index, location,
+# try_files, expires, add_header) and loads no module. The slim variant is the same
+# nginx build without the optional modules — same entrypoint, CMD and port 80 — so the
+# whole class of finding goes away rather than being patched one CVE at a time.
+# If a dynamic module is ever needed (load_module …), go back to -alpine and re-check.
+#
+# sha256:32463212… = nginx 1.30.5 on alpine-minirootfs-3.24.2, 21 packages, no libexpat,
+# no libuuid; libssl3/libcrypto3 3.5.8-r0 (CVE-2026-14456 stays fixed). Verified by
+# reading /lib/apk/db/installed out of its amd64 layers.
+FROM nginx:1.30-alpine-slim@sha256:32463212baf0e7d91aded2e9b843a4f2b9e017804b8c9d5bae7b51dcef64389c
 
 # No `apk upgrade` here any more. The `apk --no-cache upgrade libcrypto3 libssl3` that used
 # to sit on this line never did anything on the platform builder (its apk mirror serves a
