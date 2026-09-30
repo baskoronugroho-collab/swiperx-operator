@@ -414,11 +414,14 @@ def test_forward_sender_follows_the_origin(service):
     assert sub[0]["from.phone_number"] == e.CFG["origins"]["TMP_SURABAYA"]["phone"]
 
 
-def test_sameday_surabaya_keeps_master_shipper_and_branch_3():
+def test_sameday_surabaya_keeps_master_shipper_but_branch_6():
     _, rows = _rows("S2", [_awb(origin="TMP_SURABAYA")])
     assert rows[0]["global_shipper_id"] == "11398423"
-    assert rows[0]["corporate.branch_id"] == "3"
+    assert rows[0]["corporate.branch_id"] == "6"
     assert rows[0]["service_level"] == "SAMEDAY"
+    # Depok Sameday is untouched — still branch 3.
+    _, depok = _rows("S2", [_awb(origin="TMP_DEPOK")])
+    assert depok[0]["corporate.branch_id"] == "3"
 
 
 def test_sameday_shows_the_surabaya_shipper_only_for_that_origin():
