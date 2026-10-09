@@ -64,6 +64,13 @@ def test_done_and_back_to_pending(kam_client, rejected):  # noqa: ARG001
     assert _ids(kam_client, "all") == [rid]
 
 
+def test_rows_carry_the_door_evidence_for_the_detail_panel(kam_client, rejected):  # noqa: ARG001
+    row = kam_client.get("/api/vasil/returns?status=pending").json()["returns"][0]
+    kinds = {p["doc_type"] for p in row["proof_photos"]}
+    assert {"rejected_goods", "delivery_note", "awb_sticker"} <= kinds
+    assert all(p["photo_url"].startswith("/api/media/") for p in row["proof_photos"])
+
+
 def test_hide_removes_it_from_every_vasil_view_only(kam_client, rejected):  # noqa: ARG001
     rid = _rid(kam_client)
     kam_client.post("/api/vasil/mark-done", json={"ids": [rid]})

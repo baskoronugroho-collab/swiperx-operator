@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 import db
-from returns import _rows, worklist_csv
+from returns import _proof_photos, _rows, worklist_csv
 from security import require_roles
 
 router = APIRouter(prefix="/api/vasil", tags=["vasil"])
@@ -53,6 +53,9 @@ async def _view(status: str) -> list[dict]:
 async def list_returns(status: str = Query(default="pending", description="|".join(VIEWS)),
                        _: dict = Depends(vasil_roles)):
     rows = await _view(status)
+    for r in rows:
+        # The at-the-door evidence the Detail panel shows, same as on Reject returns.
+        r["proof_photos"] = await _proof_photos(r["original_awb_id"])
     return {"returns": rows, "count": len(rows)}
 
 

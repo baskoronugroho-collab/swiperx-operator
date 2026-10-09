@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError, api } from "../lib/api";
 import type { VasilReturn, VasilView } from "../lib/api";
+import ReturnDetail from "../components/ReturnDetail";
 import { Badge, Button, Card, EmptyState, ErrorNote, Spinner, inputClass } from "../components/ui";
 
 /** Migrate to Vasil Operator — superadmin and KAM tick reject returns off as uploaded to
@@ -31,6 +32,7 @@ export default function VasilMigration() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setRows(null);
@@ -185,7 +187,7 @@ export default function VasilMigration() {
             <table className="w-full text-sm">
               <thead className="bg-canvas-soft text-left text-xs uppercase text-ink-muted">
                 <tr>
-                  <th className="px-4 py-3">
+                  <th className="px-3 py-3">
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-nv-red"
@@ -195,83 +197,119 @@ export default function VasilMigration() {
                       }
                     />
                   </th>
-                  <th className="px-4 py-3">AWB</th>
-                  <th className="px-4 py-3">Pharmacy</th>
-                  <th className="px-4 py-3">Hub</th>
-                  <th className="px-4 py-3">Origin</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3 text-right">Pcs</th>
-                  <th className="px-4 py-3">Rejected</th>
-                  <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3">Vasil</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-3 py-3">AWB</th>
+                  <th className="px-3 py-3">Pharmacy</th>
+                  <th className="px-3 py-3">Hub</th>
+                  <th className="px-3 py-3">Origin</th>
+                  <th className="px-3 py-3">Type</th>
+                  <th className="px-3 py-3 text-right">Pcs</th>
+                  <th className="px-3 py-3">Rejected</th>
+                  <th className="px-3 py-3">Stage</th>
+                  <th className="px-3 py-3">Vasil</th>
+                  <th className="px-3 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className="border-t border-line align-top">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-nv-red"
-                        checked={sel.has(r.id)}
-                        onChange={(e) => {
-                          const next = new Set(sel);
-                          if (e.target.checked) next.add(r.id);
-                          else next.delete(r.id);
-                          setSel(next);
-                        }}
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {r.original_awb_id}
-                      {r.po_number && <div className="text-ink-muted">PO {r.po_number}</div>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {r.pharmacy_name}
-                      {r.city && <div className="text-xs text-ink-muted">{r.city}</div>}
-                    </td>
-                    <td className="px-4 py-3">{r.hub_name ?? "—"}</td>
-                    <td className="px-4 py-3">{r.origin ?? "—"}</td>
-                    <td className="px-4 py-3">{r.return_type}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{r.reject_pcs ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs">{r.rejected_at?.slice(0, 16) ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs">{STAGE_LABEL[r.stage] ?? r.stage}</td>
-                    <td className="px-4 py-3">
-                      {r.vasil_status === "done" ? (
-                        <Badge tone="ok">Done</Badge>
-                      ) : (
-                        <Badge tone="warn">Pending</Badge>
-                      )}
-                      {r.vasil_done_at && (
-                        <div className="mt-1 text-xs text-ink-muted">
-                          {r.vasil_done_at.slice(0, 16)}
-                          {r.vasil_done_by_email && ` · ${r.vasil_done_by_email}`}
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-line align-middle hover:bg-canvas-soft/60">
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-nv-red"
+                          checked={sel.has(r.id)}
+                          onChange={(e) => {
+                            const next = new Set(sel);
+                            if (e.target.checked) next.add(r.id);
+                            else next.delete(r.id);
+                            setSel(next);
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="awb-chip">{r.original_awb_id}</span>
+                        {r.po_number && (
+                          <span className="mt-1 block break-all font-mono text-[11px] text-ink-muted">
+                            PO {r.po_number}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {r.pharmacy_name}
+                        <span className="block text-xs text-ink-muted">{r.city ?? ""}</span>
+                      </td>
+                      <td className="px-3 py-3 font-mono text-xs">{r.hub_name ?? "—"}</td>
+                      <td className="px-3 py-3 text-xs">
+                        {r.origin === "TMP_SURABAYA" ? "TMP Surabaya" : r.origin ? "TMP Depok" : "—"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Badge tone={r.return_type === "semua" ? "danger" : "neutral"}>{r.return_type}</Badge>
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums">{r.reject_pcs ?? "—"}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-xs text-ink-muted">{r.rejected_at}</td>
+                      <td className="px-3 py-3 text-xs">{STAGE_LABEL[r.stage] ?? r.stage}</td>
+                      <td className="px-3 py-3">
+                        {r.vasil_status === "done" ? (
+                          <Badge tone="ok">Done</Badge>
+                        ) : (
+                          <Badge tone="warn">Pending</Badge>
+                        )}
+                        {r.vasil_done_at && (
+                          <span className="mt-1 block whitespace-nowrap text-[11px] text-ink-muted">
+                            {r.vasil_done_at.slice(0, 16)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {r.vasil_status === "pending" ? (
+                            <Button
+                              className="!px-3 !py-1.5 text-xs"
+                              disabled={busy}
+                              onClick={() => run("Marked done", () => api.vasil.markDone([r.id]))}
+                            >
+                              Done upload
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              className="!px-3 !py-1.5 text-xs"
+                              disabled={busy}
+                              onClick={() => run("Moved to pending", () => api.vasil.markPending([r.id]))}
+                            >
+                              Move to pending
+                            </Button>
+                          )}
+                          <Button
+                            variant="quiet"
+                            className="!px-2 !py-1.5 text-xs"
+                            disabled={busy}
+                            onClick={() => remove([r.id])}
+                          >
+                            Delete
+                          </Button>
+                          <button
+                            onClick={() => setOpenId(openId === r.id ? null : r.id)}
+                            className="px-1 text-xs font-semibold text-nv-red hover:underline"
+                          >
+                            {openId === r.id ? "Close" : "Detail"}
+                          </button>
                         </div>
-                      )}
-                    </td>
-                    <td className="space-x-2 whitespace-nowrap px-4 py-3 text-right">
-                      {r.vasil_status === "pending" ? (
-                        <Button
-                          disabled={busy}
-                          onClick={() => run("Marked done", () => api.vasil.markDone([r.id]))}
-                        >
-                          Done upload
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => run("Moved to pending", () => api.vasil.markPending([r.id]))}
-                        >
-                          Move to pending
-                        </Button>
-                      )}
-                      <Button variant="quiet" disabled={busy} onClick={() => remove([r.id])}>
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {openId === r.id && (
+                      <tr className="border-t border-line bg-canvas-soft/40">
+                        <td colSpan={11} className="px-4 py-4">
+                          <ReturnDetail row={r} />
+                          {r.vasil_done_by_email && (
+                            <p className="mt-3 text-xs text-ink-muted">
+                              Marked done {r.vasil_done_at} by {r.vasil_done_by_email}
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
