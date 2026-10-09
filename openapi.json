@@ -3693,7 +3693,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Lists every reject return (all stages) for the Migrate to Vasil Operator page, filtered to the pending, done or all tab; rows hidden from the page never appear. Superadmin and KAM only.",
+        "summary": "Lists every reject return (all stages) for the Migrate to Vasil Operator page for the pending, done, unable or all tab, optionally narrowed by reject date and unable reason; rows hidden from the page never appear. Superadmin and KAM only.",
         "parameters": [
           {
             "name": "status",
@@ -3704,15 +3704,48 @@
               "enum": [
                 "pending",
                 "done",
+                "unable",
                 "all"
               ]
             },
             "description": "Which tab. Anything else is 400 bad_status."
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reject date, YYYY-MM-DD, inclusive. Malformed is 400 bad_date."
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reject date, YYYY-MM-DD, inclusive."
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dn",
+                "item",
+                "sp_manual"
+              ]
+            },
+            "description": "Only rows flagged with this reason (unable tab)."
           }
         ],
         "responses": {
           "200": {
-            "description": "Rows in the same shape as GET /api/returns, each with vasil_status (pending|done), vasil_done_at and vasil_done_by_email.",
+            "description": "Rows in the shape of GET /api/returns plus vasil_status (pending|done|unable), vasil_done_at, vasil_done_by_email, unable_reasons, po_options and proof_photos (source original|vasil, ref_id, doc_type, po_number, photo_url, editable); reason_counts counts unable rows per reason over the date window.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3726,6 +3759,26 @@
                     },
                     "count": {
                       "type": "integer"
+                    },
+                    "reason_counts": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -3741,7 +3794,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Downloads the Vasil page's pending, done or all tab as a CSV with exactly the same columns as the Reject returns export. Superadmin and KAM only.",
+        "summary": "Downloads the Vasil page's pending, done, unable or all tab (same date and reason filters) as a CSV with the Reject returns columns; the unable tab adds an unable_reason column. Superadmin and KAM only.",
         "parameters": [
           {
             "name": "status",
@@ -3752,10 +3805,43 @@
               "enum": [
                 "pending",
                 "done",
+                "unable",
                 "all"
               ]
             },
             "description": "Which tab. Anything else is 400 bad_status."
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reject date, YYYY-MM-DD, inclusive. Malformed is 400 bad_date."
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reject date, YYYY-MM-DD, inclusive."
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dn",
+                "item",
+                "sp_manual"
+              ]
+            },
+            "description": "Only rows flagged with this reason (unable tab)."
           }
         ],
         "responses": {
@@ -3778,7 +3864,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Ticks the selected pending AWBs as uploaded to Vasil Operator; rows already done or hidden are skipped. Touches only vasil_migration, never return_parcel.",
+        "summary": "Ticks the selected pending AWBs as uploaded to Vasil Operator; rows already done, unable or hidden are skipped. Touches only vasil_migration, never return_parcel.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3827,7 +3913,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Moves the selected done AWBs back to pending (undo for a mis-click); clears who/when it was marked.",
+        "summary": "Moves the selected done or unable AWBs back to pending (undo a mis-click, or after photos are fixed); clears who/when and any unable reasons.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3876,7 +3962,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Removes the selected AWBs from the Vasil page only (status hidden); the reject return itself is never deleted and stays on Reject returns.",
+        "summary": "Removes the selected AWBs from the Vasil page only (status hidden), whatever tab they are on; the reject return itself is never deleted and stays on Reject returns.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3910,6 +3996,274 @@
                   "properties": {
                     "updated": {
                       "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/mark-unable": {
+      "post": {
+        "operationId": "vasil_mark_unable",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Flags the selected pending or done AWBs as unable to upload, with one or more reasons saying which photos need fixing. Touches only vasil_migration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids",
+                  "reasons"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "description": "return_parcel.id values; empty is 400 no_ids."
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "dn",
+                        "item",
+                        "sp_manual"
+                      ]
+                    },
+                    "description": "One or more of dn (no proper DN photos), item (no item photos), sp_manual (no sp manual photos); empty or unknown is 400 bad_reasons."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows moved to unable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/set-reasons": {
+      "post": {
+        "operationId": "vasil_set_reasons",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Changes the reasons on AWBs already flagged unable.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids",
+                  "reasons"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "description": "return_parcel.id values; empty is 400 no_ids."
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "dn",
+                        "item",
+                        "sp_manual"
+                      ]
+                    },
+                    "description": "One or more of dn (no proper DN photos), item (no item photos), sp_manual (no sp manual photos); empty or unknown is 400 bad_reasons."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/returns/{rid}/photos": {
+      "post": {
+        "operationId": "vasil_upload_photo",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Adds a replacement photo (delivery_note, rejected_goods or sp_manual) that exists on the Vasil page only; the courier's photos in document_capture are never touched.",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "doc_type",
+                  "file"
+                ],
+                "properties": {
+                  "doc_type": {
+                    "type": "string",
+                    "enum": [
+                      "delivery_note",
+                      "rejected_goods",
+                      "sp_manual"
+                    ]
+                  },
+                  "po_number": {
+                    "type": "string",
+                    "description": "Required for sp_manual and must be one of the forward order's PO lines."
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image, same type and size limits as the courier upload."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The stored photo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "doc_type": {
+                      "type": "string"
+                    },
+                    "po_number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "photo_url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/returns/{rid}/photos/remove": {
+      "post": {
+        "operationId": "vasil_remove_photo",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Removes a photo from the Vasil view: a courier photo is only hidden here, an upload made on this page is marked removed. Nothing is deleted from the reject-returns lane.",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "ref_id"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "vasil"
+                    ]
+                  },
+                  "ref_id": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
                     }
                   }
                 }

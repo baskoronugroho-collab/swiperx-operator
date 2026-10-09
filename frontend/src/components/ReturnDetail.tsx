@@ -3,10 +3,10 @@ import type { RejectReturn } from "../lib/api";
 /** The expanded Detail panel for one reject return: door evidence photos and the trail.
  *  Same content as the panel on Reject returns, kept as its own component so the Vasil
  *  page can show it without touching that page. */
-export default function ReturnDetail({ row }: { row: RejectReturn }) {
+export default function ReturnDetail({ row, hidePhotos = false }: { row: RejectReturn; hidePhotos?: boolean }) {
   return (
     <div className="flex flex-wrap gap-6">
-      {row.proof_photos.length > 0 && (
+      {!hidePhotos && row.proof_photos.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">Door evidence</p>
           <div className="flex flex-wrap gap-2">

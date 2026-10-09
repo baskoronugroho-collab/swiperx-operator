@@ -323,14 +323,46 @@ export interface Hub {
   updated_at: string | null;
 }
 
-export type VasilView = "pending" | "done" | "all";
-export type VasilReturn = RejectReturn & {
-  vasil_status: "pending" | "done";
+export type VasilView = "pending" | "done" | "unable" | "all";
+export type VasilReason = "dn" | "item" | "sp_manual";
+/** One photo on the Vasil page: a courier photo (`original`) or a replacement uploaded
+ *  there (`vasil`). Removing either only affects the Vasil view. */
+export interface VasilPhoto {
+  source: "original" | "vasil";
+  ref_id: number;
+  doc_type: DocType;
+  po_number: string | null;
+  photo_url: string;
+  editable: boolean;
+}
+export type VasilReturn = Omit<RejectReturn, "proof_photos"> & {
+  proof_photos: VasilPhoto[];
+  vasil_status: "pending" | "done" | "unable";
   vasil_done_at: string | null;
   vasil_done_by_email: string | null;
+  unable_reasons: VasilReason[];
 };
+export interface VasilFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  reason?: VasilReason | "";
+}
+export interface VasilList {
+  returns: VasilReturn[];
+  count: number;
+  reason_counts: Record<VasilReason, number>;
+  reasons: { key: VasilReason; label: string }[];
+}
 
 export type HubPatch = Partial<{ origin: string | null; active: boolean; oc_enabled: boolean }>;
+
+function vasilQuery(status: VasilView, f: VasilFilters): string {
+  const q = new URLSearchParams({ status });
+  if (f.dateFrom) q.set("date_from", f.dateFrom);
+  if (f.dateTo) q.set("date_to", f.dateTo);
+  if (f.reason) q.set("reason", f.reason);
+  return q.toString();
+}
 
 export const ALL_ROLES: Role[] = [
   "superadmin", "program_manager", "de", "implant", "station_ic", "validator", "swiperx", "kam",
@@ -511,14 +543,33 @@ export const api = {
   },
 
   vasil: {
-    list: (status: VasilView) =>
-      get<{ returns: VasilReturn[]; count: number }>(`/api/vasil/returns?status=${status}`),
-    exportUrl: (status: VasilView) => `/api/vasil/export.csv?status=${status}`,
+    list: (status: VasilView, f: VasilFilters = {}) =>
+      get<VasilList>(`/api/vasil/returns?${vasilQuery(status, f)}`),
+    exportUrl: (status: VasilView, f: VasilFilters = {}) =>
+      `/api/vasil/export.csv?${vasilQuery(status, f)}`,
     markDone: (ids: number[]) => postJson<{ updated: number }>("/api/vasil/mark-done", { ids }),
+    markUnable: (ids: number[], reasons: VasilReason[]) =>
+      postJson<{ updated: number }>("/api/vasil/mark-unable", { ids, reasons }),
+    setReasons: (ids: number[], reasons: VasilReason[]) =>
+      postJson<{ updated: number }>("/api/vasil/set-reasons", { ids, reasons }),
     markPending: (ids: number[]) =>
       postJson<{ updated: number }>("/api/vasil/mark-pending", { ids }),
     /** Hides from the Vasil page only — the reject return itself is never deleted. */
     hide: (ids: number[]) => postJson<{ updated: number }>("/api/vasil/hide", { ids }),
+    /** A replacement photo that exists on the Vasil page only. */
+    uploadPhoto: (id: number, docType: DocType, file: File, poNumber?: string) => {
+      const fd = new FormData();
+      fd.append("doc_type", docType);
+      fd.append("file", file);
+      if (poNumber) fd.append("po_number", poNumber);
+      return postForm<{ id: number }>(`/api/vasil/returns/${id}/photos`, fd);
+    },
+    /** Hide a courier photo from the Vasil view, or drop an upload made there. */
+    removePhoto: (id: number, source: "original" | "vasil", refId: number) =>
+      postJson<{ ok: boolean }>(`/api/vasil/returns/${id}/photos/remove`, {
+        source,
+        ref_id: refId,
+      }),
   },
   returns: {
     list: (stage?: string) =>

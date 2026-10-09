@@ -109,7 +109,13 @@ CREATE TABLE hub (
 );
 CREATE TABLE vasil_migration (
   return_parcel_id INTEGER PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending',
-  done_at TIMESTAMP, done_by INTEGER, hidden_at TIMESTAMP, hidden_by INTEGER, updated_at TIMESTAMP
+  done_at TIMESTAMP, done_by INTEGER, hidden_at TIMESTAMP, hidden_by INTEGER, updated_at TIMESTAMP,
+  unable_reasons TEXT
+);
+CREATE TABLE vasil_photo (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, return_parcel_id INTEGER NOT NULL, doc_type TEXT NOT NULL,
+  po_number TEXT, photo_ref TEXT, original_capture_id INTEGER, created_by INTEGER,
+  created_at TIMESTAMP, removed_at TIMESTAMP, removed_by INTEGER
 );
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, entity TEXT,

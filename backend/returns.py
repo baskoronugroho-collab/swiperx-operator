@@ -560,8 +560,12 @@ async def export_rts_csv(_: dict = Depends(rts_roles)):
 
 
 # ------------------------------------------------------------------ audit ----
-def worklist_csv(rows: list[dict]) -> str:
-    """The flat worklist CSV (header + one line per row), shared with the Vasil page export."""
+def worklist_csv(rows: list[dict], extra: tuple[str, ...] = ()) -> str:
+    """The flat worklist CSV (header + one line per row), shared with the Vasil page export.
+
+    `extra` appends named columns read straight off each row dict; empty keeps the file
+    byte-identical to the Reject returns export.
+    """
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
@@ -569,7 +573,7 @@ def worklist_csv(rows: list[dict]) -> str:
         "rejected_at", "stage", "closes_by", "hub", "origin", "po_number", "reject_pcs",
         "legacy_validated_at", "legacy_validated_by", "de_uploaded_at", "de_uploaded_by",
         "printed_at", "printed_by", "rts_requested_at", "rts_requested_by",
-        "flagged_at", "flagged_by", "flag_note", "legacy_return_tids",
+        "flagged_at", "flagged_by", "flag_note", "legacy_return_tids", *extra,
     ])
     for s in rows:
         w.writerow([
@@ -582,7 +586,7 @@ def worklist_csv(rows: list[dict]) -> str:
             s["printed_at"] or "", s["printed_by_email"] or "",
             s["rts_requested_at"] or "", s["rts_requested_by_email"] or "",
             s["flagged_at"] or "", s["flagged_by_email"] or "", s["flag_note"] or "",
-            s["return_tids"] or "",
+            s["return_tids"] or "", *[s.get(c) or "" for c in extra],
         ])
     return "\ufeff" + buf.getvalue()
 
