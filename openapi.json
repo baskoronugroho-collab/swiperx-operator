@@ -2191,36 +2191,36 @@
               }
             }
           },
-        "400": {
-          "description": "no_ids, no_note or note_too_long",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
+          "400": {
+            "description": "no_ids, no_note or note_too_long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "not_authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden — requires station_ic, implant or de",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
               }
             }
           }
-        },
-        "401": {
-          "description": "not_authenticated",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
-              }
-            }
-          }
-        },
-        "403": {
-          "description": "forbidden — requires station_ic, implant or de",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
-              }
-            }
-          }
-        }
         }
       }
     },
@@ -2264,36 +2264,36 @@
               }
             }
           },
-        "400": {
-          "description": "no_ids",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
+          "400": {
+            "description": "no_ids",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "not_authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden — requires implant, de or program_manager",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
               }
             }
           }
-        },
-        "401": {
-          "description": "not_authenticated",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
-              }
-            }
-          }
-        },
-        "403": {
-          "description": "forbidden — requires implant, de or program_manager",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HTTPError"
-              }
-            }
-          }
-        }
         }
       }
     },
@@ -3680,6 +3680,238 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IncompleteError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/returns": {
+      "get": {
+        "operationId": "vasil_list_returns",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Lists every reject return (all stages) for the Migrate to Vasil Operator page, filtered to the pending, done or all tab; rows hidden from the page never appear. Superadmin and KAM only.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "done",
+                "all"
+              ]
+            },
+            "description": "Which tab. Anything else is 400 bad_status."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rows in the same shape as GET /api/returns, each with vasil_status (pending|done), vasil_done_at and vasil_done_by_email.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "returns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/export.csv": {
+      "get": {
+        "operationId": "vasil_export_csv",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Downloads the Vasil page's pending, done or all tab as a CSV with exactly the same columns as the Reject returns export. Superadmin and KAM only.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "done",
+                "all"
+              ]
+            },
+            "description": "Which tab. Anything else is 400 bad_status."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UTF-8 BOM + CSV; filename vasil-<status>.csv.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/mark-done": {
+      "post": {
+        "operationId": "vasil_mark_done",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Ticks the selected pending AWBs as uploaded to Vasil Operator; rows already done or hidden are skipped. Touches only vasil_migration, never return_parcel.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "description": "return_parcel.id values; empty is 400 no_ids."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows moved to done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/mark-pending": {
+      "post": {
+        "operationId": "vasil_mark_pending",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Moves the selected done AWBs back to pending (undo for a mis-click); clears who/when it was marked.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "description": "return_parcel.id values; empty is 400 no_ids."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows moved back to pending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vasil/hide": {
+      "post": {
+        "operationId": "vasil_hide",
+        "tags": [
+          "vasil"
+        ],
+        "summary": "Removes the selected AWBs from the Vasil page only (status hidden); the reject return itself is never deleted and stays on Reject returns.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "description": "return_parcel.id values; empty is 400 no_ids."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Count of rows hidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer"
+                    }
+                  }
                 }
               }
             }

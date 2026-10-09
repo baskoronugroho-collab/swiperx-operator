@@ -49,6 +49,11 @@ const ROLE_INFO: Record<Role, { label: string; blurb: string; grants: string[] }
       "goes straight to DE. Grants nothing on its own — assign a real role alongside it.",
     grants: [],
   },
+  kam: {
+    label: "KAM",
+    blurb: "Key account manager: views Reject returns and runs Migrate to Vasil Operator.",
+    grants: ["Reject returns (view only)", "Migrate to Vasil Operator"],
+  },
   swiperx: {
     label: "SwipeRx",
     blurb: "Reserved for SwipeRx's own read-only report — not built yet in this cut.",

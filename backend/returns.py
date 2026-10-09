@@ -46,7 +46,7 @@ router = APIRouter(prefix="/api/returns", tags=["returns"])
 # Everyone in the loop can SEE the worklist — IC needs to know what is coming to print
 # long before it is theirs to act on ("Station IC can still see it", 19 Aug). `validator` is
 # deliberately absent: the role no longer has a step on this lane.
-viewer_roles = require_roles("implant", "de", "station_ic", "program_manager")
+viewer_roles = require_roles("implant", "de", "station_ic", "program_manager", "kam")
 de_roles = require_roles("implant", "de")
 # RTS moved to DE with the validator gate (31 Aug) — it is the same person who exports the
 # return OC, so both closing paths now start from one desk.
@@ -560,10 +560,8 @@ async def export_rts_csv(_: dict = Depends(rts_roles)):
 
 
 # ------------------------------------------------------------------ audit ----
-@router.get("/export.csv")
-async def export_csv(_: dict = Depends(viewer_roles)):
-    """Flat export of the worklist with its full audit trail."""
-    rows = await _rows()
+def worklist_csv(rows: list[dict]) -> str:
+    """The flat worklist CSV (header + one line per row), shared with the Vasil page export."""
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
@@ -586,5 +584,11 @@ async def export_csv(_: dict = Depends(viewer_roles)):
             s["flagged_at"] or "", s["flagged_by_email"] or "", s["flag_note"] or "",
             s["return_tids"] or "",
         ])
-    return Response(content="﻿" + buf.getvalue(), media_type="text/csv",
+    return "\ufeff" + buf.getvalue()
+
+
+@router.get("/export.csv")
+async def export_csv(_: dict = Depends(viewer_roles)):
+    """Flat export of the worklist with its full audit trail."""
+    return Response(content=worklist_csv(await _rows()), media_type="text/csv",
                     headers={"Content-Disposition": 'attachment; filename="reject-returns.csv"'})

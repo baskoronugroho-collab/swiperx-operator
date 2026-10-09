@@ -27,6 +27,7 @@ from returns import router as returns_router
 from security import current_user, proxy_email
 from storage import store
 from users import router as users_router
+from vasil import router as vasil_router
 
 
 @asynccontextmanager
@@ -43,6 +44,7 @@ app.include_router(users_router)
 app.include_router(hubs_router)
 app.include_router(oc_router)
 app.include_router(returns_router)
+app.include_router(vasil_router)
 # Phase-1 field-test instrument: one hand-typed courier link, no TMP file. Separate from
 # oc.py so it can be removed wholesale once the OC intake path is trusted (manual.py).
 app.include_router(manual_router)

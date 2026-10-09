@@ -10,6 +10,7 @@ import IntakeHistory from "./pages/IntakeHistory";
 import CourierLinks from "./pages/CourierLinks";
 import Users from "./pages/Users";
 import Hubs from "./pages/Hubs";
+import VasilMigration from "./pages/VasilMigration";
 import IntakeDetailPage from "./pages/IntakeDetail";
 import RejectReturns from "./pages/RejectReturns";
 import ManualLink from "./pages/ManualLink";
@@ -39,7 +40,7 @@ function Protected({ roles, children }: { roles: Role[]; children: React.ReactNo
   return <>{children}</>;
 }
 
-const OPS: Role[] = ["implant", "de", "station_ic", "program_manager"];
+const OPS: Role[] = ["implant", "de", "station_ic", "program_manager", "kam"];
 const INTAKE: Role[] = ["implant", "de"];
 
 function Router() {
@@ -96,6 +97,14 @@ function Router() {
           element={
             <Protected roles={OPS}>
               <RejectReturns />
+            </Protected>
+          }
+        />
+        <Route
+          path="/returns/vasil"
+          element={
+            <Protected roles={["kam"]}>
+              <VasilMigration />
             </Protected>
           }
         />

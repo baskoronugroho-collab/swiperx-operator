@@ -107,6 +107,10 @@ CREATE TABLE hub (
   active INTEGER NOT NULL DEFAULT 1, oc_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE vasil_migration (
+  return_parcel_id INTEGER PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending',
+  done_at TIMESTAMP, done_by INTEGER, hidden_at TIMESTAMP, hidden_by INTEGER, updated_at TIMESTAMP
+);
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, entity TEXT,
   entity_id TEXT, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -129,6 +133,8 @@ SEED = [
     # short-circuits on it. Seeded so tests can pin that, rather than trusting the guard.
     ("INSERT INTO users (id, name, google_email, active) VALUES (5,'Admin Dev','admin@ninjavan.co',1)", ()),
     ("INSERT INTO user_roles (user_id, role) VALUES (5,'superadmin')", ()),
+    ("INSERT INTO users (id, name, google_email, active) VALUES (6,'Kam K.','kam.k@ninjavan.co',1)", ()),
+    ("INSERT INTO user_roles (user_id, role) VALUES (6,'kam')", ()),
 ]
 
 _PLACEHOLDER = re.compile(r"%s")
@@ -198,6 +204,14 @@ def client(dbs):  # noqa: ARG001 — dbs must be applied before the app imports
 def de_client(client):
     """Signed in as Dewi K. — holds both `de` and `implant`."""
     r = client.post("/api/auth/dev-login", json={"email": "dewi.k@ninjavan.co"})
+    assert r.status_code == 200, r.text
+    return client
+
+
+@pytest.fixture()
+def kam_client(client):
+    """Signed in as Kam K. — holds only `kam`."""
+    r = client.post("/api/auth/dev-login", json={"email": "kam.k@ninjavan.co"})
     assert r.status_code == 200, r.text
     return client
 

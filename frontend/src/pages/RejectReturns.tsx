@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError, api } from "../lib/api";
 import type { RejectReturn, ReturnStage } from "../lib/api";
@@ -185,12 +186,22 @@ export default function RejectReturns() {
             no new tracking number, no print step.
           </p>
         </div>
-        <a
-          href={api.returns.exportUrl()}
-          className="rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas-soft"
-        >
-          Export CSV
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          {has("kam") && (
+            <Link
+              to="/returns/vasil"
+              className="rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas-soft"
+            >
+              Migrate to Vasil Operator
+            </Link>
+          )}
+          <a
+            href={api.returns.exportUrl()}
+            className="rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-canvas-soft"
+          >
+            Export CSV
+          </a>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-3">

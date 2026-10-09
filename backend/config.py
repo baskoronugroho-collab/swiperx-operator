@@ -51,5 +51,5 @@ SESSION_COOKIE = "swiperx_session"
 SESSION_TTL_SECONDS = 8 * 3600
 ALL_ROLES = (
     "superadmin", "program_manager", "de", "implant",
-    "station_ic", "validator", "swiperx",
+    "station_ic", "validator", "swiperx", "kam",
 )

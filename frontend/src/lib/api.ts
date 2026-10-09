@@ -53,7 +53,8 @@ export type Role =
   | "implant"
   | "station_ic"
   | "validator"
-  | "swiperx";
+  | "swiperx"
+  | "kam";
 
 export interface User {
   id: number;
@@ -322,10 +323,17 @@ export interface Hub {
   updated_at: string | null;
 }
 
+export type VasilView = "pending" | "done" | "all";
+export type VasilReturn = RejectReturn & {
+  vasil_status: "pending" | "done";
+  vasil_done_at: string | null;
+  vasil_done_by_email: string | null;
+};
+
 export type HubPatch = Partial<{ origin: string | null; active: boolean; oc_enabled: boolean }>;
 
 export const ALL_ROLES: Role[] = [
-  "superadmin", "program_manager", "de", "implant", "station_ic", "validator", "swiperx",
+  "superadmin", "program_manager", "de", "implant", "station_ic", "validator", "swiperx", "kam",
 ];
 
 /** One hand-typed test link (manual.py). `children_mode: "blank"` leaves col AC empty so
@@ -502,6 +510,16 @@ export const api = {
       postJson<CourierSubmitResult>(`/api/c/${token}/fail`, body),
   },
 
+  vasil: {
+    list: (status: VasilView) =>
+      get<{ returns: VasilReturn[]; count: number }>(`/api/vasil/returns?status=${status}`),
+    exportUrl: (status: VasilView) => `/api/vasil/export.csv?status=${status}`,
+    markDone: (ids: number[]) => postJson<{ updated: number }>("/api/vasil/mark-done", { ids }),
+    markPending: (ids: number[]) =>
+      postJson<{ updated: number }>("/api/vasil/mark-pending", { ids }),
+    /** Hides from the Vasil page only — the reject return itself is never deleted. */
+    hide: (ids: number[]) => postJson<{ updated: number }>("/api/vasil/hide", { ids }),
+  },
   returns: {
     list: (stage?: string) =>
       get<{ returns: RejectReturn[] }>(`/api/returns${stage ? `?stage=${stage}` : ""}`),
