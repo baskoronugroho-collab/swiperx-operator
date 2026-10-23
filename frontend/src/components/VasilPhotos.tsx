@@ -1,15 +1,16 @@
 import { useState } from "react";
 
 import { ApiError, api } from "../lib/api";
-import type { DocType, VasilPhoto, VasilReturn } from "../lib/api";
+import type { VasilDocType, VasilPhoto, VasilReturn } from "../lib/api";
 
 /** Photo fixes for one AWB, on the Vasil page only. Removing a courier photo just hides it
  *  from this page; an upload is kept apart from the courier's photos. Reject returns never
  *  sees any of this. */
-const KINDS: { doc: DocType; label: string }[] = [
+const KINDS: { doc: VasilDocType; label: string }[] = [
   { doc: "delivery_note", label: "DN photos" },
   { doc: "rejected_goods", label: "Item photos" },
   { doc: "sp_manual", label: "SP manual photos" },
+  { doc: "invoice", label: "Invoice photos" },
 ];
 
 export default function VasilPhotos({ row, onChanged }: { row: VasilReturn; onChanged: () => void }) {
@@ -44,7 +45,7 @@ export default function VasilPhotos({ row, onChanged }: { row: VasilReturn; onCh
     <div className="mt-4 space-y-3">
       <p className="text-xs font-semibold uppercase text-ink-muted">Fix photos (Vasil page only)</p>
       {error && <p className="text-xs text-danger">{error}</p>}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {KINDS.map((k) => {
           const photos = row.proof_photos.filter((p) => p.doc_type === k.doc);
           return (

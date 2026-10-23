@@ -22,8 +22,9 @@ const REASON_LABEL: Record<VasilReason, string> = {
   dn: "No proper DN photos",
   item: "No item photos",
   sp_manual: "No SP manual photos",
+  invoice: "No invoice",
 };
-const REASON_KEYS: VasilReason[] = ["dn", "item", "sp_manual"];
+const REASON_KEYS: VasilReason[] = ["dn", "item", "sp_manual", "invoice"];
 
 const STAGE_LABEL: Record<string, string> = {
   pending_de_upload: "Pending DE upload",

@@ -145,8 +145,8 @@ def test_unable_moves_the_row_out_of_pending_with_its_reasons(kam_client, reject
     body = kam_client.get("/api/vasil/returns?status=unable").json()
     assert [r["id"] for r in body["returns"]] == [rid]
     assert body["returns"][0]["unable_reasons"] == ["dn", "item"]
-    assert body["reason_counts"] == {"dn": 1, "item": 1, "sp_manual": 0}
-    assert [r["key"] for r in body["reasons"]] == ["dn", "item", "sp_manual"]
+    assert body["reason_counts"] == {"dn": 1, "item": 1, "sp_manual": 0, "invoice": 0}
+    assert [r["key"] for r in body["reasons"]] == ["dn", "item", "sp_manual", "invoice"]
     assert _ids(kam_client, "all") == [rid]
 
 
@@ -276,3 +276,30 @@ def test_photo_upload_rules(kam_client, rejected, client):  # noqa: ARG001
                        files=photo()).status_code == 403
     assert client.post(f"/api/vasil/returns/{rid}/photos/remove",
                        json={"source": "vasil", "ref_id": 1}).status_code == 403
+
+
+def test_no_invoice_reason_and_invoice_photos(kam_client, rejected, dbs):  # noqa: ARG001
+    from conftest import photo
+
+    rid = _rid(kam_client)
+    assert _unable(kam_client, rid, ["invoice", "dn"]).json()["updated"] == 1
+    body = kam_client.get("/api/vasil/returns?status=unable").json()
+    assert body["returns"][0]["unable_reasons"] == ["dn", "invoice"]
+    assert body["reason_counts"]["invoice"] == 1
+    assert len(kam_client.get("/api/vasil/returns?status=unable&reason=invoice").json()["returns"]) == 1
+    assert kam_client.get("/api/vasil/export.csv?status=unable").text.splitlines()[1].endswith(
+        "no proper DN photos, no invoice") or "no invoice" in kam_client.get(
+        "/api/vasil/export.csv?status=unable").text
+
+    # The courier never took an invoice photo, so the only invoice photos are uploads here.
+    assert [p for p in _photos(kam_client, rid, "unable") if p["doc_type"] == "invoice"] == []
+    before = _captures(dbs)
+    up = kam_client.post(f"/api/vasil/returns/{rid}/photos", data={"doc_type": "invoice"},
+                         files=photo("inv.png"))
+    assert up.status_code == 201, up.text
+    inv = [p for p in _photos(kam_client, rid, "unable") if p["doc_type"] == "invoice"]
+    assert len(inv) == 1 and inv[0]["source"] == "vasil"
+    assert kam_client.post(f"/api/vasil/returns/{rid}/photos/remove",
+                           json={"source": "vasil", "ref_id": inv[0]["ref_id"]}).status_code == 200
+    assert [p for p in _photos(kam_client, rid, "unable") if p["doc_type"] == "invoice"] == []
+    assert _captures(dbs) == before

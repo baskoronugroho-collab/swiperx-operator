@@ -36,9 +36,11 @@ REASONS = {
     "dn": "no proper DN photos",
     "item": "no item photos",
     "sp_manual": "no sp manual photos",
+    "invoice": "no invoice",
 }
-# The three photo kinds those reasons are about; the AWB sticker is shown but not edited.
-EDITABLE_DOCS = ("delivery_note", "rejected_goods", "sp_manual")
+# The photo kinds those reasons are about; the AWB sticker is shown but not edited. The
+# courier never photographs an invoice, so `invoice` photos only ever come from this page.
+EDITABLE_DOCS = ("delivery_note", "rejected_goods", "sp_manual", "invoice")
 SHOWN_DOCS = ("delivery_note", "rejected_goods", "awb_sticker", "sp_manual")
 
 

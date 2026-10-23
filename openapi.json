@@ -3737,7 +3737,8 @@
               "enum": [
                 "dn",
                 "item",
-                "sp_manual"
+                "sp_manual",
+                "invoice"
               ]
             },
             "description": "Only rows flagged with this reason (unable tab)."
@@ -3838,7 +3839,8 @@
               "enum": [
                 "dn",
                 "item",
-                "sp_manual"
+                "sp_manual",
+                "invoice"
               ]
             },
             "description": "Only rows flagged with this reason (unable tab)."
@@ -4038,10 +4040,11 @@
                       "enum": [
                         "dn",
                         "item",
-                        "sp_manual"
+                        "sp_manual",
+                        "invoice"
                       ]
                     },
-                    "description": "One or more of dn (no proper DN photos), item (no item photos), sp_manual (no sp manual photos); empty or unknown is 400 bad_reasons."
+                    "description": "One or more of dn, item, sp_manual, invoice (no invoice); empty or unknown is 400 bad_reasons."
                   }
                 }
               }
@@ -4100,10 +4103,11 @@
                       "enum": [
                         "dn",
                         "item",
-                        "sp_manual"
+                        "sp_manual",
+                        "invoice"
                       ]
                     },
-                    "description": "One or more of dn (no proper DN photos), item (no item photos), sp_manual (no sp manual photos); empty or unknown is 400 bad_reasons."
+                    "description": "One or more of dn, item, sp_manual, invoice (no invoice); empty or unknown is 400 bad_reasons."
                   }
                 }
               }
@@ -4135,7 +4139,7 @@
         "tags": [
           "vasil"
         ],
-        "summary": "Adds a replacement photo (delivery_note, rejected_goods or sp_manual) that exists on the Vasil page only; the courier's photos in document_capture are never touched.",
+        "summary": "Adds a replacement photo (delivery_note, rejected_goods, sp_manual or invoice) that exists on the Vasil page only; the courier's photos in document_capture are never touched. Invoice photos have no courier original.",
         "parameters": [
           {
             "name": "rid",
@@ -4163,7 +4167,8 @@
                     "enum": [
                       "delivery_note",
                       "rejected_goods",
-                      "sp_manual"
+                      "sp_manual",
+                      "invoice"
                     ]
                   },
                   "po_number": {

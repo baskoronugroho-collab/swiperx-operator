@@ -324,13 +324,15 @@ export interface Hub {
 }
 
 export type VasilView = "pending" | "done" | "unable" | "all";
-export type VasilReason = "dn" | "item" | "sp_manual";
+export type VasilReason = "dn" | "item" | "sp_manual" | "invoice";
+/** Photo kinds on the Vasil page: the courier's, plus `invoice`, which only exists there. */
+export type VasilDocType = DocType | "invoice";
 /** One photo on the Vasil page: a courier photo (`original`) or a replacement uploaded
  *  there (`vasil`). Removing either only affects the Vasil view. */
 export interface VasilPhoto {
   source: "original" | "vasil";
   ref_id: number;
-  doc_type: DocType;
+  doc_type: VasilDocType;
   po_number: string | null;
   photo_url: string;
   editable: boolean;
@@ -557,7 +559,7 @@ export const api = {
     /** Hides from the Vasil page only — the reject return itself is never deleted. */
     hide: (ids: number[]) => postJson<{ updated: number }>("/api/vasil/hide", { ids }),
     /** A replacement photo that exists on the Vasil page only. */
-    uploadPhoto: (id: number, docType: DocType, file: File, poNumber?: string) => {
+    uploadPhoto: (id: number, docType: VasilDocType, file: File, poNumber?: string) => {
       const fd = new FormData();
       fd.append("doc_type", docType);
       fd.append("file", file);
